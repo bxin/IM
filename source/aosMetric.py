@@ -14,6 +14,8 @@ from cwfsTools import padArray
 from cwfsErrors import nonSquareImageError
 from aosErrors import psfSamplingTooLowError
 
+import cwfsPlots as plot
+
 class aosMetric(object):
 
     def __init__(self,wfs, debugLevel):
@@ -87,7 +89,8 @@ class aosMetric(object):
             
             if debugLevel>=2:
                 print('field#%d, PSSN=%7.4f'%(i,self.PSSN[i]))
-
+            #exit()
+            
         self.GQPSSN=np.sum(self.w*self.PSSN)
         if debugLevel>=2:
             print(self.GQPSSN)
@@ -107,11 +110,12 @@ class aosMetric(object):
                 opd=np.zeros((self.stampD,self.stampD))
                 opd[:a.shape[0],:a.shape[1]] = a
             
-            self.elli[i] = psf2eAtmW(opd,wavelength,debugLevel=debugLevel)
+            self.elli[i],_,_,_ = psf2eAtmW(opd,wavelength,debugLevel=debugLevel)
             
             if debugLevel>=2:
                 print('field#%d, elli=%7.4f'%(i,self.elli[i]))
-
+            #exit()
+            
         self.GQelli=np.sum(self.w*self.elli)
         if debugLevel>=2:
             print(self.GQelli)
@@ -127,7 +131,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36,r0inmRef=0.1382, zen=0,
     D: side length of OPD image in meter 
     r0inmRef: fidicial atmosphere r0@500nm in meter, Konstantinos uses 0.20
     Now that we use vonK atmosphere, r0in=0.1382 -> fwhm=0.6"
-    earlier, we used Kol atmosphere, r0in=0.1679 -> fwhm=0.6"
+    earlier, we used Kolm atmosphere, r0in=0.1679 -> fwhm=0.6"
     zen: telescope zenith angle
 
     The following are only needed when the input array is psf -    
@@ -155,14 +159,13 @@ def calc_pssn(array, wlum, type='opd', D=8.36,r0inmRef=0.1382, zen=0,
             m=max(array2D.shape)
         except NameError:
             m=max(array.shape)
+        k = 1
     else:
         m = max(pmask.shape)
         #pupil needs to be padded k times larger to get imagedelta
         k=fno*wlum/imagedelta
-        m=np.rint(m*k+1e-5)
-        D=D*k
 
-    mtfa = createMTFatm(D,m,wlum,zen,r0inmRef)
+    mtfa = createMTFatm(D,m,k,wlum,zen,r0inmRef)
     
     if type=='opd':
         try:
@@ -210,43 +213,40 @@ def calc_pssn(array, wlum, type='opd', D=8.36,r0inmRef=0.1382, zen=0,
     pss = np.sum(psftot**2) # atmospheric + error PSS
 
     pssn = pss/pssa # normalized PSS
-    
+
     return pssn
 
-def createMTFatm(D,m, wlum,zen,r0inmRef):
-    
-    wlm = wlum*1.e-6
+def createMTFatm(D,m, k, wlum,zen,r0inmRef):
+    """
+    m is the number of pixel we want to have to cover the length of D/wl.
+    If we want a k-times bigger array, we pad the mtf generated using k=1.
+    """
 
-    df = D/wlm/(m-1) # frequency resolution in 1/rad
+    sfa = atmSF('vonK', D,m, wlum,zen,r0inmRef)
+    mtfa = np.exp(-0.5*sfa)
+
+    N=np.rint(m*k+1e-5)
+    mtfa = padArray(mtfa, N)
+
+    return mtfa
+        
+def atmSF(model,D,m, wlum,zen,r0inmRef):
+    """
+    create the atmosphere phase structure function
+    model = 'Kolm'
+             = 'vonK'
+    """
+    r0a = r0Wz(r0inmRef, zen, wlum)
+    L0=30  #outer scale in meter, only used when model=vonK
+
     m0 = np.rint(0.5*(m+1)+1e-5)
     aa = np.arange(1,m+1)
     x, y=np.meshgrid(aa,aa)
     
-    f = df*np.sqrt((x-m0)**2+(y-m0)**2)
-    
-    zen = zen*np.pi/180. # telescope zenith angle, change here
-    r0aref = r0inmRef*np.cos(zen)**0.6 #atmosphere reference r0
-    r0a = r0aref*(wlum/0.5)**1.2 #atmosphere r0, a function of wavelength
-    L0=30  #outer scale in meter, only used when model=vonK
+    dr = D/(m-1) # frequency resolution in 1/rad
+    r = dr*np.sqrt((x-m0)**2+(y-m0)**2)
 
-    #atmosphere structure function, in range [-D/2, D/2]    
-    #sfa=atmSF('Kol',wlm*f,r0a,L0)
-    sfa=atmSF('vonK',wlm*f,r0a,L0) 
-    mtfa = np.exp(-0.5*sfa)
-
-    return mtfa
-        
-def atmSF(model,r,r0a,L0):
-    """
-    create the atmosphere phase structure function
-    model = 'Kol'
-             = 'vonK'
-    r is the input array, for calculating atmosphere OTF, r=lambda*f
-    r0a is the atmosphere r0, a function of wavelength
-    L0 is outer scale in meter, only meaningful for vonK model
-    """
-
-    if model == 'Kol':
+    if model == 'Kolm':
         sfa = 6.88*(r/r0a)**(5/3)        
     elif model == 'vonK':
         sfa_c=2*sp.gamma(11/6)/2**(5/6)/np.pi**(8/3)*\
@@ -262,16 +262,104 @@ def atmSF(model,r,r0a,L0):
 
     return sfa
 
+def r0Wz(r0inmRef, zen, wlum):
+    zen = zen*np.pi/180. # telescope zenith angle, change here
+    r0aref = r0inmRef*np.cos(zen)**0.6 #atmosphere reference r0
+    r0a = r0aref*(wlum/0.5)**1.2 #atmosphere r0, a function of wavelength
+    return r0a
+    
 def psf2eAtmW(wfm, wlum, D=8.36,pmask=0,r0inmRef=0.1382,
+              sensorFactor=1,
               zen=0, imagedelta=0.2,fno=1.2335,debugLevel=0):
 
-    psfe=opd2psf(wfm,0,wlum, imagedelta,1,fno, debugLevel)
+    psfe=opd2psf(wfm,0,wlum, imagedelta,sensorFactor,fno, debugLevel)
     otfe = psf2otf(psfe) #OTF of error
     
-    m = psfe.shape[0] #used to use wfm.shape[0]
-    mtfa = createMTFatm(D, m, wlum, zen, r0inmRef)
-            
+    m = wfm.shape[0]/sensorFactor
+    k=fno*wlum/imagedelta
+    #since padding=k/sensorFactor<=k, any psfSamplingTooLowError
+    #would have been raised in opd2psf()
+    mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
 
+    otf = otfe * mtfa
+    psf = otf2psf(otf)
+
+    e, q11, q22, q12 = psf2eW(psf, imagedelta, wlum, 'Gau',debugLevel)
+
+    return e, q11, q22, q12
+
+def psf2eW(psf,pixinum, wlum, atmModel, debugLevel=0):
+
+    x,y = np.meshgrid(np.arange(1,psf.shape[0]+1),
+                      np.arange(1,psf.shape[1]+1))
+    xbar = np.sum(x*psf)/np.sum(psf)
+    ybar = np.sum(y*psf)/np.sum(psf)
+
+    r2 = (x-xbar)**2+(y-ybar)**2
+
+    fwhminarcsec = 0.6
+    oversample=1
+    W = createAtm(atmModel, wlum, fwhminarcsec, r2, pixinum, oversample,
+                  0, '', debugLevel)
+    
+    if debugLevel>=3:
+        print('xbar=%6.3f, ybar=%6.3f'%(xbar,ybar))
+        #plot.plotImage(psf,'')
+        #plot.plotImage(W,'')
+        
+    psf = psf*W #apply weighting function
+
+    Q11=np.sum( ((x-xbar)**2)*psf ) /np.sum(psf)
+    Q22=np.sum( ((y-ybar)**2)*psf ) /np.sum(psf)
+    Q12=np.sum( ((x-xbar)*(y-ybar))*psf ) /np.sum(psf)
+
+    T=Q11+Q22
+    if T>1e-20:
+        e1=(Q11-Q22)/T
+        e2=2*Q12/T
+    
+        e=np.sqrt(e1**2+e2**2)
+    else:
+        e=0
+
+    return e, Q11, Q22, Q12
+
+
+def createAtm(model, wlum, fwhminarcsec, gridsize, pixinum, oversample,
+              cutOutput, outfile,debugLevel):
+    """
+    gridsize can be int or an array. When it is array, it is r2
+    cutOutput only applies to Kolm and vonK
+    """
+    if isinstance(gridsize, (int)):
+        nreso = gridsize* oversample
+        nr = nreso/2 #n for radius length
+        aa = np.linspace(-nr+0.5,nr-0.5, nreso)
+        x,y=np.meshgrid(aa)
+        r2 = x*x + y*y
+    else:
+        r2 = gridsize
+        
+    if model[:4]=='Kolm' or model[:4]=='vonK':
+        pass
+    else:
+        fwhminum=fwhminarcsec/0.2*10
+        if model == 'Gau':
+            sig=fwhminum/2/np.sqrt(2*np.log(2)) #in micron
+            sig=sig/(pixinum/oversample)
+            z=np.exp(-r2/2/sig**2)
+        elif model == '2Gau':
+            # below is used to manually solve for sigma
+            # let x = exp(-r^2/(2*alpha^2)), which results in 1/2*max
+            # we want to get (1+.1)/2=0.55 from below
+            # x=0.4673194304;printf('%20.10f\n'%x**.25*.1+x);
+            sig=fwhminum/(2*np.sqrt(-2*np.log(0.4673194304)))
+            sig=sig/(pixinum/oversample) #in (oversampled) pixel
+            z=exp(-r2/2/sig**2)+0.4/4*exp(-r2/8/sig**2)
+        if debugLevel>=2:
+            print('sigma1=%6.4f arcsec'%(sig*(pixinum/oversample)/10*0.2))
+    return z
+    
 def opd2psf(opd, pupil, wavelength, imagedelta, sensorFactor,fno,debugLevel):
     """
     wavefront OPD in micron

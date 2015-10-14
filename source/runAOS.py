@@ -131,7 +131,7 @@ def main():
             state.getWFS4(metr, args.numproc, args.debugLevel)
 
 #        metr.getPSSNandMore(state, args.wavelength, args.debugLevel)
-        metr.getEllipticity(state, args.wavelength, args.debugLevel)
+#        metr.getEllipticity(state, args.wavelength, args.debugLevel)
             
 if __name__ == "__main__":
     main()
