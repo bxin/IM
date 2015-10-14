@@ -1,0 +1,23 @@
+###
+
+This file contains the parameters for the AOS controller 
+
+###
+
+#control strategy
+control_strategy      optiPSSN
+shift_gear		0
+
+#M1M3 actuator penalty factor
+#how many microns of rigid body motion does 1N rms force correspond to
+#the bigger the number, the bigger the penalty
+M1M3_actuator_penalty	1
+
+#M2 actuator penalty factor
+#how many microns of rigid body motion does 1N rms force correspond to
+#the bigger the number, the bigger the penalty
+M2_actuator_penalty   1
+
+#penalty on control motion as a whole
+# default below is 0.0010, meaning 1N force is as bad as 0.0010 increase in pssn
+Motion_penalty		0.0010

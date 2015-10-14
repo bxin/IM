@@ -1,0 +1,27 @@
+###
+
+This instrument file is for single dof unit testing
+
+###
+
+#which line below will be used as initial condition
+idof           1
+#M2 | |cam| |M1M3 bending         | |M2 bending           |
+10000 00000 00000 00000 00000 00000 00000 00000 00000 00000
+00000 10000 00000 00000 00000 00000 00000 00000 00000 00000
+
+#wavefront sensing star magnitude
+cwfs_mag	17
+#wavefront sensing image stamp size
+cwfs_stamp_size	128
+
+#use 0 for eimage only, without backgrounds
+eimage		0
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		22
+#psf image stamp size
+psf_stamp_size	128
+
