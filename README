@@ -1,0 +1,117 @@
+main configuration files are the following in data/
+*.ctrl, *.esti, *.inst
+Right now, i have
+optiPSSN.ctrl, pinv.esti, single_dof.inst
+
+The following classes have been defined and might be confused with
+each other: (use pdb mode and dir() to show the attributes and methods)
+* in the front indicates that it changes with iteration
+
+aosController->ctrl:
+	filename	*.ctrl in data/
+	mQ		as in (x^T Q x) in the cost function
+	rho		as in J = (x^T Q x + rho^2 u^T H u)
+	rhoM13		as in H = block_diag(mHr, rhoM13**2*mHM13, rhoM2**2*mHM2)
+	rhoM2		as in H = block_diag(mHr, rhoM13**2*mHM13, rhoM2**2*mHM2)
+	mF		pinv(Q+rho^2*H)
+*	shiftGear	after it converges, we change optimal estimator to stablize the system
+	strategy	control strategy, such as optiPSSN
+	gain		control feedback gain
+
+	functions():
+	getMotions		determine the control motions to be applied to the next iteration
+	drawControlPanel	plot Zn and what happens to Zn if we apply proposed change
+	
+aosEstimator ->esti
+	filename	*.esti in data/
+	compIdx		which columns of the senM are used
+	icomp		row# for choosing compIdx
+	zn3Idx		which rows of the senM are used
+	izn3	        row# for choosing zn3Idx
+	zn3IdxAx4	zn3Idx repeated 4 times, for indexing A matrix
+	nB13Max		Max No. of M13 bending modes we might use
+	nB2Max		Max No. of M2 bending modes we might use
+	znMax		Max Zernike order we might use
+	zn3Max		Max number of Zernike we might use, this = znMax-3
+	nSingularInf	No. of singular values we set to Inf during pinv()
+	ndofA		nB13Max+nB2Max+10
+	normalizedA	control switch, whether or not we normalize A matrix
+	senM		3D senM, 35x19x50
+	senMFile	filename for senM
+	strategy	estimator strategy, such as pinv	
+	A		A-matrix, size is (zn3Max)x(ndofA)
+	Ause		A-matrix that we actually use in estimator, after applying zn3IdxAx4 and compIdx
+	Anorm		A-matrix normalized (if normalizeA==true), otherwise same as Ause
+	Ainv		the pinv() of A
+	xhat		estimated x, i.e., estimated system state
+	yfinal	Zernikes from previous iteration, with intrinsic aberration subtracted
+	yresi		 Zernikes we'd get if we apply full correction (without gain factor)
+
+	functions():
+	estimate	estimate state
+
+aosTeleState  ->state
+	instruFile	*.inst in data/, this defines the initial state, and what effect we turn on/off
+	iSim		current simulation No.
+*	iIter		current iteration No.
+	pertDir		where the pert files are stored
+*	pertFile	pert file for the current iteration
+	imageDir	where the Phosim images and moved to and stored; also includes the Zernike fit results
+	phosimDir	where the Phosim code is
+	opdSize		size of Phosim OPD maps	
+	psfMag		mag of the star for PSF31
+	psfStampSize	size of the PSF image stamps that we cut out
+*	stateV		state vector, this = x in the cost function J
+	phosimActuatorID	actuator ID used in Phosim to index the DoF
+	OPD_inst		instance catalog file used for generating OPD maps
+	OPD_cmd		command file used for generating OPD maps
+	OPD_log		Phosim log from the OPD run
+	PSF_inst	       instance catalog file used for generating PSF images
+	zFile_m1	       filename for the zernikes from the previous iteration
+	
+	functions():
+	writePertFile		write state vector to pert file
+	getOPD35	take pert file, create Phosim command and inst files, create OPDs@35 fields
+	getPSF31	take pert file, create Phosim command and inst files, create PSFs@31 fields 
+	getWFS4		take pert file, create Phosim command and inst files, create wavefront images@4 corners
+	setIterNo	manually update the iter No.	
+
+
+aosWFS          ->wfs
+	znwcs		No. of Zernikes in cwfs output
+	znwcs3		znwcs -3 (no ptt)
+	cwfsDir		where the cwfs code is
+	algo		algo as defined in cwfs
+	inst		inst as defined in cwfs
+	intrinsic4c	intrinsic wavefront @ 4 corners, 76x1
+*	myZn		results of cwfs from two exposures, 76x2
+*	phosimZn	true wavefront accoring to phosim (counterpart of myZn)
+*	yfinal		final wavefront to be fed to estimator
+
+aosMetric      ->metr
+	fieldX		x coordinate of the 35 fields, in deg.
+	fieldY		y coordinate of the 35 fields, in deg.
+	fieldXp		fieldX slightly modified, for PSF generation, to avoid chip edges
+        fieldYp         fieldY slightly modified, for PSF generation, to avoid chip edges
+	nArm		6, for distribution of 31 fields
+	nRing		5, for distribution of 31 fields
+	nField		31, No. of fields
+	nFieldp4	=nField+4, No. of fields including the 4 corners
+	pssnAlpha	alpha values used in PSSN evaluation
+	w		weights for fields in Gaussian Quadrature	
+	znx2		wavefront Zernikes due to x2 (uncontrolled DoF), 
+			used with senM and stateV to estimate total wavefront, and FWHM
+	fwhmModelFileBase	pointer to files that contains ai,bi etc. for the quadrature model of FWHMgeo
+	PSSN			31x1 vector
+	FWHMeff			31x1 vector
+	dm5			31x1 vector
+
+	functions():
+	getPSSNandMore		calculate PSSN,FWHMeff,dm5 for 31 PSFs using Phosim OPDs
+	getEllipticity		calculate ellipticity for 31 PSFs using Phosim OPDs
+        getPSSNandMore10um  	calculate PSSN,FWHMeff,dm5 for 31 PSFs using Phosim PSFs
+        getEllipticity10um  	calculate ellipticity for 31 PSFs using Phosim PSFs
+	getFWHMfromZ		calculate FWHMgeo using the quadrature model with wavefront Zernikes
+	getPSSNfromZ		calculate PSSN using the alpha values with wavefront Zernikes
+
+

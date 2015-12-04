@@ -1,0 +1,9 @@
+###
+
+This file contains the parameters for the AOS controller 
+
+###
+
+#control strategy
+control_strategy      null
+
