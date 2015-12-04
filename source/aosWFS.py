@@ -27,7 +27,7 @@ class aosWFS(object):
         intrinsic35=np.loadtxt('data/intrinsic_zn.txt');
         intrinsic35=intrinsic35*wavelength
         self.intrinsic4c=intrinsic35[
-            -4:,4:self.algo.numTerms+1].reshape((-1,1))
+            -4:,3:self.algo.numTerms].reshape((-1,1))
         
         if debugLevel >=3:
             print('znwcs3=%d'%self.znwcs3)

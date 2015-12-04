@@ -37,8 +37,11 @@ class aosMetric(object):
             self.fieldY[i*self.nArm+1: (i+1)*self.nArm+1]=\
               armLen[i]*np.sin(np.arange(self.nArm)*(2*np.pi)/self.nArm)
         self.w = self.w/np.sum(self.w)
-        self.fieldX[self.nField:]=[1.185, -1.185, -1.185, 1.185]
-        self.fieldY[self.nField:]=[1.185, 1.185, -1.185, -1.185]
+        # self.fieldX[self.nField:]=[1.185, -1.185, -1.185, 1.185]
+        # self.fieldY[self.nField:]=[1.185, 1.185, -1.185, -1.185]
+        # counter-clock wise
+        self.fieldX[self.nField:]=[1.176, -1.176, -1.176, 1.176]
+        self.fieldY[self.nField:]=[1.176, 1.176, -1.176, -1.176]
 
         #below, p is for PSF
         self.fieldXp = self.fieldX.copy()
@@ -46,6 +49,8 @@ class aosMetric(object):
 
         self.fieldXp[19] +=0.004
         self.fieldXp[22] -=0.004
+
+        self.fwhmModelFileBase='data/fwhmModel/fwhm_vs_z_500nm'
         
         if debugLevel>=3:
             print(self.w.shape)
@@ -71,7 +76,39 @@ class aosMetric(object):
         
         for i in range(self.nField):
             opdFile='%s/sim%d_iter%d_opd%d.fits'%(
-                state.imageDir, state.iSim,state.iiter,i)
+                state.imageDir, state.iSim,state.iIter,i)
+            IHDU = fits.open(opdFile)
+            opd = IHDU[0].data*1e3 #from mm to um 
+            IHDU.close()
+            
+            self.stampD = 2**np.ceil(np.log2(state.opdSize))
+            if self.stampD>opd.shape[0]:
+                a=opd
+                opd=np.zeros((self.stampD,self.stampD))
+                opd[:a.shape[0],:a.shape[1]] = a
+            
+            self.PSSN[i] = calc_pssn(opd,wavelength,debugLevel=debugLevel)
+            self.FWHMeff[i] = np.sqrt(
+                -1.2187*0.6040**2+0.8127*0.7386**2/self.PSSN[i])
+            self.dm5[i] = -1.25*np.log10(self.PSSN[i])
+            
+            if debugLevel>=2:
+                print('field#%d, PSSN=%7.4f'%(i,self.PSSN[i]))
+            #exit()
+            
+        self.GQPSSN=np.sum(self.w*self.PSSN)
+        if debugLevel>=2:
+            print(self.GQPSSN)
+    
+    def getPSSNandMore10um(self,state,wavelength,debugLevel):
+
+        self.PSSN = np.zeros(self.nField)
+        self.FWHMeff = np.zeros(self.nField)
+        self.dm5 = np.zeros(self.nField)
+        
+        for i in range(self.nField):
+            opdFile='%s/sim%d_iter%d_opd%d.fits'%(
+                state.imageDir, state.iSim,state.iIter,i)
             IHDU = fits.open(opdFile)
             opd = IHDU[0].data*1e3 #from mm to um 
             IHDU.close()
@@ -99,7 +136,7 @@ class aosMetric(object):
         self.elli=np.zeros(self.nField)
         for i in range(self.nField):
             opdFile='%s/sim%d_iter%d_opd%d.fits'%(
-                state.imageDir, state.iSim,state.iiter,i)
+                state.imageDir, state.iSim,state.iIter,i)
             IHDU = fits.open(opdFile)
             opd = IHDU[0].data*1e3 #from mm to um 
             IHDU.close()
@@ -119,7 +156,32 @@ class aosMetric(object):
         self.GQelli=np.sum(self.w*self.elli)
         if debugLevel>=2:
             print(self.GQelli)
-    
+
+    def getEllipticity10um(self,state, wavelength, debugLevel):
+        self.elli=np.zeros(self.nField)
+        for i in range(self.nField):
+            opdFile='%s/sim%d_iter%d_opd%d.fits'%(
+                state.imageDir, state.iSim,state.iIter,i)
+            IHDU = fits.open(opdFile)
+            opd = IHDU[0].data*1e3 #from mm to um 
+            IHDU.close()
+            
+            self.stampD = 2**np.ceil(np.log2(state.opdSize))
+            if self.stampD>opd.shape[0]:
+                a=opd
+                opd=np.zeros((self.stampD,self.stampD))
+                opd[:a.shape[0],:a.shape[1]] = a
+            
+            self.elli[i],_,_,_ = psf2eAtmW(opd,wavelength,debugLevel=debugLevel)
+            
+            if debugLevel>=2:
+                print('field#%d, elli=%7.4f'%(i,self.elli[i]))
+            #exit()
+            
+        self.GQelli=np.sum(self.w*self.elli)
+        if debugLevel>=2:
+            print(self.GQelli)
+                
 def calc_pssn(array, wlum, type='opd', D=8.36,r0inmRef=0.1382, zen=0,
               pmask=0, imagedelta=0.2,fno=1.2335, debugLevel=0):
     """
@@ -417,8 +479,8 @@ def opd2psf(opd, pupil, wavelength, imagedelta, sensorFactor,fno,debugLevel):
     z = z/np.sum(z)
     
     if debugLevel>=3:
-        print('imagedelta=%8.6f'%imagedelta)
-        print(np.sum(z))
+        print('opd2psf(): imagedelta=%8.6f'%imagedelta)
+        print('verify psf has been normalized: %4.1f'%np.sum(z))
         
     return z
 

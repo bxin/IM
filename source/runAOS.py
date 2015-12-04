@@ -29,18 +29,24 @@ def main():
                         help='override izn3 in the estimator parameter file, \
                         default=no override')
     parser.add_argument('-start',dest='startiter',type=int,default=0,
-                        help='iteration No. to start with')
+                        help='iteration No. to start with, default=0')
     parser.add_argument('-end',dest='enditer',type=int,default=5,
-                        help='iteration No. to end with')
+                        help='iteration No. to end with, default=5')
+    parser.add_argument('-sensoroff',help='use true wavefront in estimator',
+                        action='store_true')
     parser.add_argument('-opdoff',help='w/o regenerating OPD maps',
                         action='store_true')
     parser.add_argument('-psfoff',help='w/o regenerating psf images',
                         action='store_true')
     parser.add_argument('-wfsoff',help='w/o regenerating WFS images',
                         action='store_true')
+    parser.add_argument('-pssnoff',help='w/o calculating PSSN',
+                        action='store_true')
+    parser.add_argument('-ellioff',help='w/o calculating ellipticity',
+                        action='store_true')    
     parser.add_argument('-p',dest='numproc',default=1,type=int,
                         help='Number of Processors Phosim uses')    
-    parser.add_argument('-g',dest='gain',type=float,
+    parser.add_argument('-g',dest='gain',default=0.7, type=float,
                         help='override gain in the controller parameter file, \
                         default=no override')
     parser.add_argument('-i', dest='instruParam',
@@ -51,10 +57,10 @@ def main():
                         default='pinv',
                         help='estimator parameter file in data/, default=pinv')
     parser.add_argument('-c', dest='controllerParam',
-                        default='optiPSSN',
-                        help='controller parameter file in data/, default=opti')
+                        default='optiPSSN', choices=('optiPSSN','null'),
+                        help='controller parameter file in data/, default=optiPSSN')
     parser.add_argument('-w',dest='wavelength',type=float,
-                       default=0.5,help='wavelength in micron')
+                       default=0.5,help='wavelength in micron, default=0.5')
     parser.add_argument('-d', dest='debugLevel', type=int,
                         default=0, choices=(-1, 0, 1, 2, 3),
                         help='debug level, -1=quiet, 0=Zernikes, \
@@ -105,33 +111,45 @@ def main():
     # *****************************************
     metr=aosMetric(wfs, args.debugLevel)
     ctrl=aosController(args.controllerParam, esti, metr, M1M3, M2,
-                       args.wavelength, args.debugLevel)
+                       args.wavelength, args.gain, args.debugLevel)
         
-    # *****************************************
-    # logistics
-    # *****************************************    
-    fwhmModelFileBase='data/fwhm_vs_z_500nm'
-    # a circular Gaussian with FWHM=.6', representing the atmosphere
-    # convolution on .1um pixel takes too much CPU
-    atm2D=np.loadtxt('data/atmGau_100x2um.txt') #pixel size = 2um
-
     # *****************************************    
     # start the Loop
     # *****************************************
-    for iiter in range(args.startiter, args.enditer+1):
+    for iIter in range(args.startiter, args.enditer+1):
         if args.debugLevel>=3:
-            print('iteration No. %d'%iiter)
-        state.setIterNo(iiter)
+            print('iteration No. %d'%iIter)
+
+        state.setIterNo(iIter)
+    
+        if iIter>args.startiter:
+            esti.estimate(state, wfs, args.sensoroff)
+            ctrl.getMotions(esti, state)
+
+            #need to remake the pert file here.
+            #It will be inserted into OPD.inst, PSF.inst later
+            state.update(ctrl)
+                        
+            exit()
+    
+        state.writePertFile(esti)
         if not args.opdoff:
             state.getOPD35(wfs, metr, args.numproc, args.wavelength,
                            args.debugLevel)
         if not args.psfoff:
             state.getPSF31(metr, args.numproc, args.debugLevel)
-        if not args.wfsoff:
-            state.getWFS4(metr, args.numproc, args.debugLevel)
 
-#        metr.getPSSNandMore(state, args.wavelength, args.debugLevel)
-#        metr.getEllipticity(state, args.wavelength, args.debugLevel)
+        if not args.pssnoff:
+            metr.getPSSNandMore(state, args.wavelength, args.debugLevel)
             
+        if not args.ellioff:
+            metr.getEllipticity(state, args.wavelength, args.debugLevel)
+
+        if not args.sensoroff:
+            if not args.wfsoff: # and not iIter == args.enditer:
+                state.getWFS4(metr, args.numproc, args.debugLevel)
+            #aosWFS
+
+                        
 if __name__ == "__main__":
     main()

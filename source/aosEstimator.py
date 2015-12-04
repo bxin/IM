@@ -72,8 +72,7 @@ class aosEstimator(object):
         self.senM=self.senM.reshape((-1,self.zn3Max,self.ndofA))
         self.senM=self.senM[:,:,np.concatenate(
             (range(10+self.nB13Max),
-             range(10+self.nB13Max,10+self.nB13Max+self.nB2Max)),
-            axis=1)]
+             range(10+self.nB13Max,10+self.nB13Max+self.nB2Max)))]
         if (debugLevel>=3):
             print(self.strategy)
             print(self.senM.shape)
@@ -102,9 +101,22 @@ class aosEstimator(object):
         if self.strategy == 'pinv':
             Ua, Sa, VaT = np.linalg.svd(self.Anorm)
             siginv = 1/Sa
-            siginv[-self.nSingularInf:]=0
+            if self.nSingularInf>1:
+                siginv[-self.nSingularInf:]=0
             Sainv = np.diag(siginv)
             Sainv = np.concatenate(
                 (Sainv, np.zeros((VaT.shape[0],Ua.shape[0]-Sainv.shape[1]))),
                 axis=1)
-            Ainv = VaT.T.dot(Sainv).dot(Ua.T)
+            self.Ainv = VaT.T.dot(Sainv).dot(Ua.T)
+
+    def estimate(self, state, wfs, sensoroff):
+        if sensoroff:
+            aa = np.loadtxt(state.zFile_m1)
+            self.yfinal = aa[-4:,3:self.znMax].reshape((-1,1))
+
+        self.yfinal -= wfs.intrinsic4c
+        self.xhat = np.zeros(self.ndofA)
+        self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4])
+        self.yresi = self.yfinal.copy()
+        self.yresi += np.reshape(self.Anorm.dot(-self.xhat[self.compIdx]),(-1,1))
+        # self.yresi += np.reshape(self.Anorm.dot(-state.stateV[self.compIdx]),(-1,1))
