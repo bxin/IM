@@ -10,6 +10,8 @@ import scipy.special as sp
 from astropy.io import fits
 
 from cwfsTools import padArray
+from cwfsTools import ZernikeAnnularFit
+from cwfsTools import ZernikeAnnularEval
 
 from cwfsErrors import nonSquareImageError
 from aosErrors import psfSamplingTooLowError
@@ -19,7 +21,7 @@ from aosErrors import psfSamplingTooLowError
 
 class aosMetric(object):
 
-    def __init__(self, wfs, debugLevel):
+    def __init__(self, state, wfs, debugLevel):
         self.nArm = 6
         armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
         armW = [0.2369, 0.4786, 0.5689, 0.4786, 0.2369]
@@ -71,19 +73,28 @@ class aosMetric(object):
     def getPSSNfromZ(self):
         pass
 
-    def getPSSNandMore(self, state, wavelength, debugLevel):
+    def getPSSNandMore(self, state, wfs, wavelength, debugLevel):
 
         self.PSSN = np.zeros(self.nField)
         self.FWHMeff = np.zeros(self.nField)
         self.dm5 = np.zeros(self.nField)
 
         for i in range(self.nField):
-            opdFile = '%s/sim%d_iter%d_opd%d.fits' % (
-                state.imageDir, state.iSim, state.iIter, i)
+            opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i)
             IHDU = fits.open(opdFile)
-            opd = IHDU[0].data * 1e3  # from mm to um
+            opd = IHDU[0].data # unit: um
             IHDU.close()
 
+            # before calc_pssn,
+            # (1) remove PTT,
+            # (2) make sure outside of pupil are all zeros
+            idx = (opd != 0)
+            Z = ZernikeAnnularFit(opd[idx], state.opdx[idx], state.opdy[idx],
+                                  wfs.znwcs, wfs.inst.obscuration)
+            Z[3:] = 0
+            opd[idx] -= ZernikeAnnularEval(Z, state.opdx[idx], state.opdy[idx],
+                                      wfs.inst.obscuration)
             self.stampD = 2**np.ceil(np.log2(state.opdSize))
             if self.stampD > opd.shape[0]:
                 a = opd
@@ -91,8 +102,11 @@ class aosMetric(object):
                 opd[:a.shape[0], :a.shape[1]] = a
 
             self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+            a = 1.16
+            b = 1.04
+            fwhmeffatm = a*np.sqrt(b)*0.6
             self.FWHMeff[i] = np.sqrt(
-                -1.2187 * 0.6040**2 + 0.8127 * 0.7386**2 / self.PSSN[i])
+                (fwhmeffatm**2-self.PSSN[i]*a*a*b*0.6**2)/self.PSSN[i]/a/a )
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
             if debugLevel >= 2:
@@ -100,20 +114,30 @@ class aosMetric(object):
             # exit()
 
         self.GQPSSN = np.sum(self.w * self.PSSN)
+        self.GQFWHMeff = np.sum(self.w * self.FWHMeff)
+        self.GQdm5 = np.sum(self.w * self.dm5)
+        a1=np.concatenate((self.PSSN, self.GQPSSN*np.ones(1)))
+        a2=np.concatenate((self.FWHMeff, self.GQFWHMeff*np.ones(1)))
+        a3=np.concatenate((self.dm5, self.GQdm5*np.ones(1)))
+        np.savetxt(self.PSSNFile, np.vstack((a1,a2,a3)))
+        
         if debugLevel >= 2:
             print(self.GQPSSN)
 
     def getPSSNandMore10um(self, state, wavelength, debugLevel):
-
+        """
+use the Phosim PSFs with 10um pixel size to determine PSSN and more
+to be implemented
+        """
         self.PSSN = np.zeros(self.nField)
         self.FWHMeff = np.zeros(self.nField)
         self.dm5 = np.zeros(self.nField)
 
         for i in range(self.nField):
-            opdFile = '%s/sim%d_iter%d_opd%d.fits' % (
-                state.imageDir, state.iSim, state.iIter, i)
+            opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i)
             IHDU = fits.open(opdFile)
-            opd = IHDU[0].data * 1e3  # from mm to um
+            opd = IHDU[0].data  #  um
             IHDU.close()
 
             self.stampD = 2**np.ceil(np.log2(state.opdSize))
@@ -123,7 +147,7 @@ class aosMetric(object):
                 opd[:a.shape[0], :a.shape[1]] = a
 
             self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
-            self.FWHMeff[i] = np.sqrt(
+            self.FWHMeff[i] = np.sqrt( #??
                 -1.2187 * 0.6040**2 + 0.8127 * 0.7386**2 / self.PSSN[i])
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
@@ -135,14 +159,24 @@ class aosMetric(object):
         if debugLevel >= 2:
             print(self.GQPSSN)
 
-    def getEllipticity(self, state, wavelength, debugLevel):
+    def getEllipticity(self, state, wfs, wavelength, debugLevel):
         self.elli = np.zeros(self.nField)
         for i in range(self.nField):
-            opdFile = '%s/sim%d_iter%d_opd%d.fits' % (
-                state.imageDir, state.iSim, state.iIter, i)
+            opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i)
             IHDU = fits.open(opdFile)
-            opd = IHDU[0].data * 1e3  # from mm to um
+            opd = IHDU[0].data # um
             IHDU.close()
+            
+            # before psf2eAtmW()
+            # (1) remove PTT,
+            # (2) make sure outside of pupil are all zeros
+            idx = (opd != 0)
+            Z = ZernikeAnnularFit(opd[idx], state.opdx[idx], state.opdy[idx],
+                                  wfs.znwcs, wfs.inst.obscuration)
+            Z[3:] = 0
+            opd[idx] -= ZernikeAnnularEval(Z, state.opdx[idx], state.opdy[idx],
+                                      wfs.inst.obscuration)
 
             self.stampD = 2**np.ceil(np.log2(state.opdSize))
             if self.stampD > opd.shape[0]:
@@ -158,16 +192,18 @@ class aosMetric(object):
             # exit()
 
         self.GQelli = np.sum(self.w * self.elli)
+        a1=np.concatenate((self.elli, self.GQelli*np.ones(1)))
+        np.savetxt(self.elliFile, a1)
         if debugLevel >= 2:
             print(self.GQelli)
 
     def getEllipticity10um(self, state, wavelength, debugLevel):
         self.elli = np.zeros(self.nField)
         for i in range(self.nField):
-            opdFile = '%s/sim%d_iter%d_opd%d.fits' % (
-                state.imageDir, state.iSim, state.iIter, i)
+            opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i)
             IHDU = fits.open(opdFile)
-            opd = IHDU[0].data * 1e3  # from mm to um
+            opd = IHDU[0].data  # um
             IHDU.close()
 
             self.stampD = 2**np.ceil(np.log2(state.opdSize))
@@ -508,6 +544,6 @@ def psf2otf(psf):
 
 
 def otf2psf(otf):
-    psf = np.absolute(np.fft.fftshift(np.fft.irfft2(np.fft.fftshift(otf),
+    psf = np.absolute(np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(otf),
                                                     s=otf.shape)))
     return psf

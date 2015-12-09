@@ -110,7 +110,7 @@ def main():
     # *****************************************
     # control algorithm
     # *****************************************
-    metr = aosMetric(wfs, args.debugLevel)
+    metr = aosMetric(state, wfs, args.debugLevel)
     ctrl = aosController(args.controllerParam, esti, metr, M1M3, M2,
                          args.wavelength, args.gain, args.debugLevel)
 
@@ -121,7 +121,7 @@ def main():
         if args.debugLevel >= 3:
             print('iteration No. %d' % iIter)
 
-        state.setIterNo(iIter)
+        state.setIterNo(metr, iIter)
 
         if iIter > args.startiter:
             esti.estimate(state, wfs, args.sensoroff)
@@ -142,10 +142,10 @@ def main():
             state.getPSF31(metr, args.numproc, args.debugLevel)
 
         if not args.pssnoff:
-            metr.getPSSNandMore(state, args.wavelength, args.debugLevel)
+            metr.getPSSNandMore(state, wfs, args.wavelength, args.debugLevel)
 
         if not args.ellioff:
-            metr.getEllipticity(state, args.wavelength, args.debugLevel)
+            metr.getEllipticity(state, wfs, args.wavelength, args.debugLevel)
 
         if not args.sensoroff:
             if not args.wfsoff:  # and not iIter == args.enditer:
@@ -153,6 +153,8 @@ def main():
                 wfs.preprocess(state, metr, args.debugLevel)
             # aosWFS
 
+    ctrl.drawSummaryPlots(state, metr, esti, args.startiter, args.enditer,
+                          args.debugLevel)
 
 if __name__ == "__main__":
     main()

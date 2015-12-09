@@ -220,6 +220,155 @@ class aosController(object):
         plt.tight_layout()
 
         # plt.show()
-        pngFile = '%s/sim%d_iter%d_ctrl.png' % (
-            state.pertDir, state.iSim, state.iIter)
+        pngFile = '%s/iter%d/sim%d_iter%d_ctrl.png' % (
+            state.pertDir, state.iIter, state.iSim, state.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
+
+    def drawSummaryPlots(self, state, metr, esti, startIter, endIter, debugLevel):
+        allPert = np.zeros((esti.ndofA, endIter-startIter+1))
+        allPSSN = np.zeros((metr.nField+1, endIter-startIter+1))
+        allFWHMeff = np.zeros((metr.nField+1, endIter-startIter+1))
+        alldm5 = np.zeros((metr.nField+1, endIter-startIter+1))
+        allelli = np.zeros((metr.nField+1, endIter-startIter+1))
+        for iIter in range(startIter, endIter+1):
+            filename = state.pertMatFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+            allPert[:, iIter] = np.loadtxt(filename)
+            filename = metr.PSSNFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+            allData = np.loadtxt(filename)
+            allPSSN[:, iIter] = allData[0, :]
+            allFWHMeff[:, iIter] = allData[1, :]
+            alldm5[:, iIter] = allData[2, :]
+            filename = metr.elliFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+            allelli[:, iIter] = np.loadtxt(filename)
+            
+        f, ax = plt.subplots(3, 3, figsize=(15, 10))
+        myxticks = np.arange(startIter, endIter+1)
+        myxticklabels = ['%d' % (myxticks[i])
+                         for i in np.arange(len(myxticks))]
+        colors = ( 'r', 'b', 'g', 'c', 'm', 'y', 'k')
+        
+        # 1: M2, cam dz
+        ax[0, 0].plot(myxticks, allPert[0,:], label='M2 dz', marker='.', color='r', markersize=10)
+        ax[0, 0].plot(myxticks, allPert[5,:], label='Cam dz', marker='.', color='b', markersize=10)
+        ax[0, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[0, 0].set_xticks(myxticks)
+        ax[0, 0].set_xticklabels(myxticklabels)
+        ax[0, 0].set_xlabel('iteration')
+        ax[0, 0].set_ylabel('um')
+        leg = ax[0, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+
+        # 2: M2, cam dx,dy
+        ax[0, 1].plot(myxticks, allPert[1,:], label='M2 dx', marker='.', color='r', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[2,:], label='M2 dy', marker='*', color='r', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[6,:], label='Cam dx', marker='.', color='b', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[7,:], label='Cam dy', marker='*', color='b', markersize=10)
+        ax[0, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[0, 1].set_xticks(myxticks)
+        ax[0, 1].set_xticklabels(myxticklabels)
+        ax[0, 1].set_xlabel('iteration')
+        ax[0, 1].set_ylabel('um')
+        leg = ax[0, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+                
+        # 3: M2, cam rx,ry
+        ax[0, 2].plot(myxticks, allPert[3,:], label='M2 rx', marker='.', color='r', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[4,:], label='M2 ry', marker='*', color='r', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[8,:], label='Cam rx', marker='.', color='b', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[9,:], label='Cam ry', marker='*', color='b', markersize=10)
+        ax[0, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[0, 2].set_xticks(myxticks)
+        ax[0, 2].set_xticklabels(myxticklabels)
+        ax[0, 2].set_xlabel('iteration')
+        ax[0, 2].set_ylabel('arcsec')
+        leg = ax[0, 2].legend(loc="upper left") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+
+        # 4: M1M3 bending
+        rms = np.std(allPert[10:esti.nB13Max+10,:],axis=1)
+        idx=np.argsort(rms)
+        for i in range(1,4+1):
+            ax[1, 0].plot(myxticks, allPert[idx[-i]+10,:], label='M1M3 b%d'%(idx[-i]+1), marker='.', color=colors[i-1], markersize=10)
+        for i in range(4, esti.nB13Max+1):
+            ax[1, 0].plot(myxticks, allPert[idx[-i]+10,:], marker='.', color=colors[-1], markersize=10)
+        ax[1, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[1, 0].set_xticks(myxticks)
+        ax[1, 0].set_xticklabels(myxticklabels)
+        ax[1, 0].set_xlabel('iteration')
+        ax[1, 0].set_ylabel('um')
+        leg = ax[1, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+                        
+        # 5: M2 bending
+        rms = np.std(allPert[10+esti.nB13Max:esti.ndofA,:],axis=1)
+        idx=np.argsort(rms)
+        for i in range(1,4+1):
+            ax[1, 1].plot(myxticks, allPert[idx[-i]+10+esti.nB13Max,:], label='M2 b%d'%(idx[-i]+1), marker='.', color=colors[i-1], markersize=10)
+        for i in range(4, esti.nB2Max+1):
+            ax[1, 1].plot(myxticks, allPert[idx[-i]+10+esti.nB13Max,:], marker='.', color=colors[-1], markersize=10)
+        ax[1, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[1, 1].set_xticks(myxticks)
+        ax[1, 1].set_xticklabels(myxticklabels)
+        ax[1, 1].set_xlabel('iteration')
+        ax[1, 1].set_ylabel('um')
+        leg = ax[1, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+
+        # 6: PSSN
+        for i in range(metr.nField):
+            ax[1, 2].semilogy(myxticks, 1-allPSSN[i,:], marker='.', color='b', markersize=10)
+        ax[1, 2].semilogy(myxticks, 1-allPSSN[-1,:], label='GQ(1-PSSN)', marker='.', color='r', markersize=10)
+        ax[1, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[1, 2].set_xticks(myxticks)
+        ax[1, 2].set_xticklabels(myxticklabels)
+        ax[1, 2].set_xlabel('iteration')
+        # ax[1, 2].set_ylabel('um')
+        ax[1, 2].grid()
+        leg = ax[1, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)        
+        
+        # 7: FWHMeff
+        for i in range(metr.nField):
+            ax[2, 0].plot(myxticks, allFWHMeff[i,:], marker='.', color='b', markersize=10)
+        ax[2, 0].plot(myxticks, allFWHMeff[-1,:], label='GQ(FWHMeff)', marker='.', color='r', markersize=10)
+        ax[2, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[2, 0].set_xticks(myxticks)
+        ax[2, 0].set_xticklabels(myxticklabels)
+        ax[2, 0].set_xlabel('iteration')
+        ax[2, 0].set_ylabel('arcsec')
+        ax[2, 0].grid()
+        leg = ax[2, 0].legend(loc="upper right") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)        
+
+        # 8: dm5
+        for i in range(metr.nField):
+            ax[2, 1].plot(myxticks, alldm5[i,:], marker='.', color='b', markersize=10)
+        ax[2, 1].plot(myxticks, alldm5[-1,:], label='GQ(dm5)', marker='.', color='r', markersize=10)
+        ax[2, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[2, 1].set_xticks(myxticks)
+        ax[2, 1].set_xticklabels(myxticklabels)
+        ax[2, 1].set_xlabel('iteration')
+        # ax[2, 1].set_ylabel('arcsec')
+        ax[2, 1].grid()
+        leg = ax[2, 1].legend(loc="upper right") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)        
+
+        # 9: elli
+        for i in range(metr.nField):
+            ax[2, 2].plot(myxticks, allelli[i,:]*100, marker='.', color='b', markersize=10)
+        ax[2, 2].plot(myxticks, allelli[-1,:]*100, label='GQ(ellipticity)', marker='.', color='r', markersize=10)
+        ax[2, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        ax[2, 2].set_xticks(myxticks)
+        ax[2, 2].set_xticklabels(myxticklabels)
+        ax[2, 2].set_xlabel('iteration')
+        ax[2, 2].set_ylabel('percent')
+        ax[2, 2].grid()
+        leg = ax[2, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)        
+        
+        plt.tight_layout()
+        # plt.show()
+        
+        sumPlotFile = '%s/sim%d_iter%d-%d.png'%(
+            state.pertDir, state.iSim, startIter, endIter)
+        plt.savefig(sumPlotFile, bbox_inches='tight')

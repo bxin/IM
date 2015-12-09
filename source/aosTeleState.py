@@ -60,7 +60,7 @@ class aosTeleState(object):
         self.phosimDir = phosimDir
         self.pertDir = pertDir
         self.imageDir = imageDir
-        self.setIterNo(0)
+        # self.setIterNo(0)
         self.phosimActuatorID = [
             # M2 z, x, y, rx, ry
             5, 6, 7, 8, 9,
@@ -70,6 +70,9 @@ class aosTeleState(object):
             i for i in range(15, 15 + esti.ndofA - 10)]
         self.wfsName = ['intra', 'extra']
 
+        self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
+        self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
+        
         if debugLevel >= 3:
             print('in aosTeleState:')
             print(self.stateV)
@@ -84,29 +87,38 @@ class aosTeleState(object):
                 fid.write('move %d %7.4f\t #senM ID = %d\n' % (
                     self.phosimActuatorID[i], self.stateV[i], i + 1))
         fid.close()
+        np.savetxt(self.pertMatFile, self.stateV)
 
-    def setIterNo(self, iIter):
+    def setIterNo(self, metr, iIter):
         self.iIter = iIter
-        self.zFile = '%s/sim%d_iter%d_opd.zer' % (
-            self.imageDir, self.iSim, self.iIter)
-        self.zFile_m1 = '%s/sim%d_iter%d_opd.zer' % (
-            self.imageDir, self.iSim, self.iIter - 1)
-        self.pertFile = '%s/sim%d_iter%d_pert.txt' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.zFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.zFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+            self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
+        self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.pertMatFile = '%s/iter%d/sim%d_iter%d_pert.mat' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.exists('%s/iter%d/'%(self.imageDir, self.iIter)):
+            os.makedirs('%s/iter%d/'%(self.imageDir, self.iIter))
+        if not os.path.exists('%s/iter%d/'%(self.pertDir, self.iIter)):
+            os.makedirs('%s/iter%d/'%(self.pertDir, self.iIter))
 
+        metr.PSSNFile = '%s/iter%d/sim%d_iter%d_PSSN.txt'%(
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt'%(
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+            
     def getOPD35(self, wfs, metr, numproc, wavelength, debugLevel):
 
         self.writeOPDinst(metr, wavelength)
         self.writeOPDcmd()
-        self.OPD_log = '%s/sim%d_iter%d_opd35.log' % (
-            self.imageDir, self.iSim, self.iIter)
+        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
 
         if debugLevel >= 3:
             runProgram('head %s' % self.OPD_inst)
             runProgram('head %s' % self.OPD_cmd)
-
-        self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
-        self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.OPD_inst, self.OPD_cmd, numproc, self.eimage, self.OPD_log)
@@ -122,8 +134,8 @@ class aosTeleState(object):
         fz = open(self.zFile, 'ab')
         for i in range(metr.nFieldp4):
             src = '%s/output/opd_%d.fits.gz' % (self.phosimDir, i)
-            dst = '%s/sim%d_iter%d_opd%d.fits.gz' % (
-                self.imageDir, self.iSim, self.iIter, i)
+            dst = '%s/iter%d/sim%d_iter%d_opd%d.fits.gz' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, i)
             shutil.move(src, dst)
             runProgram('gunzip -f %s' % dst)
             opdFile = dst.replace('.gz', '')
@@ -148,8 +160,8 @@ class aosTeleState(object):
             print(wfs.inst.obscuration)
 
     def writeOPDinst(self, metr, wavelength):
-        self.OPD_inst = '%s/sim%d_iter%d_opd35.inst' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.OPD_inst, 'w')
         fid.write('Opsim_filter 1\n\
 SIM_VISTIME 15.0\n\
@@ -163,8 +175,8 @@ SIM_NSNAP 1\n')
         fpert.close()
 
     def writeOPDcmd(self):
-        self.OPD_cmd = '%s/sim%d_iter%d_opd35.cmd' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd35.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.OPD_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -175,8 +187,8 @@ perturbationmode 1\n')
 
         self.writePSFinst(metr)
         self.writePSFcmd()
-        self.PSF_log = '%s/sim%d_iter%d_psf31.log' % (
-            self.imageDir, self.iSim, self.iIter)
+        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.PSF_inst, self.PSF_cmd, numproc, self.eimage, self.PSF_log)
@@ -214,8 +226,8 @@ perturbationmode 1\n')
             else:
                 pIdx = i + metr.nArm
 
-            dst = '%s/sim%d_iter%d_psf%d.fits' % (
-                self.imageDir, self.iSim, self.iIter, i)
+            dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, i)
             if os.path.isfile(dst):
                 os.remove(dst)
             hdu = fits.PrimaryHDU(psf)
@@ -232,13 +244,13 @@ perturbationmode 1\n')
                 print('passed %d' % i)
 
         # plt.show()
-        pngFile = '%s/sim%d_iter%d_psf.png' % (
-            self.imageDir, self.iSim, self.iIter)
+        pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
 
     def writePSFinst(self, metr):
-        self.PSF_inst = '%s/sim%d_iter%d_psf31.inst' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.PSF_inst, 'w')
         fid.write('SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n')
@@ -252,8 +264,8 @@ SIM_NSNAP 1\n')
         fpert.close()
 
     def writePSFcmd(self):
-        self.PSF_cmd = '%s/sim%d_iter%d_psf31.cmd' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf31.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.PSF_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -264,8 +276,8 @@ perturbationmode 1\n')
 
         self.writeWFSinst(metr)
         self.writeWFScmd()
-        self.WFS_log = '%s/sim%d_iter%d_wfs4.log' % (
-            self.imageDir, self.iSim, self.iIter)
+        self.WFS_log = '%s/iter%d/sim%d_iter%d_wfs4.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.WFS_inst, self.WFS_cmd, numproc, self.eimage, self.WFS_log)
@@ -283,18 +295,18 @@ perturbationmode 1\n')
             for ioffset in [0, 1]:
                 runProgram('gunzip -f %s' % src[ioffset])
                 chipFile = src[ioffset].replace('.gz', '')
-                shutil.move(chipFile, self.imageDir)
+                shutil.move(chipFile, '%s/iter%d'%(self.imageDir, self.iIter))
 
     def writeWFSinst(self, metr):
-        self.WFS_inst = '%s/sim%d_iter%d_wfs4.inst' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs4.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.WFS_inst, 'w')
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         fid.write('Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
-SIM_CAMCONFIG 7\n' % (90000 + self.iSim))
+SIM_CAMCONFIG 7\n' % (9000000 + self.iSim*100 + self.iIter))
         ii = 0
         for i in range(metr.nField, metr.nFieldp4):
             if i % 2 == 1:  # field 31, 33, R44 and R00
@@ -323,8 +335,8 @@ SIM_CAMCONFIG 7\n' % (90000 + self.iSim))
         fpert.close()
 
     def writeWFScmd(self):
-        self.WFS_cmd = '%s/sim%d_iter%d_wfs4.cmd' % (
-            self.pertDir, self.iSim, self.iIter)
+        self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs4.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\

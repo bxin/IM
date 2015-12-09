@@ -56,13 +56,17 @@ aosTeleState  ->state
 *	iIter		current iteration No.
 	pertDir		where the pert files are stored
 *	pertFile	pert file for the current iteration
+*	pertMatFile	pert matrix file for the current iteration
 	imageDir	where the Phosim images and moved to and stored; also includes the Zernike fit results
 	phosimDir	where the Phosim code is
-	opdSize		size of Phosim OPD maps	
+	opdSize		size of Phosim OPD maps, to conform with Zemax/Phosim,
+			     	this is an odd number, for example 256-1=255
 	psfMag		mag of the star for PSF31
 	psfStampSize	size of the PSF image stamps that we cut out
 *	stateV		state vector, this = x in the cost function J
 	phosimActuatorID	actuator ID used in Phosim to index the DoF
+	opdx		normalized grid-x with size = opdSize (odd number)
+	opdy			normalized grid-y with size = opdSize (odd number)
 	OPD_inst		instance catalog file used for generating OPD maps
 	OPD_cmd		command file used for generating OPD maps
 	OPD_log		Phosim log from the OPD run
@@ -73,7 +77,8 @@ aosTeleState  ->state
 	writePertFile		write state vector to pert file
 	getOPD35	take pert file, create Phosim command and inst files, create OPDs@35 fields
 	getPSF31	take pert file, create Phosim command and inst files, create PSFs@31 fields 
-	getWFS4		take pert file, create Phosim command and inst files, create wavefront images@4 corners
+	getWFS4		take pert file, create Phosim command and inst files,
+			     	  create wavefront images@4 corners
 	setIterNo	manually update the iter No.	
 
 

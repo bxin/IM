@@ -43,8 +43,9 @@ class aosWFS(object):
         for iField in range(metr.nField, metr.nFieldp4):
             chipStr, px, py = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
-            src = glob.glob('%s/*%d*%s*' %
-                            (state.imageDir, 90000 + state.iSim, chipStr))
+            src = glob.glob('%s/iter%d/*%d*%s*' %
+                            (state.imageDir, state.iIter, 9000000 +
+                             state.iSim*100+state.iIter, chipStr))
             for ioffset in [0, 1]:
                 chipFile = src[ioffset]
                 IHDU = fits.open(chipFile)
@@ -80,8 +81,8 @@ class aosWFS(object):
                         np.rot90(np.flipud(psf), iField - metr.nField))
 
                 # below, we have 0 b/c we may have many
-                stampFile = '%s/sim%d_iter%d_wfs%d_%s_0.fits' % (
-                    state.imageDir, state.iSim, state.iIter, iField,
+                stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0.fits' % (
+                    state.imageDir, state.iIter, state.iSim, state.iIter, iField,
                     state.wfsName[ioffset])
                 if os.path.isfile(stampFile):
                     os.remove(stampFile)
@@ -97,8 +98,8 @@ class aosWFS(object):
             chipStr, px, py = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
             for ioffset in [0, 1]:
-                src = glob.glob('%s/sim%d_iter%d_wfs%d_%s_*.fits' % (
-                    state.imageDir, state.iSim, state.iIter, iField,
+                src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
+                    state.imageDir, state.iIter, state.iSim, state.iIter, iField,
                     state.wfsName[ioffset]))
                 IHDU = fits.open(src[0])
                 psf = IHDU[0].data
@@ -118,6 +119,6 @@ class aosWFS(object):
                 plt.axis('off')
 
         # plt.show()
-        pngFile = '%s/sim%d_iter%d_wfs.png' % (
-            state.imageDir, state.iSim, state.iIter)
+        pngFile = '%s/iter%d/sim%d_iter%d_wfs.png' % (
+            state.imageDir, state.iIter, state.iSim, state.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
