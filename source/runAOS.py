@@ -101,10 +101,10 @@ def main():
     # depends on the estimator.
     pertDir = 'pert/sim%d' % args.iSim
     if not os.path.isdir(pertDir):
-        os.mkdir(pertDir)
+        os.makedirs(pertDir)
     imageDir = 'image/sim%d' % args.iSim
     if not os.path.isdir(imageDir):
-        os.mkdir(imageDir)
+        os.makedirs(imageDir)
     state = aosTeleState(esti, args.instruParam, args.iSim, phosimDir,
                          pertDir, imageDir, args.debugLevel)
     # *****************************************
