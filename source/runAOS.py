@@ -134,7 +134,11 @@ def main():
 
             # exit()
 
-        state.writePertFile(esti)
+        if args.startiter >=1 and iIter == args.startiter:
+            pass
+        else:
+            state.writePertFile(esti)
+            
         if not args.opdoff:
             state.getOPD35(wfs, metr, args.numproc, args.wavelength,
                            args.debugLevel)
