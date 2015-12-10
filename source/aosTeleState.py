@@ -204,7 +204,7 @@ perturbationmode 1\n')
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             src = glob.glob('%s/output/*%d*%s*' % (self.phosimDir,
-                            9000000 + self.iSim*100+self.iIterchipStr))
+                            9000000 + self.iSim*100+self.iIter, chipStr))
             if 'gz' in src[0]:
                 runProgram('gunzip -f %s' % src[0])
             IHDU = fits.open(src[0].replace('.gz', ''))
