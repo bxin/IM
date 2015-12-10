@@ -72,6 +72,7 @@ class aosTeleState(object):
 
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
+        runProgram('rm -rf %s/output/*'%self.phosimDir)
         
         if debugLevel >= 3:
             print('in aosTeleState:')
@@ -202,7 +203,8 @@ perturbationmode 1\n')
         for i in range(metr.nField):
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            src = glob.glob('%s/output/*%s*' % (self.phosimDir, chipStr))
+            src = glob.glob('%s/output/*%d*%s*' % (self.phosimDir,
+                            9000000 + self.iSim*100+self.iIterchipStr))
             if 'gz' in src[0]:
                 runProgram('gunzip -f %s' % src[0])
             IHDU = fits.open(src[0].replace('.gz', ''))
@@ -252,8 +254,9 @@ perturbationmode 1\n')
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.PSF_inst, 'w')
-        fid.write('SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n')
+        fid.write('Opsim_obshistid %d\n\
+SIM_VISTIME 15.0\n\
+SIM_NSNAP 1\n'%(9000000 + self.iSim*100 + self.iIter))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nField):
