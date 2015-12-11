@@ -254,7 +254,8 @@ perturbationmode 1\n')
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.PSF_inst, 'w')
-        fid.write('Opsim_obshistid %d\n\
+        fid.write('Opsim_filter 1\n\
+Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n'%(9000000 + self.iSim*100 + self.iIter))
         fpert = open(self.pertFile, 'r')
@@ -306,7 +307,8 @@ perturbationmode 1\n')
         fid = open(self.WFS_inst, 'w')
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
-        fid.write('Opsim_obshistid %d\n\
+        fid.write('Opsim_filter 1\n\
+Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_CAMCONFIG 7\n' % (9000000 + self.iSim*100 + self.iIter))
