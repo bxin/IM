@@ -92,6 +92,7 @@ class aosTeleState(object):
 
     def setIterNo(self, metr, iIter):
         self.iIter = iIter
+        self.obsID = 9000000 + self.iSim*100 + self.iIter
         self.zFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         self.zFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
@@ -134,7 +135,8 @@ class aosTeleState(object):
             os.remove(self.zFile)
         fz = open(self.zFile, 'ab')
         for i in range(metr.nFieldp4):
-            src = '%s/output/opd_%d.fits.gz' % (self.phosimDir, i)
+            src = '%s/output/opd_%d_%d.fits.gz' % (
+                self.phosimDir, self.obsID, i)
             dst = '%s/iter%d/sim%d_iter%d_opd%d.fits.gz' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, i)
             shutil.move(src, dst)
@@ -165,8 +167,9 @@ class aosTeleState(object):
             self.pertDir, self.iIter, self.iSim, self.iIter)
         fid = open(self.OPD_inst, 'w')
         fid.write('Opsim_filter 1\n\
+Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n')
+SIM_NSNAP 1\n'%(self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nFieldp4):
@@ -203,8 +206,7 @@ perturbationmode 1\n')
         for i in range(metr.nField):
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            src = glob.glob('%s/output/*%d*%s*' % (self.phosimDir,
-                            9000000 + self.iSim*100+self.iIter, chipStr))
+            src = glob.glob('%s/output/*%d*%s*' % (self.phosimDir, self.obsID))
             if 'gz' in src[0]:
                 runProgram('gunzip -f %s' % src[0])
             IHDU = fits.open(src[0].replace('.gz', ''))
@@ -257,7 +259,7 @@ perturbationmode 1\n')
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n'%(9000000 + self.iSim*100 + self.iIter))
+SIM_NSNAP 1\n'%(self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nField):
@@ -311,7 +313,7 @@ perturbationmode 1\n')
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
-SIM_CAMCONFIG 7\n' % (9000000 + self.iSim*100 + self.iIter))
+SIM_CAMCONFIG 7\n' % (self.obsID))
         ii = 0
         for i in range(metr.nField, metr.nFieldp4):
             if i % 2 == 1:  # field 31, 33, R44 and R00
