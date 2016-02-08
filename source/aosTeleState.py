@@ -265,7 +265,7 @@ SIM_NSNAP 1\n'%(self.obsID))
         fid.write(fpert.read())
         for i in range(metr.nField):
             fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_flat.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                 i, metr.fieldXp[i], metr.fieldYp[i], self.psfMag))
         fid.close()
         fpert.close()
@@ -319,23 +319,23 @@ SIM_CAMCONFIG 7\n' % (self.obsID))
         for i in range(metr.nField, metr.nFieldp4):
             if i % 2 == 1:  # field 31, 33, R44 and R00
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_flat.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i] + 0.008, metr.fieldYp[i],
                     self.cwfsMag))
                 ii += 1
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_flat.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i] - 0.008, metr.fieldYp[i],
                     self.cwfsMag))
                 ii += 1
             else:
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_flat.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i], metr.fieldYp[i] + 0.008,
                     self.cwfsMag))
                 ii += 1
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_flat.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i], metr.fieldYp[i] - 0.008,
                     self.cwfsMag))
                 ii += 1

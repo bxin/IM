@@ -91,8 +91,11 @@ aosWFS          ->wfs
 	intrinsic4c	intrinsic wavefront @ 4 corners, 76x1
 *	myZn		results of cwfs from two exposures, 76x2
 *	phosimZn	true wavefront accoring to phosim (counterpart of myZn)
-*	yfinal		final wavefront to be fed to estimator
+*	yfinal(1/16/16, should be removed)		final wavefront to be fed to estimator
 
+	functions():
+	preprocess	
+	
 aosMetric      ->metr
 	fieldX		x coordinate of the 35 fields, in deg.
 	fieldY		y coordinate of the 35 fields, in deg.
