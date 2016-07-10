@@ -91,10 +91,10 @@ class aosEstimator(object):
             print(self.Ause[21, 32])
             print(self.normalizeA)
 
+        dofUnitMat = np.ones(self.Ause.shape)
         if self.normalizeA:
             pass
-        else:
-            dofUnitMat = np.ones(self.Ause.shape)
+
         self.Anorm = self.Ause / dofUnitMat
         if (debugLevel >= 3):
             print('Anorm:')

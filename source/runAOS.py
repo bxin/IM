@@ -77,7 +77,7 @@ def main():
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
     phosimDir = '../phosimSE/'
-    znPert = 28  # znmax used in pert file to define surfaces
+    #znPert = 28  # znmax used in pert file to define surfaces
 
     # *****************************************
     # run wavefront sensing algorithm
@@ -88,8 +88,8 @@ def main():
     wfs = aosWFS(cwfsDir, instruFile, algoFile,
                  128, args.wavelength, args.debugLevel)
 
-    cwfsInstru = 'lsst'
-    cwfsAlgo = 'exp'
+    #cwfsInstru = 'lsst'
+    #cwfsAlgo = 'exp'
     cwfsModel = 'offAxis'
 
     # *****************************************
