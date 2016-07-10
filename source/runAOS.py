@@ -123,7 +123,7 @@ def main():
 
         state.setIterNo(metr, iIter)
 
-        if iIter > args.startiter:
+        if iIter > 0: #args.startiter:
             esti.estimate(state, wfs, args.sensoroff)
             ctrl.getMotions(esti)
             ctrl.drawControlPanel(esti, state)
@@ -132,11 +132,6 @@ def main():
             # It will be inserted into OPD.inst, PSF.inst later
             state.update(ctrl)
 
-            # exit()
-
-        if args.startiter >=1 and iIter == args.startiter:
-            pass
-        else:
             state.writePertFile(esti)
             
         if not args.opdoff:
