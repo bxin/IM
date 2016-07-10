@@ -230,7 +230,7 @@ class aosController(object):
         allFWHMeff = np.zeros((metr.nField+1, endIter-startIter+1))
         alldm5 = np.zeros((metr.nField+1, endIter-startIter+1))
         allelli = np.zeros((metr.nField+1, endIter-startIter+1))
-        for iIter in range(startIter, endIter+1):
+        for iIter in range(0, endIter-startIter+1):
             filename = state.pertMatFile.replace('iter%d'%endIter, 'iter%d'%iIter)
             allPert[:, iIter] = np.loadtxt(filename)
             filename = metr.PSSNFile.replace('iter%d'%endIter, 'iter%d'%iIter)
