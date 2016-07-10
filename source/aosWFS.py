@@ -33,7 +33,9 @@ class aosWFS(object):
         intrinsic35 = intrinsic35 * wavelength
         self.intrinsic4c = intrinsic35[
             -4:, 3:self.algo.numTerms].reshape((-1, 1))
-
+        self.covM = np.loadtxt('data/covM86.txt') #in unit of nm^2
+        self.covM = self.covM*1e-6 #in unit of um^2
+        
         if debugLevel >= 3:
             print('znwcs3=%d' % self.znwcs3)
             print(self.intrinsic4c.shape)

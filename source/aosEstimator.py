@@ -116,6 +116,8 @@ class aosEstimator(object):
         if sensoroff:
             aa = np.loadtxt(state.zFile_m1)
             self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
+            mu = np.zeros(self.zn3Max*4)
+            self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
 
         self.yfinal -= wfs.intrinsic4c
         self.xhat = np.zeros(self.ndofA)
