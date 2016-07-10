@@ -45,6 +45,8 @@ def main():
                         action='store_true')
     parser.add_argument('-ellioff', help='w/o calculating ellipticity',
                         action='store_true')
+    parser.add_argument('-makesum', help='make summary plot, assuming all data available',
+                        action='store_true')
     parser.add_argument('-p', dest='numproc', default=1, type=int,
                         help='Number of Processors Phosim uses')
     parser.add_argument('-g', dest='gain', default=0.7, type=float,
@@ -68,6 +70,13 @@ def main():
                         help='debug level, -1=quiet, 0=Zernikes, \
                         1=operator, 2=expert, 3=everything, default=0')
     args = parser.parse_args()
+    if args.makesum:
+        args.sensoroff = True
+        args.opdoff = True
+        args.psfoff = True
+        args.pssnoff = True
+        args.ellioff = True
+        
     if args.debugLevel >= 1:
         print(args)
 
