@@ -89,7 +89,7 @@ class aosEstimator(object):
             print(self.zn3Idx)
             print(self.zn3Max)
             print(self.Ause.shape)
-            print(self.Ause[21, 2])
+            print(self.Ause[21, -1])
             print(self.normalizeA)
 
         dofUnitMat = np.ones(self.Ause.shape)
