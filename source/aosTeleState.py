@@ -85,7 +85,9 @@ class aosTeleState(object):
         fid = open(self.pertFile, 'w')
         for i in range(esti.ndofA):
             if (self.stateV[i] != 0):
-                fid.write('move %d %7.4f\t #senM ID = %d\n' % (
+                #don't add comments after each move command,
+                #Phosim merges all move commands into one!
+                fid.write('move %d %7.4f \n' % ( 
                     self.phosimActuatorID[i], self.stateV[i], i + 1))
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
