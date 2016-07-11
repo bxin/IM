@@ -143,7 +143,7 @@ def main():
             # It will be inserted into OPD.inst, PSF.inst later
             state.update(ctrl)
 
-            state.writePertFile(esti)
+        state.writePertFile(esti)
 
         if args.baserun>0 and iIter == 0:
             state.getOPD35fromBase(args.baserun, metr)

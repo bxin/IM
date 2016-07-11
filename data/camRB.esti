@@ -1,0 +1,40 @@
+###
+
+This file contains the parameters for the state estimator
+
+###
+
+#estimator strategy
+estimator_strategy	pinv
+senMFile		senM_35_19_50.txt
+
+## the following 3 numbers define how big the sensitivity matrix needs to be
+
+#max number of bending modes used (to be filtered with compIdx)
+n_bending_M1M3	20
+n_bending_M2	20
+
+#max number of zernikes used (to be filtered with zn3Idx)
+znmax		22
+
+#which line below will be used as compIdx
+icomp		2
+#M2 | |cam| |M1M3 bending         | |M2 bending           |
+11111 11111 11111 11111 11111 11111 11111 11111 11111 11111 
+00000 11111 00000 00000 00000 00000 00000 00000 00000 00000
+11111 11111 11111 11111 11110 01100 11111 11111 11111 00000 
+00000 11111 00000 00000 00000 00000 11111 11111 11111 11111
+00000 11111 11111 11111 11111 11111 00000 00000 00000 00000	
+#which line below will be used as zn3Idx
+izn3		1
+# 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+1 1 1 1 1 1  1  1  1  1  1  1  1  1  1  1  1  1  1
+1 1 1 1 1 1  1  1  1  1  1  1  0  0  1  1  1  1  0
+1 1 1 1 1 1  1  1  1  1  1  1  0  0  0  0  0  0  0
+
+#normalize A-matrix?
+normalize_A	0
+
+#number of singular values to to set to infinity
+n_singular_inf	0
+
