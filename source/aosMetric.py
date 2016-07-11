@@ -3,6 +3,7 @@
 # @authors: Bo Xin
 # @       Large Synoptic Survey Telescope
 
+import os
 import sys
 
 import numpy as np
@@ -123,7 +124,12 @@ class aosMetric(object):
         
         if debugLevel >= 2:
             print(self.GQPSSN)
-
+            
+    def getPSSNandMorefromBase(self, baserun, state):
+        if not os.path.isfile(self.PSSNFile):        
+            baseFile = self.PSSNFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.PSSNFile)
+        
     def getPSSNandMore10um(self, state, wavelength, debugLevel):
         """
 use the Phosim PSFs with 10um pixel size to determine PSSN and more
@@ -196,6 +202,11 @@ to be implemented
         np.savetxt(self.elliFile, a1)
         if debugLevel >= 2:
             print(self.GQelli)
+
+    def getEllipticityfromBase(self, baserun, state):
+        if not os.path.isfile(self.elliFile):        
+            baseFile = self.elliFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.elliFile)
 
     def getEllipticity10um(self, state, wavelength, debugLevel):
         self.elli = np.zeros(self.nField)

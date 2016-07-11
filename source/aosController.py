@@ -70,7 +70,8 @@ class aosController(object):
                     print(self.mQ[0, 9])
 
     def getMotions(self, esti):
-        self.uk = - self.gain * self.mF.dot(esti.xhat)
+        self.uk=np.zeros(esti.ndofA)        
+        self.uk[esti.compIdx] = - self.gain * self.mF.dot(esti.xhat[esti.compIdx])
 
     def drawControlPanel(self, esti, state):
 

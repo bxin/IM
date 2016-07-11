@@ -162,6 +162,36 @@ class aosTeleState(object):
             print(wfs.znwcs)
             print(wfs.inst.obscuration)
 
+    def getOPD35fromBase(self, baserun, metr):
+        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.OPD_inst):
+            baseFile = self.OPD_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.OPD_inst)
+
+        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd35.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.OPD_cmd):
+            baseFile = self.OPD_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.OPD_cmd)
+        
+        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.OPD_log):
+            baseFile = self.OPD_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.OPD_log)
+
+        if not os.path.isfile(self.zFile):
+            baseFile = self.zFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.zFile)
+        
+        for i in range(metr.nFieldp4):
+            opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, i)
+            if not os.path.isfile(opdFile):
+                baseFile = opdFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+                os.link(baseFile, opdFile)
+                                                                    
     def writeOPDinst(self, metr, wavelength):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -253,6 +283,38 @@ perturbationmode 1\n')
             self.imageDir, self.iIter, self.iSim, self.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
 
+    def getPSF31fromBase(self, baserun, metr):
+        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.PSF_inst):
+            baseFile = self.PSF_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.PSF_inst)
+
+        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf31.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.PSF_cmd):
+            baseFile = self.PSF_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.PSF_cmd)
+
+        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(self.PSF_log):
+            baseFile = self.PSF_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.PSF_log)
+        
+        for i in range(metr.nField):
+            psfFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, i)
+            if not os.path.isfile(psfFile):
+                baseFile = psfFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+                os.link(baseFile, psfFile)
+
+        pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        if not os.path.isfile(pngFile):
+            baseFile = pngFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, pngFile)
+                                                                              
     def writePSFinst(self, metr):
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)

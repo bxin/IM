@@ -84,11 +84,12 @@ class aosEstimator(object):
         self.zn3IdxAx4 = np.repeat(self.zn3Idx, 4)
         self.Ause = self.A[np.ix_(self.zn3IdxAx4, self.compIdx)]
         if debugLevel >= 3:
+            print('---checking estimator related:')
             print(self.compIdx)
             print(self.zn3Idx)
             print(self.zn3Max)
             print(self.Ause.shape)
-            print(self.Ause[21, 32])
+            print(self.Ause[21, 2])
             print(self.normalizeA)
 
         dofUnitMat = np.ones(self.Ause.shape)
@@ -97,7 +98,7 @@ class aosEstimator(object):
 
         self.Anorm = self.Ause / dofUnitMat
         if (debugLevel >= 3):
-            print('Anorm:')
+            print('---chekcing Anorm:')
             print(self.Anorm[:5, :5])
             print(self.Ause[:5, :5])
         if self.strategy == 'pinv':

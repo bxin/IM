@@ -69,6 +69,8 @@ def main():
                         default=0, choices=(-1, 0, 1, 2, 3),
                         help='debug level, -1=quiet, 0=Zernikes, \
                         1=operator, 2=expert, 3=everything, default=0')
+    parser.add_argument('-baserun', dest='baserun', default=-1, type=int,
+                        help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
     if args.makesum:
         args.sensoroff = True
@@ -142,24 +144,31 @@ def main():
             state.update(ctrl)
 
             state.writePertFile(esti)
+
+        if args.baserun>0 and iIter == 0:
+            state.getOPD35fromBase(args.baserun, metr)
+            state.getPSF31fromBase(args.baserun, metr)
+            metr.getPSSNandMorefromBase(args.baserun, state)
+            metr.getEllipticityfromBase(args.baserun, state)
             
-        if not args.opdoff:
-            state.getOPD35(wfs, metr, args.numproc, args.wavelength,
-                           args.debugLevel)
-        if not args.psfoff:
-            state.getPSF31(metr, args.numproc, args.debugLevel)
-
-        if not args.pssnoff:
-            metr.getPSSNandMore(state, wfs, args.wavelength, args.debugLevel)
-
-        if not args.ellioff:
-            metr.getEllipticity(state, wfs, args.wavelength, args.debugLevel)
-
-        if not args.sensoroff:
-            if not args.wfsoff:  # and not iIter == args.enditer:
-                state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
-                wfs.preprocess(state, metr, args.debugLevel)
-            # aosWFS
+        else:
+            if not args.opdoff:
+                state.getOPD35(wfs, metr, args.numproc, args.wavelength,
+                               args.debugLevel)
+            if not args.psfoff:
+                state.getPSF31(metr, args.numproc, args.debugLevel)
+    
+            if not args.pssnoff:
+                metr.getPSSNandMore(state, wfs, args.wavelength, args.debugLevel)
+    
+            if not args.ellioff:
+                metr.getEllipticity(state, wfs, args.wavelength, args.debugLevel)
+    
+            if not args.sensoroff:
+                if not args.wfsoff:  # and not iIter == args.enditer:
+                    state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
+                    wfs.preprocess(state, metr, args.debugLevel)
+                # aosWFS
 
     ctrl.drawSummaryPlots(state, metr, esti, args.startiter, args.enditer,
                           args.debugLevel)

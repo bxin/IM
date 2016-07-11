@@ -18,7 +18,7 @@ n_bending_M2	20
 znmax		22
 
 #which line below will be used as compIdx
-icomp		1
+icomp		2
 #M2 | |cam| |M1M3 bending         | |M2 bending           |
 11111 11111 11111 11111 11111 11111 11111 11111 11111 11111 
 11111 11111 00000 00000 00000 00000 00000 00000 00000 00000
