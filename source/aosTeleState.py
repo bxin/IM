@@ -88,7 +88,7 @@ class aosTeleState(object):
                 #don't add comments after each move command,
                 #Phosim merges all move commands into one!
                 fid.write('move %d %7.4f \n' % ( 
-                    self.phosimActuatorID[i], self.stateV[i], i + 1))
+                    self.phosimActuatorID[i], self.stateV[i]))
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
