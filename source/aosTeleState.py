@@ -36,9 +36,11 @@ class aosTeleState(object):
                 if (line.startswith('dof')):
                     self.stateV[int(line.split()[1]) -
                                 1] = float(line.split()[2])
-                    # by default we want micron for everything
+                    # by default we want micron and arcsec for everything
                     if line.split()[3] == 'mm':
                         self.stateV[int(line.split()[1]) - 1] *= 1e3
+                    elif line.split()[3] == 'deg':
+                        self.stateV[int(line.split()[1]) - 1] *= 3600
                 elif (line.startswith('opd_size')):
                     self.opdSize = int(line.split()[1])
                     if self.opdSize % 2 == 0:
