@@ -103,11 +103,7 @@ class aosMetric(object):
                 opd[:a.shape[0], :a.shape[1]] = a
 
             self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
-            a = 1.16
-            b = 1.04
-            fwhmeffatm = a*np.sqrt(b)*0.6
-            self.FWHMeff[i] = np.sqrt(
-                (fwhmeffatm**2-self.PSSN[i]*a*a*b*0.6**2)/self.PSSN[i]/a/a )
+            self.FWHMeff[i] = 1.086*0.6*np.sqrt(1/self.PSSN[i]-1)
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
             if debugLevel >= 2:
@@ -153,8 +149,7 @@ to be implemented
                 opd[:a.shape[0], :a.shape[1]] = a
 
             self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
-            self.FWHMeff[i] = np.sqrt( #??
-                -1.2187 * 0.6040**2 + 0.8127 * 0.7386**2 / self.PSSN[i])
+            self.FWHMeff[i] = 1.086*0.6*np.sqrt(1/self.PSSN[i]-1)
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
             if debugLevel >= 2:
@@ -393,7 +388,9 @@ def r0Wz(r0inmRef, zen, wlum):
 def psf2eAtmW(wfm, wlum, D=8.36, pmask=0, r0inmRef=0.1382,
               sensorFactor=1,
               zen=0, imagedelta=0.2, fno=1.2335, debugLevel=0):
-
+    """
+    wfm: wavefront OPD in micron
+    """
     psfe = opd2psf(wfm, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
     otfe = psf2otf(psfe)  # OTF of error
 

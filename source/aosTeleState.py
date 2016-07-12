@@ -72,7 +72,7 @@ class aosTeleState(object):
 
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
-        runProgram('rm -rf %s/output/*'%self.phosimDir)
+        # runProgram('rm -rf %s/output/*'%self.phosimDir)
         
         if debugLevel >= 3:
             print('in aosTeleState:')
@@ -271,7 +271,7 @@ perturbationmode 1\n')
             hdu.writeto(dst)
 
             plt.subplot(metr.nRing + 1, metr.nArm, pIdx)
-            plt.imshow(extractArray(psf, 20), origin='lower')
+            plt.imshow(extractArray(psf, 20), origin='lower', interpolation='none')
             plt.title('%d' % i)
             plt.axis('off')
 

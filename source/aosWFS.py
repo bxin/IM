@@ -115,7 +115,7 @@ class aosWFS(object):
                     pIdx = 7 + ioffset  # 7 and 8
 
                 plt.subplot(2, 4, pIdx)
-                plt.imshow(psf, origin='lower')
+                plt.imshow(psf, origin='lower', interpolation='none')
                 plt.title('%s_%s' % (chipStr, state.wfsName[ioffset]))
                 plt.axis('off')
 
