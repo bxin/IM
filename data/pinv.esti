@@ -36,5 +36,5 @@ izn3		1
 normalize_A	0
 
 #number of singular values to to set to infinity
-n_singular_inf	0
+n_singular_inf	5
 

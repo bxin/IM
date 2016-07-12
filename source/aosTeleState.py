@@ -97,8 +97,6 @@ class aosTeleState(object):
         self.obsID = 9000000 + self.iSim*100 + self.iIter
         self.zFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
-        self.zFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
-            self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
         self.pertMatFile = '%s/iter%d/sim%d_iter%d_pert.mat' % (
@@ -112,7 +110,14 @@ class aosTeleState(object):
             self.imageDir, self.iIter, self.iSim, self.iIter)
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt'%(
             self.imageDir, self.iIter, self.iSim, self.iIter)
-            
+
+        if iIter>0:
+            self.zFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+                self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
+            self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
+                self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
+            #self.stateV = np.loadtxt(self.pertMatFile_m1)
+                    
     def getOPD35(self, wfs, metr, numproc, wavelength, debugLevel):
 
         self.writeOPDinst(metr, wavelength)

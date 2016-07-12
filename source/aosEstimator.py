@@ -118,6 +118,7 @@ class aosEstimator(object):
             aa = np.loadtxt(state.zFile_m1)
             self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
             mu = np.zeros(self.zn3Max*4)
+            np.random.seed(state.obsID)
             self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
 
         self.yfinal -= wfs.intrinsic4c
