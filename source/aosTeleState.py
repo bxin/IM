@@ -116,7 +116,7 @@ class aosTeleState(object):
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
-            #self.stateV = np.loadtxt(self.pertMatFile_m1)
+            self.stateV = np.loadtxt(self.pertMatFile_m1)
                     
     def getOPD35(self, wfs, metr, numproc, wavelength, debugLevel):
 
