@@ -33,45 +33,64 @@ class aosController(object):
                     self.rhoM2 = float(line.split()[1])
                 elif (line.startswith('Motion_penalty')):
                     self.rho = float(line.split()[1])
-
+                elif (line.startswith('y2File')):
+                    self.y2File = line.split()[1]
+                    
         fid.close()
         if debugLevel >= 1:
             print('control strategy: %s' % self.strategy)
+            print('Using y2 file: %s' % self.y2File)
         self.gain = gain
-
-        if (self.strategy == 'null'):
-            self.mF = np.identity(esti.Ause.shape[1])
-        else:
+        self.y2 = np.loadtxt(os.path.join('data/', self.y2File))
+        
+        # establish control authority of the DOFs
+        aa = M1M3.force[:, :esti.nB13Max]
+        aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
+        mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
+        aa = M2.force[:, :esti.nB2Max]
+        aa = aa[:, esti.compIdx[
+            10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
+        mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
+        # For the rigid body DOF (r for rigid)
+        # weight based on the total stroke
+        rbStroke = np.array([5900, 6700, 6700, 432, 432,
+                                8700, 7600, 7600, 864, 864 ])
+        rbW = (rbStroke[0]/rbStroke)
+        mHr = rbW[esti.compIdx[:10]]
+        self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+        
+        if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
-            aa = M1M3.force[:, :esti.nB13Max]
-            aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
-            mHM13 = np.diag(np.mean(np.square(aa), axis=0))
-            aa = M2.force[:, :esti.nB2Max]
-            aa = aa[:, esti.compIdx[
-                10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
-            mHM2 = np.diag(np.mean(np.square(aa), axis=0))
-            # the block for the rigid body DOF (r for rigid)
-            mHr = np.identity(np.sum(esti.compIdx[:10]))
-            mH = block_diag(mHr, self.rhoM13**2 * mHM13, self.rhoM2**2 * mHM2)
+            mH = np.diag(self.Authority**2)
+            # wavelength below in um,b/c output of A in um
+            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
+            self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
+            for iField in range(metr.nField):
+                aa = esti.senM[iField, :, :]
+                Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
+                mQf = Afield.T.dot(CCmat).dot(Afield)
+                self.mQ = self.mQ + metr.w[iField] * mQf
+            self.mF = np.linalg.pinv(self.mQ + self.rho**2 * mH)
 
-            if (self.strategy == 'optiPSSN'):
-                # wavelength below in um,b/c output of A in um
-                CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
-                self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
-                for iField in range(metr.nField):
-                    aa = esti.senM[iField, :, :]
-                    Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
-                    mQf = Afield.T.dot(CCmat).dot(Afield)
-                    self.mQ = self.mQ + metr.w[iField] * mQf
-                self.mF = np.linalg.pinv(self.mQ + self.rho**2 * mH)
+            if debugLevel >= 3:
+                print(self.mQ[0, 0])
+                print(self.mQ[0, 9])
 
-                if debugLevel >= 3:
-                    print(self.mQ[0, 0])
-                    print(self.mQ[0, 9])
-
-    def getMotions(self, esti):
-        self.uk=np.zeros(esti.ndofA)        
-        self.uk[esti.compIdx] = - self.gain * self.mF.dot(esti.xhat[esti.compIdx])
+    def getMotions(self, esti, metr, wavelength):
+        self.uk=np.zeros(esti.ndofA)
+        if (self.strategy == 'null'):        
+            self.uk[esti.compIdx] = - self.gain * esti.xhat[esti.compIdx]
+        elif (self.strategy == 'optiPSSN'):
+            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
+            Mx = np.zeros(esti.Ause.shape[1])
+            for iField in range(metr.nField):
+                aa = esti.senM[iField, :, :]
+                Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
+                y2f = self.y2[iField, esti.zn3Idx]
+                yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
+                Mxf = Afield.T.dot(CCmat).dot(yf)
+                Mx = Mx + Mxf
+            self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
 
     def drawControlPanel(self, esti, state):
 

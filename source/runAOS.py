@@ -136,7 +136,7 @@ def main():
 
         if iIter > 0: #args.startiter:
             esti.estimate(state, wfs, args.sensoroff)
-            ctrl.getMotions(esti)
+            ctrl.getMotions(esti, metr, args.wavelength)
             ctrl.drawControlPanel(esti, state)
 
             # need to remake the pert file here.

@@ -1,0 +1,33 @@
+###
+
+This instrument file is for multiple Rigid Body dof unit testing
+
+###
+
+dof     1       -15       um      M2 piston
+dof     2       -25      um      M2 x-decenter
+dof     3       -25       um      M2 y-decenter
+dof     4       4       arcsec      M2 x-tilt
+dof     5       -3       arcsec      M2 y-tilt
+
+dof	6	15	um 	Cam piston
+dof	7	20	um	Cam x-decenter
+dof     8       -20       um      Cam y-decenter
+dof     9       -4       arcsec      Cam x-tilt
+dof    10       -3       arcsec      Cam y-tilt
+
+#wavefront sensing star magnitude
+cwfs_mag	17
+#wavefront sensing image stamp size
+cwfs_stamp_size	128
+
+#use 0 for eimage only, without backgrounds
+eimage		0
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		22
+#psf image stamp size
+psf_stamp_size	128
+
