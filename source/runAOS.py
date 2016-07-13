@@ -135,7 +135,7 @@ def main():
         state.setIterNo(metr, iIter)
 
         if iIter > 0: #args.startiter:
-            esti.estimate(state, wfs, args.sensoroff)
+            esti.estimate(state, wfs, ctrl, args.sensoroff)
             ctrl.getMotions(esti, metr, args.wavelength)
             ctrl.drawControlPanel(esti, state)
 

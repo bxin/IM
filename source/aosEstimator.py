@@ -113,7 +113,7 @@ class aosEstimator(object):
                 axis=1)
             self.Ainv = VaT.T.dot(Sainv).dot(Ua.T)
 
-    def estimate(self, state, wfs, sensoroff):
+    def estimate(self, state, wfs, ctrl, sensoroff):
         if sensoroff:
             aa = np.loadtxt(state.zFile_m1)
             self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
@@ -122,10 +122,15 @@ class aosEstimator(object):
             self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
 
         self.yfinal -= wfs.intrinsic4c
+
+        # subtract y2c
+        aa = np.loadtxt(ctrl.y2File)
+        self.y2c = aa[-4:, 3:self.znMax].reshape((-1, 1))
+        
         self.xhat = np.zeros(self.ndofA)
-        self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4])
+        self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)
         self.yresi = self.yfinal.copy()
+        self.yresi -= self.y2c
         self.yresi += np.reshape(
             self.Anorm.dot(-self.xhat[self.compIdx]), (-1, 1))
-        # self.yresi += np.reshape(self.Anorm.dot(
-        # -state.stateV[self.compIdx]),(-1,1))
+

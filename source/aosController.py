@@ -5,7 +5,6 @@
 
 import os
 import numpy as np
-from scipy.linalg import block_diag
 import matplotlib.pyplot as plt
 
 
@@ -78,8 +77,13 @@ class aosController(object):
 
     def getMotions(self, esti, metr, wavelength):
         self.uk=np.zeros(esti.ndofA)
-        if (self.strategy == 'null'):        
-            self.uk[esti.compIdx] = - self.gain * esti.xhat[esti.compIdx]
+        if (self.strategy == 'null'):
+            y2 = np.zeros(esti.Ause.shape[0])
+            for iField in range(metr.nField):
+                y2f = self.y2[iField, esti.zn3Idx]
+                y2 = y2 + metr.w[iField] * y2f
+                
+            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + esti.Ainv.dot(y2))
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
             Mx = np.zeros(esti.Ause.shape[1])
@@ -89,7 +93,7 @@ class aosController(object):
                 y2f = self.y2[iField, esti.zn3Idx]
                 yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
-                Mx = Mx + Mxf
+                Mx = Mx + metr.w[iField] * Mxf
             self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
 
     def drawControlPanel(self, esti, state):
