@@ -124,7 +124,7 @@ class aosEstimator(object):
         self.yfinal -= wfs.intrinsic4c
 
         # subtract y2c
-        aa = np.loadtxt(ctrl.y2File)
+        aa = np.loadtxt(os.path.join('data/', ctrl.y2File))
         self.y2c = aa[-4:, 3:self.znMax].reshape((-1, 1))
         
         self.xhat = np.zeros(self.ndofA)
