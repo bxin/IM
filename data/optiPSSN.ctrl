@@ -22,7 +22,7 @@ M2_actuator_penalty   5.9
 # default below is 0.0010, meaning 1N force is as bad as 0.0010 increase in pssn
 # use 0, if you accept whatever motion needed to produce best image quality
 # use 1e100, if you absolutely hate anything that moves
-Motion_penalty		0.0010
+Motion_penalty		1e-3
 
 #y2 file
 y2File		y2.txt

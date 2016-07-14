@@ -123,10 +123,12 @@ class aosEstimator(object):
         
         self.xhat = np.zeros(self.ndofA)
         self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)
+        if self.normalizeA:
+            self.xhat[self.compIdx] = self.xhat[self.compIdx] / ctrl.Authority
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c
         self.yresi += np.reshape(
-            self.Anorm.dot(-self.xhat[self.compIdx]), (-1, 1))
+            self.Ause.dot(-self.xhat[self.compIdx]), (-1, 1))
 
 def pinv_truncate(A, n):
     Ua, Sa, VaT = np.linalg.svd(A)

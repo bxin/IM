@@ -87,7 +87,10 @@ class aosController(object):
                 y2f = self.y2[iField, esti.zn3Idx]
                 y2 = y2 + metr.w[iField] * y2f
             y2c = np.repeat(y2, 4)
-            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + esti.Ainv.dot(y2c))
+            x_y2c = esti.Ainv.dot(y2c)
+            if esti.normalizeA:
+                x_y2c = x_y2c / self.Authority
+            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + x_y2c)
             
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
