@@ -91,28 +91,22 @@ class aosEstimator(object):
             print(self.Ause.shape)
             print(self.Ause[21, -1])
             print(self.normalizeA)
-
-        dofUnitMat = np.ones(self.Ause.shape)
-        if self.normalizeA:
-            pass
-
-        self.Anorm = self.Ause / dofUnitMat
+            
+        self.Anorm = self.Ause 
         if (debugLevel >= 3):
-            print('---chekcing Anorm:')
+            print('---checking Anorm (actually Ause):')
             print(self.Anorm[:5, :5])
             print(self.Ause[:5, :5])
         if self.strategy == 'pinv':
-            Ua, Sa, VaT = np.linalg.svd(self.Anorm)
-            siginv = 1 / Sa
-            if self.nSingularInf > 1:
-                siginv[-self.nSingularInf:] = 0
-            Sainv = np.diag(siginv)
-            Sainv = np.concatenate(
-                (Sainv, np.zeros(
-                    (VaT.shape[0], Ua.shape[0] - Sainv.shape[1]))),
-                axis=1)
-            self.Ainv = VaT.T.dot(Sainv).dot(Ua.T)
+            self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
+            
+    def normA(self, ctrl):
+        dofUnitMat = np.repeat(ctrl.Authority.reshape((1,-1)), self.Ause.shape[0] ,axis=0)
 
+        self.Anorm = self.Ause / dofUnitMat
+        self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
+        
+        
     def estimate(self, state, wfs, ctrl, sensoroff):
         if sensoroff:
             aa = np.loadtxt(state.zFile_m1)
@@ -134,3 +128,16 @@ class aosEstimator(object):
         self.yresi += np.reshape(
             self.Anorm.dot(-self.xhat[self.compIdx]), (-1, 1))
 
+def pinv_truncate(A, n):
+    Ua, Sa, VaT = np.linalg.svd(A)
+    siginv = 1 / Sa
+    if n > 1:
+        siginv[-n:] = 0
+    Sainv = np.diag(siginv)
+    Sainv = np.concatenate(
+        (Sainv, np.zeros(
+            (VaT.shape[0], Ua.shape[0] - Sainv.shape[1]))),
+        axis=1)
+    Ainv = VaT.T.dot(Sainv).dot(Ua.T)
+    return Ainv
+    

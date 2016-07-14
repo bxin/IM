@@ -58,6 +58,9 @@ class aosController(object):
             rbW = (rbStroke[0]/rbStroke)
             mHr = rbW[esti.compIdx[:10]]
             self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+
+            if esti.normalizeA:
+                esti.normA(self)
         
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
