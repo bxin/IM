@@ -89,7 +89,7 @@ class aosController(object):
             y2c = np.repeat(y2, 4)
             x_y2c = esti.Ainv.dot(y2c)
             if esti.normalizeA:
-                x_y2c = x_y2c / self.Authority
+                x_y2c = x_y2c / esti.dofUnit
             self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + x_y2c)
             
         elif (self.strategy == 'optiPSSN'):

@@ -101,7 +101,8 @@ class aosEstimator(object):
             self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
             
     def normA(self, ctrl):
-        dofUnitMat = np.repeat(ctrl.Authority.reshape((1,-1)), self.Ause.shape[0] ,axis=0)
+        self.dofUnit = ctrl.Authority
+        dofUnitMat = np.repeat(self.dofUnit.reshape((1,-1)), self.Ause.shape[0] ,axis=0)
 
         self.Anorm = self.Ause / dofUnitMat
         self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
@@ -124,7 +125,7 @@ class aosEstimator(object):
         self.xhat = np.zeros(self.ndofA)
         self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)
         if self.normalizeA:
-            self.xhat[self.compIdx] = self.xhat[self.compIdx] / ctrl.Authority
+            self.xhat[self.compIdx] = self.xhat[self.compIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c
         self.yresi += np.reshape(
