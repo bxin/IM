@@ -43,20 +43,21 @@ class aosController(object):
         self.y2 = np.loadtxt(os.path.join('data/', self.y2File))
         
         # establish control authority of the DOFs
-        aa = M1M3.force[:, :esti.nB13Max]
-        aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
-        mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
-        aa = M2.force[:, :esti.nB2Max]
-        aa = aa[:, esti.compIdx[
-            10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
-        mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
-        # For the rigid body DOF (r for rigid)
-        # weight based on the total stroke
-        rbStroke = np.array([5900, 6700, 6700, 432, 432,
-                                8700, 7600, 7600, 864, 864 ])
-        rbW = (rbStroke[0]/rbStroke)
-        mHr = rbW[esti.compIdx[:10]]
-        self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+        if esti.normalizeA or self.strategy == 'optiPSSN':
+            aa = M1M3.force[:, :esti.nB13Max]
+            aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
+            mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
+            aa = M2.force[:, :esti.nB2Max]
+            aa = aa[:, esti.compIdx[
+                10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
+            mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
+            # For the rigid body DOF (r for rigid)
+            # weight based on the total stroke
+            rbStroke = np.array([5900, 6700, 6700, 432, 432,
+                                    8700, 7600, 7600, 864, 864 ])
+            rbW = (rbStroke[0]/rbStroke)
+            mHr = rbW[esti.compIdx[:10]]
+            self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
         
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
@@ -78,12 +79,13 @@ class aosController(object):
     def getMotions(self, esti, metr, wavelength):
         self.uk=np.zeros(esti.ndofA)
         if (self.strategy == 'null'):
-            y2 = np.zeros(esti.Ause.shape[0])
+            y2 = np.zeros(sum(esti.zn3Idx))
             for iField in range(metr.nField):
                 y2f = self.y2[iField, esti.zn3Idx]
                 y2 = y2 + metr.w[iField] * y2f
-                
-            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + esti.Ainv.dot(y2))
+            y2c = np.repeat(y2, 4)
+            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + esti.Ainv.dot(y2c))
+            
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
             Mx = np.zeros(esti.Ause.shape[1])
@@ -94,7 +96,8 @@ class aosController(object):
                 yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
-            self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
+            #self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
+            self.uk[esti.compIdx] = - self.gain * self.mF.dot(self.mQ.dot(esti.xhat[esti.compIdx] ))
 
     def drawControlPanel(self, esti, state):
 
