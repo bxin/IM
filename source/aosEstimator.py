@@ -125,7 +125,7 @@ class aosEstimator(object):
 
         # subtract y2c
         aa = np.loadtxt(os.path.join('data/', ctrl.y2File))
-        self.y2c = aa[-4:, 3:self.znMax].reshape((-1, 1))
+        self.y2c = aa[-4:, 0:self.znMax-3].reshape((-1, 1))
         
         self.xhat = np.zeros(self.ndofA)
         self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)

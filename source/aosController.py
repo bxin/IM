@@ -96,8 +96,8 @@ class aosController(object):
                 yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
-            #self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
-            self.uk[esti.compIdx] = - self.gain * self.mF.dot(self.mQ.dot(esti.xhat[esti.compIdx] ))
+            self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
+            #self.uk[esti.compIdx] = - self.gain * self.mF.dot(self.mQ).dot(esti.xhat[esti.compIdx])
 
     def drawControlPanel(self, esti, state):
 
