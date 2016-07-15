@@ -106,7 +106,7 @@ def main():
     # *****************************************
     # state estimator
     # *****************************************
-    esti = aosEstimator(args.estimatorParam, args.icomp, args.izn3,
+    esti = aosEstimator(args.estimatorParam, wfs, args.icomp, args.izn3,
                         args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
@@ -122,7 +122,7 @@ def main():
     # control algorithm
     # *****************************************
     metr = aosMetric(state, wfs, args.debugLevel)
-    ctrl = aosController(args.controllerParam, esti, metr, M1M3, M2,
+    ctrl = aosController(args.controllerParam, esti, metr, wfs, M1M3, M2,
                          args.wavelength, args.gain, args.debugLevel)
 
     # *****************************************

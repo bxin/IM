@@ -107,8 +107,8 @@ class aosMetric(object):
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
             if debugLevel >= 2:
-                print('field#%d, PSSN=%7.4f' % (i, self.PSSN[i]))
-            # exit()
+                print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
+                    i, self.PSSN[i], self.FWHMeff[i]*1e3))
 
         self.GQPSSN = np.sum(self.w * self.PSSN)
         self.GQFWHMeff = np.sum(self.w * self.FWHMeff)
@@ -153,8 +153,8 @@ to be implemented
             self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
 
             if debugLevel >= 2:
-                print('field#%d, PSSN=%7.4f' % (i, self.PSSN[i]))
-            # exit()
+                print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
+                    i, self.PSSN[i], self.FWHMeff[i]*1e3))
 
         self.GQPSSN = np.sum(self.w * self.PSSN)
         if debugLevel >= 2:
@@ -222,7 +222,7 @@ to be implemented
                 opd, wavelength, debugLevel=debugLevel)
 
             if debugLevel >= 2:
-                print('field#%d, elli=%7.4f' % (i, self.elli[i]))
+                print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
             # exit()
 
         self.GQelli = np.sum(self.w * self.elli)

@@ -17,6 +17,8 @@ aosController->ctrl:
 *	shiftGear	after it converges, we change optimal estimator to stablize the system
 	strategy	control strategy, such as optiPSSN
 	gain		control feedback gain
+	Authority	control authority
+	range	range of motion for the DOFs.
 
 	functions():
 	getMotions		determine the control motions to be applied to the next iteration
@@ -49,6 +51,8 @@ aosEstimator ->esti
 
 	functions():
 	estimate	estimate state
+	normA()		 normalize A based on control authority
+	optiAinv()	 construct the optimal estimator Ainv (using state covariance & noise covariance)
 
 aosTeleState  ->state
 	instruFile	*.inst in data/, this defines the initial state, and what effect we turn on/off

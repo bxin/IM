@@ -10,7 +10,7 @@ import numpy as np
 
 class aosEstimator(object):
 
-    def __init__(self, paramFile, icomp, izn3, debugLevel):
+    def __init__(self, paramFile, wfs, icomp, izn3, debugLevel):
         self.filename = os.path.join('data/', (paramFile + '.esti'))
         fid = open(self.filename)
         iscomment = False
@@ -34,6 +34,8 @@ class aosEstimator(object):
                     self.normalizeA = bool(int(line.split()[1]))
                 elif (line.startswith('n_singular_inf')):
                     self.nSingularInf = int(line.split()[1])
+                elif (line.startswith('range_of_motion')):
+                    self.fmotion = float(line.split()[1])
                 elif (line.startswith('icomp')):
                     if (icomp is None):
                         self.icomp = int(line.split()[1])
@@ -90,7 +92,8 @@ class aosEstimator(object):
             print(self.zn3Max)
             print(self.Ause.shape)
             print(self.Ause[21, -1])
-            print(self.normalizeA)
+            if self.strategy == 'pinv':
+                print(self.normalizeA)
             
         self.Anorm = self.Ause 
         if (debugLevel >= 3):
@@ -99,6 +102,13 @@ class aosEstimator(object):
             print(self.Ause[:5, :5])
         if self.strategy == 'pinv':
             self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
+        elif self.strategy == 'opti':
+            #empirical estimates (by Doug M.), not used when self.fmotion<0
+            aa=[0.5, 2, 2, 0.1, 0.1, 0.5, 2, 2, 0.1, 0.1] 
+            dX = np.concatenate((aa, 0.01*np.ones(20), 0.005*np.ones(20)))**2
+            X = np.diag(dX)
+            self.Ainv = X.dot(self.Anorm.T).dot(
+                np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
             
     def normA(self, ctrl):
         self.dofUnit = ctrl.Authority
@@ -106,6 +116,12 @@ class aosEstimator(object):
 
         self.Anorm = self.Ause / dofUnitMat
         self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
+
+    def optiAinv(self, ctrl, wfs):
+        dX = (ctrl.range*self.fmotion)**2
+        X = np.diag(dX)
+        self.Ainv = X.dot(self.Anorm.T).dot(
+            np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
         
         
     def estimate(self, state, wfs, ctrl, sensoroff):
@@ -124,7 +140,7 @@ class aosEstimator(object):
         
         self.xhat = np.zeros(self.ndofA)
         self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)
-        if self.normalizeA:
+        if self.strategy== 'pinv' and self.normalizeA:
             self.xhat[self.compIdx] = self.xhat[self.compIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c

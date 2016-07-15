@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class aosController(object):
 
-    def __init__(self, paramFile, esti, metr, M1M3, M2, wavelength, gain,
+    def __init__(self, paramFile, esti, metr, wfs, M1M3, M2, wavelength, gain,
                  debugLevel):
 
         self.filename = os.path.join('data/', (paramFile + '.ctrl'))
@@ -43,24 +43,28 @@ class aosController(object):
         self.y2 = np.loadtxt(os.path.join('data/', self.y2File))
         
         # establish control authority of the DOFs
-        if esti.normalizeA or self.strategy == 'optiPSSN':
-            aa = M1M3.force[:, :esti.nB13Max]
-            aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
-            mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
-            aa = M2.force[:, :esti.nB2Max]
-            aa = aa[:, esti.compIdx[
-                10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
-            mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
-            # For the rigid body DOF (r for rigid)
-            # weight based on the total stroke
-            rbStroke = np.array([5900, 6700, 6700, 432, 432,
-                                    8700, 7600, 7600, 864, 864 ])
-            rbW = (rbStroke[0]/rbStroke)
-            mHr = rbW[esti.compIdx[:10]]
-            self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+        aa = M1M3.force[:, :esti.nB13Max]
+        aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
+        mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
+        aa = M2.force[:, :esti.nB2Max]
+        aa = aa[:, esti.compIdx[
+            10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
+        mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
+        # For the rigid body DOF (r for rigid)
+        # weight based on the total stroke
+        rbStroke = np.array([5900, 6700, 6700, 432, 432,
+                                8700, 7600, 7600, 864, 864 ])
+        rbW = (rbStroke[0]/rbStroke)
+        mHr = rbW[esti.compIdx[:10]]
+        self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+        self.range = 1/self.Authority*rbStroke[0] #range of motion for the DOFs.
 
+        if esti.strategy == 'pinv':
             if esti.normalizeA:
                 esti.normA(self)
+        if esti.strategy == 'opti':
+            if esti.fmotion > 0:
+                esti.optiAinv(self, wfs)
         
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
