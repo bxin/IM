@@ -189,7 +189,7 @@ to be implemented
                 opd, wavelength, debugLevel=debugLevel)
 
             if debugLevel >= 2:
-                print('field#%d, elli=%7.4f' % (i, self.elli[i]))
+                print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
             # exit()
 
         self.GQelli = np.sum(self.w * self.elli)

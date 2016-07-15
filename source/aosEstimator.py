@@ -36,6 +36,8 @@ class aosEstimator(object):
                     self.nSingularInf = int(line.split()[1])
                 elif (line.startswith('range_of_motion')):
                     self.fmotion = float(line.split()[1])
+                elif (line.startswith('regularization')):
+                    self.reguMu = float(line.split()[1])
                 elif (line.startswith('icomp')):
                     if (icomp is None):
                         self.icomp = int(line.split()[1])
@@ -109,6 +111,10 @@ class aosEstimator(object):
             X = np.diag(dX)
             self.Ainv = X.dot(self.Anorm.T).dot(
                 np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
+        elif self.strategy == 'crude_opti':
+            self.Ainv = self.Anorm.T.dot(np.linalg.pinv(
+                self.Anorm.dot(self.Anorm.T)+self.reguMu*np.identity(self.Anorm.shape[0])))
+            
             
     def normA(self, ctrl):
         self.dofUnit = ctrl.Authority
