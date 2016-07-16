@@ -78,31 +78,30 @@ class aosMetric(object):
 
     def getPSSNandMore(self, state, wfs, wavelength, debugLevel):
 
-        self.PSSN = np.zeros(self.nField)
-
+        # multithreading on MacOX doesn't work with pinv
+        if sys.platform == 'darwin':
+            self.PSSN = np.zeros(self.nField)
+        argList = []
         for i in range(self.nField):
             opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i)
-            IHDU = fits.open(opdFile)
-            opd = IHDU[0].data # unit: um
-            IHDU.close()
 
-            # before calc_pssn,
-            # (1) remove PTT,
-            # (2) make sure outside of pupil are all zeros
-            idx = (opd != 0)
-            Z = ZernikeAnnularFit(opd[idx], state.opdx[idx], state.opdy[idx],
-                                  wfs.znwcs, wfs.inst.obscuration)
-            Z[3:] = 0
-            opd[idx] -= ZernikeAnnularEval(Z, state.opdx[idx], state.opdy[idx],
-                                      wfs.inst.obscuration)
+            argList.append((opdFile, state, wfs.znwcs,
+                            wfs.inst.obscuration, wavelength, self.stampD,
+                            debugLevel))
 
-            if self.stampD > opd.shape[0]:
-                a = opd
-                opd = np.zeros((self.stampD, self.stampD))
-                opd[:a.shape[0], :a.shape[1]] = a
+            # test, pdb cannot go into the subprocess
+            # aa = runEllipticity(argList[0])
+            if sys.platform == 'darwin':
+                self.PSSN[i] = runPSSNandMore(argList[i])
 
-            self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+        # tested, but couldn't figure out why the below didn't work
+        if sys.platform != 'darwin':
+            pool = multiprocessing.Pool(numproc)
+            self.PSSN = pool.map(runPSSNandMore, argList)
+            pool.close()
+            pool.join()
+            
         self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
         self.dm5 = -1.25 * np.log10(self.PSSN)
 
@@ -162,6 +161,7 @@ to be implemented
 
     def getEllipticity(self, state, wfs, wavelength, numproc, debugLevel):
 
+        # multithreading on MacOX doesn't work with pinv
         if sys.platform == 'darwin':
             self.elli = np.zeros(self.nField)
         argList = []
@@ -585,4 +585,34 @@ def runEllipticity(argList):
         opd, wavelength, debugLevel=debugLevel)
     return elli
 
+def runPSSNandMore(argList):
+    opdFile = argList[0]
+    opdx = argList[1].opdx
+    opdy = argList[1].opdy
+    znwcs = argList[2]
+    obsR = argList[3]
+    wavelength = argList[4]
+    stampD = argList[5]
+    debugLevel = argList[6]
+    print('runPSSNandMore: %s '% opdFile)
+    
+    IHDU = fits.open(opdFile)
+    opd = IHDU[0].data # unit: um
+    IHDU.close()
+
+    # before calc_pssn,
+    # (1) remove PTT,
+    # (2) make sure outside of pupil are all zeros
+    idx = (opd != 0)
+    Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)
+    Z[3:] = 0
+    opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
+
+    if stampD > opd.shape[0]:
+        a = opd
+        opd = np.zeros((stampD, stampD))
+        opd[:a.shape[0], :a.shape[1]] = a
+
+    pssn = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+    return pssn
 
