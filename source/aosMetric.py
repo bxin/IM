@@ -5,6 +5,7 @@
 
 import os
 import sys
+import multiprocessing
 
 import numpy as np
 import scipy.special as sp
@@ -67,6 +68,7 @@ class aosMetric(object):
         # self.pssnRange = aa[: 1]
 
         self.znx2 = np.zeros((self.nFieldp4, wfs.znwcs3))
+        self.stampD = 2**np.ceil(np.log2(state.opdSize))
 
     def getFWHMfromZ(self):
         self.fwhm = np.zeros(self.nField)
@@ -77,8 +79,6 @@ class aosMetric(object):
     def getPSSNandMore(self, state, wfs, wavelength, debugLevel):
 
         self.PSSN = np.zeros(self.nField)
-        self.FWHMeff = np.zeros(self.nField)
-        self.dm5 = np.zeros(self.nField)
 
         for i in range(self.nField):
             opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
@@ -96,17 +96,18 @@ class aosMetric(object):
             Z[3:] = 0
             opd[idx] -= ZernikeAnnularEval(Z, state.opdx[idx], state.opdy[idx],
                                       wfs.inst.obscuration)
-            self.stampD = 2**np.ceil(np.log2(state.opdSize))
+
             if self.stampD > opd.shape[0]:
                 a = opd
                 opd = np.zeros((self.stampD, self.stampD))
                 opd[:a.shape[0], :a.shape[1]] = a
 
             self.PSSN[i] = calc_pssn(opd, wavelength, debugLevel=debugLevel)
-            self.FWHMeff[i] = 1.086*0.6*np.sqrt(1/self.PSSN[i]-1)
-            self.dm5[i] = -1.25 * np.log10(self.PSSN[i])
+        self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
+        self.dm5 = -1.25 * np.log10(self.PSSN)
 
-            if debugLevel >= 2:
+        if debugLevel >= 2:
+            for i in range(self.nField):
                 print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
                     i, self.PSSN[i], self.FWHMeff[i]*1e3))
 
@@ -142,7 +143,6 @@ to be implemented
             opd = IHDU[0].data  #  um
             IHDU.close()
 
-            self.stampD = 2**np.ceil(np.log2(state.opdSize))
             if self.stampD > opd.shape[0]:
                 a = opd
                 opd = np.zeros((self.stampD, self.stampD))
@@ -160,37 +160,34 @@ to be implemented
         if debugLevel >= 2:
             print(self.GQPSSN)
 
-    def getEllipticity(self, state, wfs, wavelength, debugLevel):
-        self.elli = np.zeros(self.nField)
+    def getEllipticity(self, state, wfs, wavelength, numproc, debugLevel):
+
+        if sys.platform == 'darwin':
+            self.elli = np.zeros(self.nField)
+        argList = []
         for i in range(self.nField):
             opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i)
-            IHDU = fits.open(opdFile)
-            opd = IHDU[0].data # um
-            IHDU.close()
+
+            argList.append((opdFile, state, wfs.znwcs,
+                            wfs.inst.obscuration, wavelength, self.stampD,
+                            debugLevel))
+
+            # test, pdb cannot go into the subprocess
+            # aa = runEllipticity(argList[0])
+            if sys.platform == 'darwin':
+                self.elli[i] = runEllipticity(argList[i])
+
+        # tested, but couldn't figure out why the below didn't work
+        if sys.platform != 'darwin':
+            pool = multiprocessing.Pool(numproc)
+            self.elli = pool.map(runEllipticity, argList)
+            pool.close()
+            pool.join()
             
-            # before psf2eAtmW()
-            # (1) remove PTT,
-            # (2) make sure outside of pupil are all zeros
-            idx = (opd != 0)
-            Z = ZernikeAnnularFit(opd[idx], state.opdx[idx], state.opdy[idx],
-                                  wfs.znwcs, wfs.inst.obscuration)
-            Z[3:] = 0
-            opd[idx] -= ZernikeAnnularEval(Z, state.opdx[idx], state.opdy[idx],
-                                      wfs.inst.obscuration)
-
-            self.stampD = 2**np.ceil(np.log2(state.opdSize))
-            if self.stampD > opd.shape[0]:
-                a = opd
-                opd = np.zeros((self.stampD, self.stampD))
-                opd[:a.shape[0], :a.shape[1]] = a
-
-            self.elli[i], _, _, _ = psf2eAtmW(
-                opd, wavelength, debugLevel=debugLevel)
-
+        for i in range(self.nField):
             if debugLevel >= 2:
                 print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
-            # exit()
 
         self.GQelli = np.sum(self.w * self.elli)
         a1=np.concatenate((self.elli, self.GQelli*np.ones(1)))
@@ -212,7 +209,6 @@ to be implemented
             opd = IHDU[0].data  # um
             IHDU.close()
 
-            self.stampD = 2**np.ceil(np.log2(state.opdSize))
             if self.stampD > opd.shape[0]:
                 a = opd
                 opd = np.zeros((self.stampD, self.stampD))
@@ -476,7 +472,7 @@ def createAtm(model, wlum, fwhminarcsec, gridsize, pixinum, oversample,
             sig = fwhminum / (2 * np.sqrt(-2 * np.log(0.4673194304)))
             sig = sig / (pixinum / oversample)  # in (oversampled) pixel
             z = np.exp(-r2 / 2 / sig**2) + 0.4 / 4 * np.exp(-r2 / 8 / sig**2)
-        if debugLevel >= 2:
+        if debugLevel >= 3:
             print('sigma1=%6.4f arcsec' %
                   (sig * (pixinum / oversample) / 10 * 0.2))
     return z
@@ -555,3 +551,38 @@ def otf2psf(otf):
     psf = np.absolute(np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(otf),
                                                     s=otf.shape)))
     return psf
+
+def runEllipticity(argList):
+    opdFile = argList[0]
+    opdx = argList[1].opdx
+    opdy = argList[1].opdy
+    znwcs = argList[2]
+    obsR = argList[3]
+    wavelength = argList[4]
+    stampD = argList[5]
+    debugLevel = argList[6]
+    print('runEllipticity: %s '% opdFile)
+    
+    IHDU = fits.open(opdFile)
+    opd = IHDU[0].data # um
+    IHDU.close()
+    
+    # before psf2eAtmW()
+    # (1) remove PTT,
+    # (2) make sure outside of pupil are all zeros
+    idx = (opd != 0)
+    
+    Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)    
+    Z[3:] = 0
+    opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
+
+    if stampD > opd.shape[0]:
+        a = opd
+        opd = np.zeros((stampD, stampD))
+        opd[:a.shape[0], :a.shape[1]] = a
+
+    elli, _, _, _ = psf2eAtmW(
+        opd, wavelength, debugLevel=debugLevel)
+    return elli
+
+

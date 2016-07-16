@@ -133,7 +133,7 @@ class aosTeleState(object):
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.OPD_inst, self.OPD_cmd, numproc, self.eimage, self.OPD_log)
-        if debugLevel >= 3:
+        if debugLevel >= 2:
             print('*******Runnnig PHOSIM with following parameters*******')
             print('Check the log file below for progress')
             print('%s' % myargs)
@@ -235,7 +235,7 @@ perturbationmode 1\n')
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.PSF_inst, self.PSF_cmd, numproc, self.eimage, self.PSF_log)
-        if debugLevel >= 3:
+        if debugLevel >= 2:
             print('********Runnnig PHOSIM with following parameters********')
             print('Check the log file below for progress')
             print('%s' % myargs)
@@ -359,7 +359,7 @@ perturbationmode 1\n')
 
         myargs = '%s -c %s -p %d -e %d > %s' % (
             self.WFS_inst, self.WFS_cmd, numproc, self.eimage, self.WFS_log)
-        if debugLevel >= 3:
+        if debugLevel >= 2:
             print('********Runnnig PHOSIM with following parameters********')
             print('Check the log file below for progress')
             print('%s' % myargs)

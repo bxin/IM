@@ -162,7 +162,7 @@ def main():
                 metr.getPSSNandMore(state, wfs, args.wavelength, args.debugLevel)
     
             if not args.ellioff:
-                metr.getEllipticity(state, wfs, args.wavelength, args.debugLevel)
+                metr.getEllipticity(state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
             if not args.sensoroff:
                 if not args.wfsoff:  # and not iIter == args.enditer:

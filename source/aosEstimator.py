@@ -117,7 +117,7 @@ class aosEstimator(object):
             
             
     def normA(self, ctrl):
-        self.dofUnit = ctrl.Authority
+        self.dofUnit = 1/ctrl.Authority
         dofUnitMat = np.repeat(self.dofUnit.reshape((1,-1)), self.Ause.shape[0] ,axis=0)
 
         self.Anorm = self.Ause / dofUnitMat
