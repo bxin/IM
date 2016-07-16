@@ -159,7 +159,7 @@ def main():
                 state.getPSF31(metr, args.numproc, args.debugLevel)
     
             if not args.pssnoff:
-                metr.getPSSNandMore(state, wfs, args.wavelength, args.debugLevel)
+                metr.getPSSNandMore(state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
             if not args.ellioff:
                 metr.getEllipticity(state, wfs, args.wavelength, args.numproc, args.debugLevel)

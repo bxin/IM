@@ -76,7 +76,7 @@ class aosMetric(object):
     def getPSSNfromZ(self):
         pass
 
-    def getPSSNandMore(self, state, wfs, wavelength, debugLevel):
+    def getPSSNandMore(self, state, wfs, wavelength, numproc, debugLevel):
 
         # multithreading on MacOX doesn't work with pinv
         if sys.platform == 'darwin':
