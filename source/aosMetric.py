@@ -101,6 +101,7 @@ class aosMetric(object):
             self.PSSN = pool.map(runPSSNandMore, argList)
             pool.close()
             pool.join()
+            self.PSSN = np.array(self.PSSN)
             
         self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
         self.dm5 = -1.25 * np.log10(self.PSSN)
