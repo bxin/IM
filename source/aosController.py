@@ -26,6 +26,8 @@ class aosController(object):
                     self.strategy = line.split()[1]
                 elif (line.startswith('shift_gear')):
                     self.shiftGear = bool(int(line.split()[1]))
+                    if self.shiftGear:
+                        self.shiftGearThres = bool(int(line.split()[2]))
                 elif (line.startswith('M1M3_actuator_penalty')):
                     self.rhoM13 = float(line.split()[1])
                 elif (line.startswith('M2_actuator_penalty')):
@@ -85,6 +87,9 @@ class aosController(object):
 
     def getMotions(self, esti, metr, wavelength):
         self.uk=np.zeros(esti.ndofA)
+        self.gainUse = self.gain
+        if self.shiftGear and (metr.GQFWHMeff > self.shiftGearThres):
+            self.gainUse = 1
         if (self.strategy == 'null'):
             y2 = np.zeros(sum(esti.zn3Idx))
             for iField in range(metr.nField):
@@ -94,7 +99,7 @@ class aosController(object):
             x_y2c = esti.Ainv.dot(y2c)
             if esti.normalizeA:
                 x_y2c = x_y2c / esti.dofUnit
-            self.uk[esti.compIdx] = - self.gain * (esti.xhat[esti.compIdx] + x_y2c)
+            self.uk[esti.compIdx] = - self.gainUse * (esti.xhat[esti.compIdx] + x_y2c)
             
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
@@ -106,8 +111,8 @@ class aosController(object):
                 yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
-            self.uk[esti.compIdx] = - self.gain * self.mF.dot(Mx)
-            #self.uk[esti.compIdx] = - self.gain * self.mF.dot(self.mQ).dot(esti.xhat[esti.compIdx])
+            self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
+            #self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(self.mQ).dot(esti.xhat[esti.compIdx])
 
     def drawControlPanel(self, esti, state):
 

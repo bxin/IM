@@ -152,17 +152,14 @@ def main():
             metr.getEllipticityfromBase(args.baserun, state)
             
         else:
-            if not args.opdoff:
-                state.getOPD35(wfs, metr, args.numproc, args.wavelength,
-                               args.debugLevel)
-            if not args.psfoff:
-                state.getPSF31(metr, args.numproc, args.debugLevel)
+            state.getOPD35(args.opdoff, wfs, metr, args.numproc, args.wavelength,
+                           args.debugLevel)
+
+            state.getPSF31(args.psfoff, metr, args.numproc, args.debugLevel)
     
-            if not args.pssnoff:
-                metr.getPSSNandMore(state, wfs, args.wavelength, args.numproc, args.debugLevel)
+            metr.getPSSNandMore(args.pssnoff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
-            if not args.ellioff:
-                metr.getEllipticity(state, wfs, args.wavelength, args.numproc, args.debugLevel)
+            metr.getEllipticity(args.ellioff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
             if not args.sensoroff:
                 if not args.wfsoff:  # and not iIter == args.enditer:

@@ -120,56 +120,57 @@ class aosTeleState(object):
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
                     
-    def getOPD35(self, wfs, metr, numproc, wavelength, debugLevel):
+    def getOPD35(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
 
-        self.writeOPDinst(metr, wavelength)
-        self.writeOPDcmd()
-        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
-
-        if debugLevel >= 3:
-            runProgram('head %s' % self.OPD_inst)
-            runProgram('head %s' % self.OPD_cmd)
-
-        myargs = '%s -c %s -p %d -e %d > %s' % (
-            self.OPD_inst, self.OPD_cmd, numproc, self.eimage, self.OPD_log)
-        if debugLevel >= 2:
-            print('*******Runnnig PHOSIM with following parameters*******')
-            print('Check the log file below for progress')
-            print('%s' % myargs)
-        runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
-        if debugLevel >= 3:
-            print('DONE RUNNING PHOSIM FOR OPD')
-        if os.path.isfile(self.zFile):
-            os.remove(self.zFile)
-        fz = open(self.zFile, 'ab')
-        for i in range(metr.nFieldp4):
-            src = '%s/output/opd_%d_%d.fits.gz' % (
-                self.phosimDir, self.obsID, i)
-            dst = '%s/iter%d/sim%d_iter%d_opd%d.fits.gz' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter, i)
-            shutil.move(src, dst)
-            runProgram('gunzip -f %s' % dst)
-            opdFile = dst.replace('.gz', '')
-            IHDU = fits.open(opdFile)
-            opd = IHDU[0].data  # Phosim OPD unit: um
-            IHDU.close()
-            idx = (opd != 0)
-            Z = ZernikeAnnularFit(opd[idx], self.opdx[idx], self.opdy[idx],
-                                  wfs.znwcs, wfs.inst.obscuration)
-            np.savetxt(fz, Z.reshape(1, -1), delimiter=' ')
-
-        fz.close()
-
-        if debugLevel >= 3:
-            print(self.opdGrid1d.shape)
-            print(self.opdGrid1d[0])
-            print(self.opdGrid1d[-1])
-            print(self.opdGrid1d[-2])
-            print(self.opdx)
-            print(self.opdy)
-            print(wfs.znwcs)
-            print(wfs.inst.obscuration)
+        if not opdoff:
+            self.writeOPDinst(metr, wavelength)
+            self.writeOPDcmd()
+            self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
+    
+            if debugLevel >= 3:
+                runProgram('head %s' % self.OPD_inst)
+                runProgram('head %s' % self.OPD_cmd)
+    
+            myargs = '%s -c %s -p %d -e %d > %s' % (
+                self.OPD_inst, self.OPD_cmd, numproc, self.eimage, self.OPD_log)
+            if debugLevel >= 2:
+                print('*******Runnnig PHOSIM with following parameters*******')
+                print('Check the log file below for progress')
+                print('%s' % myargs)
+            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+            if debugLevel >= 3:
+                print('DONE RUNNING PHOSIM FOR OPD')
+            if os.path.isfile(self.zFile):
+                os.remove(self.zFile)
+            fz = open(self.zFile, 'ab')
+            for i in range(metr.nFieldp4):
+                src = '%s/output/opd_%d_%d.fits.gz' % (
+                    self.phosimDir, self.obsID, i)
+                dst = '%s/iter%d/sim%d_iter%d_opd%d.fits.gz' % (
+                    self.imageDir, self.iIter, self.iSim, self.iIter, i)
+                shutil.move(src, dst)
+                runProgram('gunzip -f %s' % dst)
+                opdFile = dst.replace('.gz', '')
+                IHDU = fits.open(opdFile)
+                opd = IHDU[0].data  # Phosim OPD unit: um
+                IHDU.close()
+                idx = (opd != 0)
+                Z = ZernikeAnnularFit(opd[idx], self.opdx[idx], self.opdy[idx],
+                                      wfs.znwcs, wfs.inst.obscuration)
+                np.savetxt(fz, Z.reshape(1, -1), delimiter=' ')
+    
+            fz.close()
+    
+            if debugLevel >= 3:
+                print(self.opdGrid1d.shape)
+                print(self.opdGrid1d[0])
+                print(self.opdGrid1d[-1])
+                print(self.opdGrid1d[-2])
+                print(self.opdx)
+                print(self.opdy)
+                print(wfs.znwcs)
+                print(wfs.inst.obscuration)
 
     def getOPD35fromBase(self, baserun, metr):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
@@ -226,71 +227,72 @@ raydensity 0.0\n\
 perturbationmode 1\n')
         fid.close()
 
-    def getPSF31(self, metr, numproc, debugLevel):
+    def getPSF31(self, psfoff, metr, numproc, debugLevel):
 
-        self.writePSFinst(metr)
-        self.writePSFcmd()
-        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
-
-        myargs = '%s -c %s -p %d -e %d > %s' % (
-            self.PSF_inst, self.PSF_cmd, numproc, self.eimage, self.PSF_log)
-        if debugLevel >= 2:
-            print('********Runnnig PHOSIM with following parameters********')
-            print('Check the log file below for progress')
-            print('%s' % myargs)
-
-        runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
-        plt.figure(figsize=(10, 10))
-        for i in range(metr.nField):
-            chipStr, px, py = self.fieldXY2Chip(
-                metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            src = glob.glob('%s/output/*%d*%s*' % (
-                self.phosimDir, self.obsID, chipStr))
-            if 'gz' in src[0]:
-                runProgram('gunzip -f %s' % src[0])
-            IHDU = fits.open(src[0].replace('.gz', ''))
-            chipImage = IHDU[0].data
-            IHDU.close()
-            psf = chipImage[
-                py - self.psfStampSize / 2:py + self.psfStampSize / 2,
-                px - self.psfStampSize / 2:px + self.psfStampSize / 2]
-            offsety = np.argwhere(psf == psf.max())[0][0] - \
-                self.psfStampSize / 2 + 1
-            offsetx = np.argwhere(psf == psf.max())[0][1] - \
-                self.psfStampSize / 2 + 1
-            psf = chipImage[
-                py - self.psfStampSize / 2 + offsety:
-                py + self.psfStampSize / 2 + offsety,
-                px - self.psfStampSize / 2 + offsetx:
-                px + self.psfStampSize / 2 + offsetx]
-
-            if i == 0:
-                pIdx = 1
-            else:
-                pIdx = i + metr.nArm
-
-            dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter, i)
-            if os.path.isfile(dst):
-                os.remove(dst)
-            hdu = fits.PrimaryHDU(psf)
-            hdu.writeto(dst)
-
-            plt.subplot(metr.nRing + 1, metr.nArm, pIdx)
-            plt.imshow(extractArray(psf, 20), origin='lower', interpolation='none')
-            plt.title('%d' % i)
-            plt.axis('off')
-
-            if debugLevel >= 3:
-                print('px = %d, py = %d' % (px, py))
-                print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                print('passed %d' % i)
-
-        # plt.show()
-        pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
-        plt.savefig(pngFile, bbox_inches='tight')
+        if not psfoff:
+            self.writePSFinst(metr)
+            self.writePSFcmd()
+            self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
+    
+            myargs = '%s -c %s -p %d -e %d > %s' % (
+                self.PSF_inst, self.PSF_cmd, numproc, self.eimage, self.PSF_log)
+            if debugLevel >= 2:
+                print('********Runnnig PHOSIM with following parameters********')
+                print('Check the log file below for progress')
+                print('%s' % myargs)
+    
+            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+            plt.figure(figsize=(10, 10))
+            for i in range(metr.nField):
+                chipStr, px, py = self.fieldXY2Chip(
+                    metr.fieldXp[i], metr.fieldYp[i], debugLevel)
+                src = glob.glob('%s/output/*%d*%s*' % (
+                    self.phosimDir, self.obsID, chipStr))
+                if 'gz' in src[0]:
+                    runProgram('gunzip -f %s' % src[0])
+                IHDU = fits.open(src[0].replace('.gz', ''))
+                chipImage = IHDU[0].data
+                IHDU.close()
+                psf = chipImage[
+                    py - self.psfStampSize / 2:py + self.psfStampSize / 2,
+                    px - self.psfStampSize / 2:px + self.psfStampSize / 2]
+                offsety = np.argwhere(psf == psf.max())[0][0] - \
+                    self.psfStampSize / 2 + 1
+                offsetx = np.argwhere(psf == psf.max())[0][1] - \
+                    self.psfStampSize / 2 + 1
+                psf = chipImage[
+                    py - self.psfStampSize / 2 + offsety:
+                    py + self.psfStampSize / 2 + offsety,
+                    px - self.psfStampSize / 2 + offsetx:
+                    px + self.psfStampSize / 2 + offsetx]
+    
+                if i == 0:
+                    pIdx = 1
+                else:
+                    pIdx = i + metr.nArm
+    
+                dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                    self.imageDir, self.iIter, self.iSim, self.iIter, i)
+                if os.path.isfile(dst):
+                    os.remove(dst)
+                hdu = fits.PrimaryHDU(psf)
+                hdu.writeto(dst)
+    
+                plt.subplot(metr.nRing + 1, metr.nArm, pIdx)
+                plt.imshow(extractArray(psf, 20), origin='lower', interpolation='none')
+                plt.title('%d' % i)
+                plt.axis('off')
+    
+                if debugLevel >= 3:
+                    print('px = %d, py = %d' % (px, py))
+                    print('offsetx = %d, offsety = %d' % (offsetx, offsety))
+                    print('passed %d' % i)
+    
+            # plt.show()
+            pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
+            plt.savefig(pngFile, bbox_inches='tight')
 
     def getPSF31fromBase(self, baserun, metr):
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
