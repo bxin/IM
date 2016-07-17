@@ -6,7 +6,7 @@ This file contains the parameters for the AOS controller
 
 #control strategy
 control_strategy      optiPSSN
-shift_gear		0	0.2	arcsec
+shift_gear		1	0.2	arcsec
 
 #M1M3 actuator penalty factor
 #how many microns of M2 piston does 1N rms force correspond to

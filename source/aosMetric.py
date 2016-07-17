@@ -130,7 +130,9 @@ class aosMetric(object):
         if not os.path.isfile(self.PSSNFile):        
             baseFile = self.PSSNFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.PSSNFile)
-        
+        aa = np.loadtxt(self.PSSNFile)
+        self.GQFWHMeff = aa[1, -1] #needed for shiftGear
+                    
     def getPSSNandMore10um(self, state, wavelength, debugLevel):
         """
 use the Phosim PSFs with 10um pixel size to determine PSSN and more
