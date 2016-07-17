@@ -170,8 +170,8 @@ def main():
                     wfs.preprocess(state, metr, args.debugLevel)
                 # aosWFS
 
-    ctrl.drawSummaryPlots(state, metr, esti, args.startiter, args.enditer,
-                          args.debugLevel)
+    ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
+                          args.startiter, args.enditer, args.debugLevel)
 
 if __name__ == "__main__":
     main()

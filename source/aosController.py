@@ -45,11 +45,11 @@ class aosController(object):
         # establish control authority of the DOFs
         aa = M1M3.force[:, :esti.nB13Max]
         aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
-        mHM13 = np.sqrt(np.mean(np.square(aa), axis=0))
+        mHM13 = np.std(aa, axis=0)
         aa = M2.force[:, :esti.nB2Max]
         aa = aa[:, esti.compIdx[
             10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
-        mHM2 = np.sqrt(np.mean(np.square(aa), axis=0))
+        mHM2 = np.std(aa, axis=0)
         # For the rigid body DOF (r for rigid)
         # weight based on the total stroke
         rbStroke = np.array([5900, 6700, 6700, 432, 432,
@@ -261,7 +261,7 @@ class aosController(object):
             state.pertDir, state.iIter, state.iSim, state.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
 
-    def drawSummaryPlots(self, state, metr, esti, startIter, endIter, debugLevel):
+    def drawSummaryPlots(self, state, metr, esti, M1M3, M2, startIter, endIter, debugLevel):
         allPert = np.zeros((esti.ndofA, endIter-startIter+1))
         allPSSN = np.zeros((metr.nField+1, endIter-startIter+1))
         allFWHMeff = np.zeros((metr.nField+1, endIter-startIter+1))
@@ -291,7 +291,10 @@ class aosController(object):
         ax[0, 0].set_xticks(myxticks)
         ax[0, 0].set_xticklabels(myxticklabels)
         ax[0, 0].set_xlabel('iteration')
-        ax[0, 0].set_ylabel('um')
+        ax[0, 0].set_ylabel('$\mu$m')
+        ax[0, 0].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m'%(
+            round(np.max(np.absolute(allPert[0,:]))), self.range[0],
+            round(np.max(np.absolute(allPert[5,:]))), self.range[5]))
         leg = ax[0, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
 
@@ -304,7 +307,10 @@ class aosController(object):
         ax[0, 1].set_xticks(myxticks)
         ax[0, 1].set_xticklabels(myxticklabels)
         ax[0, 1].set_xlabel('iteration')
-        ax[0, 1].set_ylabel('um')
+        ax[0, 1].set_ylabel('$\mu$m')
+        ax[0, 1].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m'%(
+            round(np.max(np.absolute(allPert[1:3,:]))), self.range[1],
+            round(np.max(np.absolute(allPert[6:8,:]))), self.range[6]))
         leg = ax[0, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
                 
@@ -318,6 +324,9 @@ class aosController(object):
         ax[0, 2].set_xticklabels(myxticklabels)
         ax[0, 2].set_xlabel('iteration')
         ax[0, 2].set_ylabel('arcsec')
+        ax[0, 2].set_title('M2 %d/$\pm$%darcsec; Cam %d/$\pm$%darcsec'%(
+            round(np.max(np.absolute(allPert[3:5,:]))), self.range[3],
+            round(np.max(np.absolute(allPert[8:10,:]))), self.range[8]))
         leg = ax[0, 2].legend(loc="upper left") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
 
@@ -332,7 +341,13 @@ class aosController(object):
         ax[1, 0].set_xticks(myxticks)
         ax[1, 0].set_xticklabels(myxticklabels)
         ax[1, 0].set_xlabel('iteration')
-        ax[1, 0].set_ylabel('um')
+        ax[1, 0].set_ylabel('$\mu$m')
+        allF = M1M3.force[:, :esti.nB13Max].dot(allPert[10:esti.nB13Max+10,:])
+        stdForce = np.std(allF,axis=0)
+        maxForce = np.max(allF, axis=0)
+        ax[1, 0].set_title('Max %d/$\pm$%dN; RMS %dN'%(
+            round(np.max(maxForce)), round(self.range[0]/self.rhoM13),
+            round(np.max(stdForce))))
         leg = ax[1, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
                         
@@ -347,7 +362,13 @@ class aosController(object):
         ax[1, 1].set_xticks(myxticks)
         ax[1, 1].set_xticklabels(myxticklabels)
         ax[1, 1].set_xlabel('iteration')
-        ax[1, 1].set_ylabel('um')
+        ax[1, 1].set_ylabel('$\mu$m')
+        allF = M2.force[:, :esti.nB2Max].dot(allPert[10+esti.nB13Max:esti.ndofA,:])
+        stdForce = np.std(allF,axis=0)
+        maxForce = np.max(allF, axis=0)
+        ax[1, 1].set_title('Max %d/$\pm$%dN; RMS %dN'%(
+            round(np.max(maxForce)), round(self.range[0]/self.rhoM2),
+            round(np.max(stdForce))))
         leg = ax[1, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
 
@@ -361,32 +382,35 @@ class aosController(object):
         ax[1, 2].set_xlabel('iteration')
         # ax[1, 2].set_ylabel('um')
         ax[1, 2].grid()
+        ax[1, 2].set_title('Last 2 PSSN: %5.3f, %5.3f'%(allPSSN[-1,-2],allPSSN[-1,-1]))
         leg = ax[1, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
         
         # 7: FWHMeff
         for i in range(metr.nField):
             ax[2, 0].plot(myxticks, allFWHMeff[i,:], marker='.', color='b', markersize=10)
-        ax[2, 0].plot(myxticks, allFWHMeff[-1,:], label='GQ(FWHMeff)', marker='.', color='r', markersize=10)
+        ax[2, 0].plot(myxticks, allFWHMeff[-1,:], label='GQ($FWHM_{eff}$)', marker='.', color='r', markersize=10)
         ax[2, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[2, 0].set_xticks(myxticks)
         ax[2, 0].set_xticklabels(myxticklabels)
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
+        ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
         leg = ax[2, 0].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
 
         # 8: dm5
         for i in range(metr.nField):
             ax[2, 1].plot(myxticks, alldm5[i,:], marker='.', color='b', markersize=10)
-        ax[2, 1].plot(myxticks, alldm5[-1,:], label='GQ(dm5)', marker='.', color='r', markersize=10)
+        ax[2, 1].plot(myxticks, alldm5[-1,:], label='GQ($\Delta$m5)', marker='.', color='r', markersize=10)
         ax[2, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[2, 1].set_xticks(myxticks)
         ax[2, 1].set_xticklabels(myxticklabels)
         ax[2, 1].set_xlabel('iteration')
         # ax[2, 1].set_ylabel('arcsec')
         ax[2, 1].grid()
+        ax[2, 1].set_title('Last 2 $\Delta$m5: %5.3f, %5.3f'%(alldm5[-1,-2],alldm5[-1,-1]))
         leg = ax[2, 1].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
 
@@ -400,6 +424,7 @@ class aosController(object):
         ax[2, 2].set_xlabel('iteration')
         ax[2, 2].set_ylabel('percent')
         ax[2, 2].grid()
+        ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%'%(allelli[-1,-2]*100,allelli[-1,-1]*100))
         leg = ax[2, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
         
