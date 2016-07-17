@@ -130,13 +130,14 @@ class aosEstimator(object):
             np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
         
         
-    def estimate(self, state, wfs, ctrl, sensoroff):
-        if sensoroff:
+    def estimate(self, state, wfs, ctrl, sensor):
+        if sensor == 'ideal' or sensor == 'covM':
             aa = np.loadtxt(state.zFile_m1)
             self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
-            mu = np.zeros(self.zn3Max*4)
-            np.random.seed(state.obsID)
-            self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
+            if sensor == 'covM':
+                mu = np.zeros(self.zn3Max*4)
+                np.random.seed(state.obsID)
+                self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
 
         self.yfinal -= wfs.intrinsic4c
 

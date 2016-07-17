@@ -33,13 +33,15 @@ def main():
                         help='iteration No. to start with, default=0')
     parser.add_argument('-end', dest='enditer', type=int, default=5,
                         help='iteration No. to end with, default=5')
-    parser.add_argument('-sensoroff', help='use true wavefront in estimator',
-                        action='store_true')
+    parser.add_argument('-sensor', dest='sensor', choices = ('ideal','covM','phosim','cwfs','load'),
+                        help='ideal: use true wavefront in estimator;\
+                        covM: use covarance matrix to estimate wavefront;\
+                        phosim: run Phosim to create WFS images;\
+                        cwfs: start by running cwfs on existing images;\
+                        load: load wavefront from txt files')
     parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
                         action='store_true')
     parser.add_argument('-psfoff', help='w/o regenerating psf images',
-                        action='store_true')
-    parser.add_argument('-wfsoff', help='w/o regenerating WFS images',
                         action='store_true')
     parser.add_argument('-pssnoff', help='w/o calculating PSSN',
                         action='store_true')
@@ -73,7 +75,7 @@ def main():
                         help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
     if args.makesum:
-        args.sensoroff = True
+        args.sensor = 'ideal'
         args.opdoff = True
         args.psfoff = True
         args.pssnoff = True
@@ -135,7 +137,7 @@ def main():
         state.setIterNo(metr, iIter)
 
         if iIter > 0: #args.startiter:
-            esti.estimate(state, wfs, ctrl, args.sensoroff)
+            esti.estimate(state, wfs, ctrl, args.sensor)
             ctrl.getMotions(esti, metr, args.wavelength)
             ctrl.drawControlPanel(esti, state)
 
@@ -161,8 +163,8 @@ def main():
     
             metr.getEllipticity(args.ellioff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
-            if not args.sensoroff:
-                if not args.wfsoff:  # and not iIter == args.enditer:
+            if not (args.sensor == 'ideal' or args.sensor == 'covM'):
+                if args.sensor == 'phosim' and not iIter == args.enditer:
                     state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                 # aosWFS
