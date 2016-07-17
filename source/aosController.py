@@ -27,7 +27,7 @@ class aosController(object):
                 elif (line.startswith('shift_gear')):
                     self.shiftGear = bool(int(line.split()[1]))
                     if self.shiftGear:
-                        self.shiftGearThres = bool(int(line.split()[2]))
+                        self.shiftGearThres = float(line.split()[2])
                 elif (line.startswith('M1M3_actuator_penalty')):
                     self.rhoM13 = float(line.split()[1])
                 elif (line.startswith('M2_actuator_penalty')):
