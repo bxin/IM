@@ -39,6 +39,8 @@ def main():
                         phosim: run Phosim to create WFS images;\
                         cwfs: start by running cwfs on existing images;\
                         load: load wavefront from txt files')
+    parser.add_argument('-ctrloff', help='w/o applying ctrl rules or regenrating pert files',
+                        action='store_true')
     parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
                         action='store_true')
     parser.add_argument('-psfoff', help='w/o regenerating psf images',
@@ -76,6 +78,7 @@ def main():
     args = parser.parse_args()
     if args.makesum:
         args.sensor = 'ideal'
+        args.ctrloff = True
         args.opdoff = True
         args.psfoff = True
         args.pssnoff = True
@@ -136,16 +139,17 @@ def main():
 
         state.setIterNo(metr, iIter)
 
-        if iIter > 0: #args.startiter:
-            esti.estimate(state, wfs, ctrl, args.sensor)
-            ctrl.getMotions(esti, metr, args.wavelength)
-            ctrl.drawControlPanel(esti, state)
+        if not args.ctrloff:
+            if iIter > 0: #args.startiter:
+                esti.estimate(state, wfs, ctrl, args.sensor)
+                ctrl.getMotions(esti, metr, args.wavelength)
+                ctrl.drawControlPanel(esti, state)
 
-            # need to remake the pert file here.
-            # It will be inserted into OPD.inst, PSF.inst later
-            state.update(ctrl)
+                # need to remake the pert file here.
+                # It will be inserted into OPD.inst, PSF.inst later
+                state.update(ctrl)
 
-        state.writePertFile(esti)
+            state.writePertFile(esti)
 
         if args.baserun>0 and iIter == 0:
             state.getOPD35fromBase(args.baserun, metr)
