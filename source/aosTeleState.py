@@ -333,7 +333,9 @@ perturbationmode 1\n')
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n'%(self.obsID))
+SIM_NSNAP 1\n\
+SIM_SEED %d\n\
+SIM_CAMCONFIG 4\n'%(self.obsID,  self.obsID%1000-31))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nField):
@@ -349,7 +351,12 @@ SIM_NSNAP 1\n'%(self.obsID))
         fid = open(self.PSF_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
-perturbationmode 1\n')
+perturbationmode 1\n\
+trackingmode 0\n\
+cleartracking\n\
+clearturbulence\n\
+clearopacity\n\
+atmosphericdispersion 0\n')
         fid.close()
 
     def getWFS4(self, wfs, metr, numproc, debugLevel):
@@ -387,29 +394,31 @@ perturbationmode 1\n')
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
-SIM_CAMCONFIG 7\n' % (self.obsID))
+SIM_SEED %d\n\
+Opsim_rawseeing 0.7283\n\
+SIM_CAMCONFIG 2\n' % (self.obsID, self.obsID%1000-4))
         ii = 0
         for i in range(metr.nField, metr.nFieldp4):
             if i % 2 == 1:  # field 31, 33, R44 and R00
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i] + 0.008, metr.fieldYp[i],
+                    ii, metr.fieldXp[i] + 0.020, metr.fieldYp[i],
                     self.cwfsMag))
                 ii += 1
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i] - 0.008, metr.fieldYp[i],
+                    ii, metr.fieldXp[i] - 0.020, metr.fieldYp[i],
                     self.cwfsMag))
                 ii += 1
             else:
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i], metr.fieldYp[i] + 0.008,
+                    ii, metr.fieldXp[i], metr.fieldYp[i] + 0.020,
                     self.cwfsMag))
                 ii += 1
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i], metr.fieldYp[i] - 0.008,
+                    ii, metr.fieldXp[i], metr.fieldYp[i] - 0.020,
                     self.cwfsMag))
                 ii += 1
         fid.close()
@@ -421,8 +430,10 @@ SIM_CAMCONFIG 7\n' % (self.obsID))
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
-opticsonlymode 1\n\
-perturbationmode 1\n')
+perturbationmode 1\n\
+trackingmode 0\n\
+cleartracking\n\
+clearclouds\n')
         fid.close()
 
     def fieldXY2Chip(self, fieldX, fieldY, debugLevel):
