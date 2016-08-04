@@ -169,8 +169,8 @@ def main():
     
             if not (args.sensor == 'ideal' or args.sensor == 'covM'):
                 if args.sensor == 'phosim' and not iIter == args.enditer:
-                    #state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
-                    #wfs.preprocess(state, metr, args.debugLevel)
+                    state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
+                    wfs.preprocess(state, metr, args.debugLevel)
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
                     wfs.checkZ4C(state, metr, args.debugLevel)
 
