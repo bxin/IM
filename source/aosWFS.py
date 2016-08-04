@@ -43,17 +43,23 @@ class aosWFS(object):
 
     def preprocess(self, state, metr, debugLevel):
         for iField in range(metr.nField, metr.nFieldp4):
-            chipStr, px, py = state.fieldXY2Chip(
+            chipStr, px0, py0 = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
-            src = glob.glob('%s/iter%d/*%d*%s*' %
-                            (state.imageDir, state.iIter, state.obsID))
             for ioffset in [0, 1]:
-                chipFile = src[ioffset]
+                src = glob.glob('%s/iter%d/*%d*%s*%s*' %
+                                (state.imageDir, state.iIter, state.obsID, chipStr, state.halfChip[ioffset]))
+                chipFile = src[0]
                 IHDU = fits.open(chipFile)
                 chipImage = IHDU[0].data
                 IHDU.close()
-                if ioffset == 1:
-                    px = px - chipImage.shape[1]
+                
+                if ioffset == 0: #intra image, C1, push away from left edge
+                    # degree to micron then to pixel
+                    px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1] 
+                elif ioffset == 1: #extra image, C0, pull away from right edge
+                    px = px0 - 0.020 * 180000 / 10 
+                py = py0.copy()
+                
                 # psf here is 4 x the size of cwfsStampSize, to get centroid
                 psf = chipImage[np.max((0, py - 2 * state.cwfsStampSize)):
                                 py + 2 * state.cwfsStampSize,
@@ -74,12 +80,17 @@ class aosWFS(object):
                     px - state.psfStampSize / 2 + offsetx:
                     px + state.psfStampSize / 2 + offsetx]
 
-                # read of corner raft are identical,
+                # read out of corner raft are identical,
                 # cwfs knows how to handle rotated images
-                # flipud is b/c rot90 rotates images with origin at upper left
-                if iField > metr.nField:
-                    psf = np.flipud(
-                        np.rot90(np.flipud(psf), iField - metr.nField))
+                # note: rot90 rotates the array,
+                # not the image (as you see in ds9, or Matlab with "axis xy")
+                # that is why we need to flipud and then flip back
+                if iField == metr.nField:
+                    psf = np.flipud(np.rot90(np.flipud(psf), 2))
+                elif iField == metr.nField+1:
+                    psf = np.flipud(np.rot90(np.flipud(psf), 3))
+                elif iField == metr.nField+3:
+                    psf = np.flipud(np.rot90(np.flipud(psf), 1))
 
                 # below, we have 0 b/c we may have many
                 stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0.fits' % (

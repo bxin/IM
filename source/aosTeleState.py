@@ -71,6 +71,7 @@ class aosTeleState(object):
             # M13 and M2 bending
             i for i in range(15, 15 + esti.ndofA - 10)]
         self.wfsName = ['intra', 'extra']
+        self.halfChip = ['C1', 'C0'] #C1 is always intra, C0 is extra
 
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)

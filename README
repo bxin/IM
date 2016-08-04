@@ -76,7 +76,9 @@ aosTeleState  ->state
 	OPD_log		Phosim log from the OPD run
 	PSF_inst	       instance catalog file used for generating PSF images
 	zFile_m1	       filename for the zernikes from the previous iteration
-	
+	wfsName		['intra', 'extra']
+	halfChip		['C1', 'C0']
+
 	functions():
 	writePertFile		write state vector to pert file
 	getOPD35	take pert file, create Phosim command and inst files, create OPDs@35 fields
