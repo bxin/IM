@@ -95,12 +95,12 @@ class aosTeleState(object):
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
-    def setIterNo(self, metr, iIter):
+    def setIterNo(self, wfs, metr, iIter):
         self.iIter = iIter
         self.obsID = 9000000 + self.iSim*100 + self.iIter
         self.zTrueFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
-        self.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
+        wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -115,11 +115,13 @@ class aosTeleState(object):
             self.imageDir, self.iIter, self.iSim, self.iIter)
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt'%(
             self.imageDir, self.iIter, self.iSim, self.iIter)
+        wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
+        wfs.zCompFile = '%s/iter%d/checkZ4C.png' % (self.pertDir, self.iIter)
 
         if iIter>0:
             self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
-            self.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
+            wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)

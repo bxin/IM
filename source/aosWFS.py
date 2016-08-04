@@ -5,6 +5,8 @@
 
 import os
 import glob
+import multiprocessing
+
 import numpy as np
 from astropy.io import fits
 from scipy import ndimage
@@ -12,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from cwfsAlgo import cwfsAlgo
 from cwfsInstru import cwfsInstru
-
+from cwfsImage import cwfsImage
 
 class aosWFS(object):
 
@@ -137,27 +139,92 @@ class aosWFS(object):
         plt.savefig(pngFile, bbox_inches='tight')
 
         #write out catalog for good wfs stars
-        self.catFile = '%s/iter%d/wfs_catalog.txt' % (state.pertDir, state.iIter)
         fid = open(self.catFile, 'w')
         for i in range(metr.nField, metr.nFieldp4):
+            intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i,
+                state.wfsName[0]))[0]
+            extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, i,
+                state.wfsName[1]))[0]
             if i == 31: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
                     metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                    metr.fieldXp[i] + 0.020, metr.fieldYp[i]))
-            elif i == 32: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
-                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                    metr.fieldXp[i], metr.fieldYp[i] + 0.020))
-            elif i == 33: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
                     metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                    metr.fieldXp[i] - 0.020, metr.fieldYp[i]))
-            elif i == 34: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                    intraFile, extraFile))
+            elif i == 32: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
                     metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                    metr.fieldXp[i], metr.fieldYp[i] - 0.020))
+                        intraFile, extraFile))
+            elif i == 33: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                    metr.fieldXp[i] + 0.020, metr.fieldYp[i],
+                    metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                        intraFile, extraFile))
+            elif i == 34: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                    metr.fieldXp[i], metr.fieldYp[i] + 0.020,
+                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                        intraFile, extraFile))
         fid.close()
         
-    def parallelCwfs():
+    def parallelCwfs(self, cwfsModel, numproc, debugLevel):
+        fid = open(self.catFile)
         argList = []
+        for line in fid:
+            data = line.split()
+            I1Field = [float(data[0]), float(data[1])]
+            I2Field = [float(data[2]), float(data[3])]
+            I1File = data[4]
+            I2File = data[5]
+            argList.append((I1File, I1Field, I2File, I2Field, self.inst, self.algo, cwfsModel))
+            
+            # test, pdb cannot go into the subprocess
+            # aa = runcwfs(argList[0])
+                      
+        pool = multiprocessing.Pool(numproc)
+        zcarray = pool.map(runcwfs, argList)
+        pool.close()
+        pool.join()
+        zcarray = np.array(zcarray)
+
+        np.savetxt(self.zFile, zcarray)
+
+    def checkZ4C(self, state, metr):
+        z4c = np.loadtxt(self.zFile) #in nm
+        z4cTrue = np.loadtxt(state.zTrueFile)
+        z4c = z4c*1e-3 #convert nm to um
         
+        x = range(4, self.znwcs+1)
+        plt.figure(figsize=(10, 8))
+        for i in range(4):
+            plt.subplot(2,2,i+1)
+            plt.plot(x, z4c[i,:self.znwcs3], label='CWFS',
+             marker='o', color='r', markersize=6)
+            plt.plot(x, z4cTrue[i+metr.nField,3:self.znwcs], label='Truth',
+             marker='.', color='b', markersize=10)
+            plt.ylabel('$\mu$m')
+            plt.xlabel('Zernike Index')
+            leg = plt.legend(loc="best")
+            leg.get_frame().set_alpha(0.5)        
+            plt.grid()
+
+        plt.savefig(self.zCompFile, bbox_inches='tight')
+        
+def runcwfs(argList):
+    I1File = argList[0]
+    I1Field = argList[1]
+    I2File = argList[2]
+    I2Field = argList[3]
+    inst = argList[4]
+    algo = argList[5]
+    model = argList[6]
+    
+    I1 = cwfsImage(I1File, I1Field, 'intra')
+    I2 = cwfsImage(I2File, I2Field, 'extra')
+    algo.reset(I1, I2)
+    algo.runIt(inst, I1, I2, model)
+    
+    return np.append(algo.zer4UpNm, algo.caustic)
+

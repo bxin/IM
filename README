@@ -77,8 +77,6 @@ aosTeleState  ->state
 	PSF_inst	       instance catalog file used for generating PSF images
 	zTrueFile  	filename for the zernikes from the current iteration (from Phosim, 35 points)
 	zTrueFile_m1	filename for the zernikes from the previous iteration (from Phosim, 35 points)
-	zFile  	       filename for the zernikes from the current iteration (from cwfs)
-	zFile_m1	       filename for the zernikes from the previous iteration (from cwfs)
 	wfsName		['intra', 'extra']
 	halfChip		['C1', 'C0']
 
@@ -101,6 +99,9 @@ aosWFS          ->wfs
 *	myZn		results of cwfs from two exposures, 76x2
 *	trueZn	true wavefront accoring to phosim (counterpart of myZn)
 *	catFile	catalog file for all the good wfs stars
+*	zFile  	       filename for the zernikes from the current iteration (from cwfs)
+*	zFile_m1	       filename for the zernikes from the previous iteration (from cwfs)
+*	zCompFile	png file that shows the comparison between Zernikes from CWFS and the truth
 
 	functions():
 	preprocess	
