@@ -169,9 +169,9 @@ def main():
     
             if not (args.sensor == 'ideal' or args.sensor == 'covM'):
                 if args.sensor == 'phosim' and not iIter == args.enditer:
-                    state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
-                    wfs.preprocess(state, metr, args.debugLevel)
-                # aosWFS
+                    #state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
+                    #wfs.preprocess(state, metr, args.debugLevel)
+                    wfs.parallelCwfs()
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)

@@ -106,6 +106,7 @@ class aosWFS(object):
                     print('offsetx = %d, offsety = %d' % (offsetx, offsety))
                     print('passed %d, %s' % (iField, state.wfsName[ioffset]))
 
+        # make an image of the 8 donuts
         for iField in range(metr.nField, metr.nFieldp4):
             chipStr, px, py = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
@@ -134,3 +135,29 @@ class aosWFS(object):
         pngFile = '%s/iter%d/sim%d_iter%d_wfs.png' % (
             state.imageDir, state.iIter, state.iSim, state.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
+
+        #write out catalog for good wfs stars
+        self.catFile = '%s/iter%d/wfs_catalog.txt' % (state.pertDir, state.iIter)
+        fid = open(self.catFile, 'w')
+        for i in range(metr.nField, metr.nFieldp4):
+            if i == 31: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                    metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                    metr.fieldXp[i] + 0.020, metr.fieldYp[i]))
+            elif i == 32: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                    metr.fieldXp[i], metr.fieldYp[i] + 0.020))
+            elif i == 33: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                    metr.fieldXp[i] + 0.020, metr.fieldYp[i],
+                    metr.fieldXp[i] - 0.020, metr.fieldYp[i]))
+            elif i == 34: 
+                fid.write('%9.6f %9.6f %9.6f %9.6f\n'% (
+                    metr.fieldXp[i], metr.fieldYp[i] + 0.020,
+                    metr.fieldXp[i], metr.fieldYp[i] - 0.020))
+        fid.close()
+        
+    def parallelCwfs():
+        argList = []
+        

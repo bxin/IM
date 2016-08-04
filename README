@@ -100,6 +100,7 @@ aosWFS          ->wfs
 	intrinsic4c	intrinsic wavefront @ 4 corners, 76x1
 *	myZn		results of cwfs from two exposures, 76x2
 *	trueZn	true wavefront accoring to phosim (counterpart of myZn)
+*	catFile	catalog file for all the good wfs stars
 
 	functions():
 	preprocess	
