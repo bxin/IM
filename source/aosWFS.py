@@ -192,9 +192,8 @@ class aosWFS(object):
         np.savetxt(self.zFile, zcarray)
 
     def checkZ4C(self, state, metr, debugLevel):
-        z4c = np.loadtxt(self.zFile) #in nm
+        z4c = np.loadtxt(self.zFile) #in micron
         z4cTrue = np.loadtxt(state.zTrueFile)
-        z4c = z4c*1e-3 #convert nm to um
         
         x = range(4, self.znwcs+1)
         plt.figure(figsize=(10, 8))
@@ -235,5 +234,5 @@ def runcwfs(argList):
     algo.reset(I1, I2)
     algo.runIt(inst, I1, I2, model)
     
-    return np.append(algo.zer4UpNm, algo.caustic)
+    return np.append(algo.zer4UpNm*1e-3, algo.caustic)
 

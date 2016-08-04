@@ -171,7 +171,7 @@ def main():
                 if args.sensor == 'phosim' and not iIter == args.enditer:
                     #state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
                     #wfs.preprocess(state, metr, args.debugLevel)
-                    #wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
+                    wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
                     wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
