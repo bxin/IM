@@ -75,7 +75,10 @@ aosTeleState  ->state
 	OPD_cmd		command file used for generating OPD maps
 	OPD_log		Phosim log from the OPD run
 	PSF_inst	       instance catalog file used for generating PSF images
-	zFile_m1	       filename for the zernikes from the previous iteration
+	zTrueFile  	filename for the zernikes from the current iteration (from Phosim, 35 points)
+	zTrueFile_m1	filename for the zernikes from the previous iteration (from Phosim, 35 points)
+	zFile  	       filename for the zernikes from the current iteration (from cwfs)
+	zFile_m1	       filename for the zernikes from the previous iteration (from cwfs)
 	wfsName		['intra', 'extra']
 	halfChip		['C1', 'C0']
 
@@ -96,8 +99,7 @@ aosWFS          ->wfs
 	inst		inst as defined in cwfs
 	intrinsic4c	intrinsic wavefront @ 4 corners, 76x1
 *	myZn		results of cwfs from two exposures, 76x2
-*	phosimZn	true wavefront accoring to phosim (counterpart of myZn)
-*	yfinal(1/16/16, should be removed)		final wavefront to be fed to estimator
+*	trueZn	true wavefront accoring to phosim (counterpart of myZn)
 
 	functions():
 	preprocess	

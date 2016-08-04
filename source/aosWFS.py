@@ -28,7 +28,7 @@ class aosWFS(object):
         self.znwcs = self.algo.numTerms
         self.znwcs3 = self.znwcs - 3
         self.myZn = np.zeros((self.znwcs3 * 4, 2))
-        self.phosimZn = np.zeros((self.znwcs3 * 4, 2))
+        self.trueZn = np.zeros((self.znwcs3 * 4, 2))
         intrinsic35 = np.loadtxt('data/intrinsic_zn.txt')
         intrinsic35 = intrinsic35 * wavelength
         self.intrinsic4c = intrinsic35[

@@ -132,7 +132,7 @@ class aosEstimator(object):
         
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
-            aa = np.loadtxt(state.zFile_m1)
+            aa = np.loadtxt(state.zTrueFile_m1)
             self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
             if sensor == 'covM':
                 mu = np.zeros(self.zn3Max*4)

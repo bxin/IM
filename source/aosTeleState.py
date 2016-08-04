@@ -98,7 +98,9 @@ class aosTeleState(object):
     def setIterNo(self, metr, iIter):
         self.iIter = iIter
         self.obsID = 9000000 + self.iSim*100 + self.iIter
-        self.zFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+        self.zTrueFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -115,7 +117,9 @@ class aosTeleState(object):
             self.imageDir, self.iIter, self.iSim, self.iIter)
 
         if iIter>0:
-            self.zFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+            self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
+                self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
+            self.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
@@ -142,9 +146,9 @@ class aosTeleState(object):
             runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
             if debugLevel >= 3:
                 print('DONE RUNNING PHOSIM FOR OPD')
-            if os.path.isfile(self.zFile):
-                os.remove(self.zFile)
-            fz = open(self.zFile, 'ab')
+            if os.path.isfile(self.zTrueFile):
+                os.remove(self.zTrueFile)
+            fz = open(self.zTrueFile, 'ab')
             for i in range(metr.nFieldp4):
                 src = '%s/output/opd_%d_%d.fits.gz' % (
                     self.phosimDir, self.obsID, i)
@@ -192,9 +196,9 @@ class aosTeleState(object):
             baseFile = self.OPD_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.OPD_log)
 
-        if not os.path.isfile(self.zFile):
-            baseFile = self.zFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
-            os.link(baseFile, self.zFile)
+        if not os.path.isfile(self.zTrueFile):
+            baseFile = self.zTrueFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.zTrueFile)
         
         for i in range(metr.nFieldp4):
             opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
