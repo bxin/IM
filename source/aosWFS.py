@@ -191,24 +191,33 @@ class aosWFS(object):
 
         np.savetxt(self.zFile, zcarray)
 
-    def checkZ4C(self, state, metr):
+    def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile) #in nm
         z4cTrue = np.loadtxt(state.zTrueFile)
         z4c = z4c*1e-3 #convert nm to um
         
         x = range(4, self.znwcs+1)
         plt.figure(figsize=(10, 8))
+        # subplots go like this
+        #  2 1
+        #  3 4
+        pIdx = [2, 1, 3, 4]
         for i in range(4):
-            plt.subplot(2,2,i+1)
+            chipStr, px, py = state.fieldXY2Chip(
+                metr.fieldXp[i+metr.nField], metr.fieldYp[i+metr.nField], debugLevel)
+            plt.subplot(2,2,pIdx[i])
             plt.plot(x, z4c[i,:self.znwcs3], label='CWFS',
              marker='o', color='r', markersize=6)
             plt.plot(x, z4cTrue[i+metr.nField,3:self.znwcs], label='Truth',
              marker='.', color='b', markersize=10)
-            plt.ylabel('$\mu$m')
-            plt.xlabel('Zernike Index')
+            if i==1 or i==2:
+                plt.ylabel('$\mu$m')
+            if i==2 or i==3:
+                plt.xlabel('Zernike Index')
             leg = plt.legend(loc="best")
             leg.get_frame().set_alpha(0.5)        
             plt.grid()
+            plt.title('Zernikes %s'%chipStr, fontsize=16)
 
         plt.savefig(self.zCompFile, bbox_inches='tight')
         

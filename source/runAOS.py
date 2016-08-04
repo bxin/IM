@@ -172,7 +172,7 @@ def main():
                     #state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
                     #wfs.preprocess(state, metr, args.debugLevel)
                     #wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
-                    wfs.checkZ4C(state, metr)
+                    wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
