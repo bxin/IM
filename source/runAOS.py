@@ -56,9 +56,13 @@ def main():
     parser.add_argument('-g', dest='gain', default=0.7, type=float,
                         help='override gain in the controller parameter file, \
                         default=no override')
-    parser.add_argument('-i', dest='instruParam',
+    parser.add_argument('-i', dest='inst',
+                        default='lsst', choices=('lsst','comcam'),
+                        help='instrument name, \
+                        default=lsst')
+    parser.add_argument('-s', dest='simuParam',
                         default='single_dof',
-                        help='instrument parameter file in data/, \
+                        help='simulation parameter file in data/, \
                         default=single_dof')
     parser.add_argument('-e', dest='estimatorParam',
                         default='pinv',
@@ -99,13 +103,11 @@ def main():
     # run wavefront sensing algorithm
     # *****************************************
     cwfsDir = '../../wavefront/cwfs/'
-    instruFile = 'lsst'
+    instruFile = args.inst
     algoFile = 'exp'
     wfs = aosWFS(cwfsDir, instruFile, algoFile,
                  128, args.wavelength, args.debugLevel)
 
-    #cwfsInstru = 'lsst'
-    #cwfsAlgo = 'exp'
     cwfsModel = 'offAxis'
 
     # *****************************************
@@ -121,7 +123,7 @@ def main():
     imageDir = 'image/sim%d' % args.iSim
     if not os.path.isdir(imageDir):
         os.makedirs(imageDir)
-    state = aosTeleState(esti, args.instruParam, args.iSim, phosimDir,
+    state = aosTeleState(esti, args.simuParam, args.iSim, phosimDir,
                          pertDir, imageDir, args.debugLevel)
     # *****************************************
     # control algorithm
