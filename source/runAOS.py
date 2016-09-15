@@ -81,7 +81,7 @@ def main():
                         help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
     if args.makesum:
-        args.sensor = 'ideal'
+        args.sensor = 'load'
         args.ctrloff = True
         args.opdoff = True
         args.psfoff = True
@@ -158,7 +158,9 @@ def main():
             state.getPSF31fromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
-            if not (args.sensor == 'ideal' or args.sensor == 'covM'):
+            if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
+                pass
+            else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
             state.getOPD35(args.opdoff, wfs, metr, args.numproc, args.wavelength,
@@ -170,8 +172,11 @@ def main():
     
             metr.getEllipticity(args.ellioff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
-            if not (args.sensor == 'ideal' or args.sensor == 'covM'):
-                if args.sensor == 'phosim' and not iIter == args.enditer:
+            if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
+                pass
+            else:
+                if args.sensor == 'phosim':
+                    # create donuts for last iter, so that picking up from there will be easy
                     state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
