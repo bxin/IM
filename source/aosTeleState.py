@@ -306,7 +306,11 @@ perturbationmode 1\n')
             self.pertDir, self.iIter, self.iSim, self.iIter)
         if not os.path.isfile(self.PSF_inst):
             baseFile = self.PSF_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
-            os.link(baseFile, self.PSF_inst)
+            #PSF files are not crucial, it is ok if the baserun doesn't have it
+            if os.path.isfile(baseFile):
+                os.link(baseFile, self.PSF_inst)
+            else:
+                return
 
         self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf31.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -389,7 +393,7 @@ atmosphericdispersion 0\n')
             for ioffset in [0, 1]:
                 runProgram('gunzip -f %s' % src[ioffset])
                 chipFile = src[ioffset].replace('.gz', '')
-                shutil.move(chipFile, '%s/iter%d'%(self.imageDir, self.iIter))
+                runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
 
     def writeWFSinst(self, metr):
         self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs4.inst' % (

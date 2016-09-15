@@ -219,7 +219,11 @@ class aosWFS(object):
             plt.title('Zernikes %s'%chipStr, fontsize=16)
 
         plt.savefig(self.zCompFile, bbox_inches='tight')
-        
+    def getZ4CfromBase(self, baserun, state):
+        if not os.path.isfile(self.zFile):        
+            baseFile = self.zFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
+            os.link(baseFile, self.zFile)
+                        
 def runcwfs(argList):
     I1File = argList[0]
     I1Field = argList[1]

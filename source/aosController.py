@@ -88,8 +88,9 @@ class aosController(object):
     def getMotions(self, esti, metr, wavelength):
         self.uk=np.zeros(esti.ndofA)
         self.gainUse = self.gain
-        if self.shiftGear and (metr.GQFWHMeff > self.shiftGearThres):
-            self.gainUse = 1
+        if hasattr(self, 'shiftGear'):
+            if self.shiftGear and (metr.GQFWHMeff > self.shiftGearThres):
+                self.gainUse = 1
         if (self.strategy == 'null'):
             y2 = np.zeros(sum(esti.zn3Idx))
             for iField in range(metr.nField):
@@ -387,7 +388,11 @@ class aosController(object):
         ax[1, 2].set_xlabel('iteration')
         # ax[1, 2].set_ylabel('um')
         ax[1, 2].grid()
-        ax[1, 2].set_title('Last 2 PSSN: %5.3f, %5.3f'%(allPSSN[-1,-2],allPSSN[-1,-1]))
+        if allPSSN.shape[1]>1:
+            ax[1, 2].set_title('Last 2 PSSN: %5.3f, %5.3f'%(allPSSN[-1,-2],allPSSN[-1,-1]))
+        else:
+            ax[1, 2].set_title('Last PSSN: %5.3f'%(allPSSN[-1,-1]))
+            
         leg = ax[1, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
         
@@ -401,7 +406,11 @@ class aosController(object):
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
-        ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
+        if allFWHMeff.shape[1]>1:
+            ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(
+                allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
+        else:
+            ax[2, 0].set_title('Last $FWHM_{eff}$: %5.3f arcsec'%(allFWHMeff[-1,-1]))
         leg = ax[2, 0].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
 
@@ -415,7 +424,10 @@ class aosController(object):
         ax[2, 1].set_xlabel('iteration')
         # ax[2, 1].set_ylabel('arcsec')
         ax[2, 1].grid()
-        ax[2, 1].set_title('Last 2 $\Delta$m5: %5.3f, %5.3f'%(alldm5[-1,-2],alldm5[-1,-1]))
+        if alldm5.shape[1]>1:
+            ax[2, 1].set_title('Last 2 $\Delta$m5: %5.3f, %5.3f'%(alldm5[-1,-2],alldm5[-1,-1]))
+        else:
+            ax[2, 1].set_title('Last $\Delta$m5: %5.3f'%(alldm5[-1,-1]))
         leg = ax[2, 1].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
 
@@ -429,7 +441,10 @@ class aosController(object):
         ax[2, 2].set_xlabel('iteration')
         ax[2, 2].set_ylabel('percent')
         ax[2, 2].grid()
-        ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%'%(allelli[-1,-2]*100,allelli[-1,-1]*100))
+        if allelli.shape[1]>1:
+            ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%'%(allelli[-1,-2]*100,allelli[-1,-1]*100))
+        else:
+            ax[2, 2].set_title('Last 2 e: %4.2f%%'%(allelli[-1,-1]*100))
         leg = ax[2, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)        
         

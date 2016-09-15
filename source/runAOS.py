@@ -158,7 +158,8 @@ def main():
             state.getPSF31fromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
-            
+            if not (args.sensor == 'ideal' or args.sensor == 'covM'):
+                wfs.getZ4CfromBase(args.baserun, state)
         else:
             state.getOPD35(args.opdoff, wfs, metr, args.numproc, args.wavelength,
                            args.debugLevel)
