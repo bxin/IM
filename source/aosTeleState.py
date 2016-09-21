@@ -126,6 +126,13 @@ class aosTeleState(object):
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
+            
+            # PSSN from last iteration needs to be known for shiftGear
+            if not (hasattr(metr, 'GQFWHMeff')):
+                metr.PSSNFile_m1 = '%s/iter%d/sim%d_iter%d_PSSN.txt'%(
+                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
+                aa = np.loadtxt(metr.PSSNFile_m1)
+                metr.GQFWHMeff = aa[1, -1] 
                     
     def getOPD35(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
 
