@@ -4,13 +4,14 @@
 # @       Large Synoptic Survey Telescope
 
 import os
+import glob
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 class aosController(object):
 
-    def __init__(self, paramFile, esti, metr, wfs, M1M3, M2, wavelength, gain,
+    def __init__(self, instruFile, paramFile, esti, metr, wfs, M1M3, M2, wavelength, gain,
                  debugLevel):
 
         self.filename = os.path.join('data/', (paramFile + '.ctrl'))
@@ -34,15 +35,16 @@ class aosController(object):
                     self.rhoM2 = float(line.split()[1])
                 elif (line.startswith('Motion_penalty')):
                     self.rho = float(line.split()[1])
-                elif (line.startswith('y2File')):
-                    self.y2File = line.split()[1]
                     
         fid.close()
+        
+        src = glob.glob('data/%s/y2*txt'%(instruFile))
+        self.y2File = src[0]
         if debugLevel >= 1:
             print('control strategy: %s' % self.strategy)
             print('Using y2 file: %s' % self.y2File)
         self.gain = gain
-        self.y2 = np.loadtxt(os.path.join('data/', self.y2File))
+        self.y2 = np.loadtxt(self.y2File)
         
         # establish control authority of the DOFs
         aa = M1M3.force[:, :esti.nB13Max]
@@ -64,7 +66,7 @@ class aosController(object):
         if esti.strategy == 'pinv':
             if esti.normalizeA:
                 esti.normA(self)
-        if esti.strategy == 'opti':
+        elif esti.strategy == 'opti':
             if esti.fmotion > 0:
                 esti.optiAinv(self, wfs)
         
@@ -85,7 +87,7 @@ class aosController(object):
                 print(self.mQ[0, 0])
                 print(self.mQ[0, 9])
 
-    def getMotions(self, esti, metr, wavelength):
+    def getMotions(self, esti, metr, wfs, wavelength):
         self.uk=np.zeros(esti.ndofA)
         self.gainUse = self.gain
         if hasattr(self, 'shiftGear'):
@@ -96,7 +98,7 @@ class aosController(object):
             for iField in range(metr.nField):
                 y2f = self.y2[iField, esti.zn3Idx]
                 y2 = y2 + metr.w[iField] * y2f
-            y2c = np.repeat(y2, 4)
+            y2c = np.repeat(y2, wfs.nWFS)
             x_y2c = esti.Ainv.dot(y2c)
             if esti.normalizeA:
                 x_y2c = x_y2c / esti.dofUnit

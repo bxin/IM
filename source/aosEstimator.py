@@ -4,13 +4,14 @@
 # @       Large Synoptic Survey Telescope
 
 import os
+import glob
 
 import numpy as np
 
 
 class aosEstimator(object):
 
-    def __init__(self, paramFile, wfs, icomp, izn3, debugLevel):
+    def __init__(self, instruFile, paramFile, wfs, icomp, izn3, debugLevel):
         self.filename = os.path.join('data/', (paramFile + '.esti'))
         fid = open(self.filename)
         iscomment = False
@@ -22,8 +23,6 @@ class aosEstimator(object):
                     (not iscomment) and len(line) > 0):
                 if (line.startswith('estimator_strategy')):
                     self.strategy = line.split()[1]
-                elif (line.startswith('senMFile')):
-                    self.senMFile = line.split()[1]
                 elif (line.startswith('n_bending_M1M3')):
                     self.nB13Max = int(line.split()[1])
                 elif (line.startswith('n_bending_M2')):
@@ -69,12 +68,14 @@ class aosEstimator(object):
 
         fid.close()
 
+        src = glob.glob('data/%s/senM*txt'%(instruFile))
+        self.senMFile = src[0]
         self.zn3Max = self.znMax - 3
         self.ndofA = self.nB13Max + self.nB2Max + 10
 
         if debugLevel >= 1:
             print('Using senM file: %s' % self.senMFile)
-        self.senM = np.loadtxt(os.path.join('data/', self.senMFile))
+        self.senM = np.loadtxt(self.senMFile)
         self.senM = self.senM.reshape((-1, self.zn3Max, self.ndofA))
         self.senM = self.senM[:, :, np.concatenate(
             (range(10 + self.nB13Max),
@@ -84,8 +85,8 @@ class aosEstimator(object):
             print(self.senM.shape)
 
         # A is just for the 4 corners
-        self.A = self.senM[-4:, :, :].reshape((-1, self.ndofA))
-        self.zn3IdxAx4 = np.repeat(self.zn3Idx, 4)
+        self.A = self.senM[-wfs.nWFS:, :, :].reshape((-1, self.ndofA))
+        self.zn3IdxAx4 = np.repeat(self.zn3Idx, wfs.nWFS)
         self.Ause = self.A[np.ix_(self.zn3IdxAx4, self.compIdx)]
         if debugLevel >= 3:
             print('---checking estimator related:')
@@ -133,7 +134,7 @@ class aosEstimator(object):
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
             aa = np.loadtxt(state.zTrueFile_m1)
-            self.yfinal = aa[-4:, 3:self.znMax].reshape((-1, 1))
+            self.yfinal = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
             if sensor == 'covM':
                 mu = np.zeros(self.zn3Max*4)
                 np.random.seed(state.obsID)
@@ -142,11 +143,11 @@ class aosEstimator(object):
             aa = np.loadtxt(wfs.zFile_m1)
             self.yfinal = aa[:, :self.zn3Max].reshape((-1, 1))
                 
-        self.yfinal -= wfs.intrinsic4c
+        self.yfinal -= wfs.intrinsicWFS
 
         # subtract y2c
-        aa = np.loadtxt(os.path.join('data/', ctrl.y2File))
-        self.y2c = aa[-4:, 0:self.znMax-3].reshape((-1, 1))
+        aa = np.loadtxt(ctrl.y2File)
+        self.y2c = aa[-wfs.nWFS:, 0:self.znMax-3].reshape((-1, 1))
         
         self.xhat = np.zeros(self.ndofA)
         self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)

@@ -55,6 +55,7 @@ aosEstimator ->esti
 	optiAinv()	 construct the optimal estimator Ainv (using state covariance & noise covariance)
 
 aosTeleState  ->state
+	inst		lsst or comcam
 	instruFile	*.inst in data/, this defines the initial state, and what effect we turn on/off
 	iSim		current simulation No.
 *	iIter		current iteration No.
@@ -77,8 +78,6 @@ aosTeleState  ->state
 	PSF_inst	       instance catalog file used for generating PSF images
 	zTrueFile  	filename for the zernikes from the current iteration (from Phosim, 35 points)
 	zTrueFile_m1	filename for the zernikes from the previous iteration (from Phosim, 35 points)
-	wfsName		['intra', 'extra']
-	halfChip		['C1', 'C0']
 
 	functions():
 	writePertFile		write state vector to pert file
@@ -90,12 +89,17 @@ aosTeleState  ->state
 
 
 aosWFS          ->wfs
+	nWFS	No. of wavefront sensors
+	nRun	for comcam, we run phosim twice to get WFS, for lsst, only once
+	wfsName		['intra', 'extra']
+	offset 		  [-1.5, 1.5], in mm
+	halfChip		['C1', 'C0']	
 	znwcs		No. of Zernikes in cwfs output
 	znwcs3		znwcs -3 (no ptt)
 	cwfsDir		where the cwfs code is
 	algo		algo as defined in cwfs
 	inst		inst as defined in cwfs
-	intrinsic4c	intrinsic wavefront @ 4 corners, 76x1
+	intrinsicWFS	intrinsic wavefront @ 4 corners, 76x1
 *	myZn		results of cwfs from two exposures, 76x2
 *	trueZn	true wavefront accoring to phosim (counterpart of myZn)
 *	catFile	catalog file for all the good wfs stars

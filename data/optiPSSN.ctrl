@@ -26,6 +26,3 @@ M2_actuator_penalty   5.9
 # use 1e100, if you absolutely hate anything that moves
 Motion_penalty		1e-3
 
-#y2 file
-y2File		y2.txt
-

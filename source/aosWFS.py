@@ -20,6 +20,15 @@ class aosWFS(object):
 
     def __init__(self, cwfsDir, instruFile, algoFile,
                  imgSizeinPix, wavelength, debugLevel):
+        self.nWFS = 4
+        self.nRun = 1
+        if instruFile == 'comcam':
+            self.nWFS = 9
+            self.nRun = 2
+        self.wfsName = ['intra', 'extra']
+        # to do: use -i comcam15 to switch to 1.5mm offset
+        self.offset = [-2, 2] # [-1.5, 1.5], comcam.param has 2e-3 already, any number works
+        self.halfChip = ['C1', 'C0'] #C1 is always intra, C0 is extra
 
         aosDir = os.getcwd()
         self.cwfsDir = cwfsDir
@@ -29,27 +38,31 @@ class aosWFS(object):
         os.chdir(aosDir)
         self.znwcs = self.algo.numTerms
         self.znwcs3 = self.znwcs - 3
-        self.myZn = np.zeros((self.znwcs3 * 4, 2))
-        self.trueZn = np.zeros((self.znwcs3 * 4, 2))
-        intrinsic35 = np.loadtxt('data/intrinsic_zn.txt')
-        intrinsic35 = intrinsic35 * wavelength
-        self.intrinsic4c = intrinsic35[
-            -4:, 3:self.algo.numTerms].reshape((-1, 1))
+        self.myZn = np.zeros((self.znwcs3 * self.nWFS, 2))
+        self.trueZn = np.zeros((self.znwcs3 * self.nWFS, 2))
+        intrinsicAll = np.loadtxt('data/%s/intrinsic_zn.txt'%instruFile)
+        intrinsicAll = intrinsicAll * wavelength
+        self.intrinsicWFS = intrinsicAll[
+            -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
         self.covM = np.loadtxt('data/covM86.txt') #in unit of nm^2
+        if self.nWFS>4:
+            nrepeat = np.ceil(self.nWFS/4)
+            self.covM = np.tile(self.covM, (nrepeat, nrepeat))
+            self.covM = self.covM[:(self.znwcs3 * self.nWFS), :(self.znwcs3 * self.nWFS)]
         self.covM = self.covM*1e-6 #in unit of um^2
         
         if debugLevel >= 3:
             print('znwcs3=%d' % self.znwcs3)
-            print(self.intrinsic4c.shape)
-            print(self.intrinsic4c[:5])
+            print(self.intrinsicWFS.shape)
+            print(self.intrinsicWFS[:5])
 
     def preprocess(self, state, metr, debugLevel):
-        for iField in range(metr.nField, metr.nFieldp4):
+        for iField in range(metr.nFieldp4-self.nWFS, metr.nFieldp4):
             chipStr, px0, py0 = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
             for ioffset in [0, 1]:
                 src = glob.glob('%s/iter%d/*%d*%s*%s*' %
-                                (state.imageDir, state.iIter, state.obsID, chipStr, state.halfChip[ioffset]))
+                                (state.imageDir, state.iIter, state.obsID, chipStr, self.halfChip[ioffset]))
                 chipFile = src[0]
                 IHDU = fits.open(chipFile)
                 chipImage = IHDU[0].data
@@ -97,7 +110,7 @@ class aosWFS(object):
                 # below, we have 0 b/c we may have many
                 stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, iField,
-                    state.wfsName[ioffset])
+                    self.wfsName[ioffset])
                 if os.path.isfile(stampFile):
                     os.remove(stampFile)
                 hdu = fits.PrimaryHDU(psf)
@@ -106,7 +119,7 @@ class aosWFS(object):
                 if debugLevel >= 3:
                     print('px = %d, py = %d' % (px, py))
                     print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                    print('passed %d, %s' % (iField, state.wfsName[ioffset]))
+                    print('passed %d, %s' % (iField, self.wfsName[ioffset]))
 
         # make an image of the 8 donuts
         for iField in range(metr.nField, metr.nFieldp4):
@@ -115,7 +128,7 @@ class aosWFS(object):
             for ioffset in [0, 1]:
                 src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, iField,
-                    state.wfsName[ioffset]))
+                    self.wfsName[ioffset]))
                 IHDU = fits.open(src[0])
                 psf = IHDU[0].data
                 IHDU.close()
@@ -130,7 +143,7 @@ class aosWFS(object):
 
                 plt.subplot(2, 4, pIdx)
                 plt.imshow(psf, origin='lower', interpolation='none')
-                plt.title('%s_%s' % (chipStr, state.wfsName[ioffset]))
+                plt.title('%s_%s' % (chipStr, self.wfsName[ioffset]))
                 plt.axis('off')
 
         # plt.show()
@@ -143,10 +156,10 @@ class aosWFS(object):
         for i in range(metr.nField, metr.nFieldp4):
             intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i,
-                state.wfsName[0]))[0]
+                self.wfsName[0]))[0]
             extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i,
-                state.wfsName[1]))[0]
+                self.wfsName[1]))[0]
             if i == 31: 
                 fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
                     metr.fieldXp[i] - 0.020, metr.fieldYp[i],

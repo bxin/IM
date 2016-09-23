@@ -23,41 +23,60 @@ from aosErrors import psfSamplingTooLowError
 
 class aosMetric(object):
 
-    def __init__(self, state, wfs, debugLevel):
-        self.nArm = 6
-        armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
-        armW = [0.2369, 0.4786, 0.5689, 0.4786, 0.2369]
-        self.nRing = len(armLen)
-        self.nField = self.nArm * self.nRing + 1
-        self.nFieldp4 = self.nField + 4
-        self.fieldX = np.zeros(self.nFieldp4)
-        self.fieldY = np.zeros(self.nFieldp4)
-        self.fieldX[0] = 0
-        self.fieldY[0] = 0
-        self.w = [0]
-        for i in range(self.nRing):
-            self.w = np.concatenate((self.w, np.ones(self.nArm) * armW[i]))
-            self.fieldX[i * self.nArm + 1: (i + 1) * self.nArm + 1] =\
-                armLen[i] * np.cos(np.arange(self.nArm) *
-                                   (2 * np.pi) / self.nArm)
-            self.fieldY[i * self.nArm + 1: (i + 1) * self.nArm + 1] =\
-                armLen[i] * np.sin(np.arange(self.nArm) *
-                                   (2 * np.pi) / self.nArm)
-        self.w = self.w / np.sum(self.w)
-        # self.fieldX[self.nField:]=[1.185, -1.185, -1.185, 1.185]
-        # self.fieldY[self.nField:]=[1.185, 1.185, -1.185, -1.185]
-        # counter-clock wise
-        self.fieldX[self.nField:] = [1.176, -1.176, -1.176, 1.176]
-        self.fieldY[self.nField:] = [1.176, 1.176, -1.176, -1.176]
+    def __init__(self, instName, state, wfs, debugLevel):
+        if instName == 'lsst':
+            self.nArm = 6
+            armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
+            armW = [0.2369, 0.4786, 0.5689, 0.4786, 0.2369]
+            self.nRing = len(armLen)
+            self.nField = self.nArm * self.nRing + 1
+            self.nFieldp4 = self.nField + 4
+            self.fieldX = np.zeros(self.nFieldp4)
+            self.fieldY = np.zeros(self.nFieldp4)
+            self.fieldX[0] = 0
+            self.fieldY[0] = 0
+            self.w = [0]
+            for i in range(self.nRing):
+                self.w = np.concatenate((self.w, np.ones(self.nArm) * armW[i]))
+                self.fieldX[i * self.nArm + 1: (i + 1) * self.nArm + 1] =\
+                    armLen[i] * np.cos(np.arange(self.nArm) *
+                                       (2 * np.pi) / self.nArm)
+                self.fieldY[i * self.nArm + 1: (i + 1) * self.nArm + 1] =\
+                    armLen[i] * np.sin(np.arange(self.nArm) *
+                                       (2 * np.pi) / self.nArm)
+            # self.fieldX[self.nField:]=[1.185, -1.185, -1.185, 1.185]
+            # self.fieldY[self.nField:]=[1.185, 1.185, -1.185, -1.185]
+            # counter-clock wise
+            self.fieldX[self.nField:] = [1.176, -1.176, -1.176, 1.176]
+            self.fieldY[self.nField:] = [1.176, 1.176, -1.176, -1.176]
 
+            self.fwhmModelFileBase = 'data/fwhmModel/fwhm_vs_z_500nm'
+            
+        elif instName == 'comcam':
+            nRow=3
+            nCol=3
+            self.nField=nRow*nCol
+            self.fieldX=np.zeros(self.nField)
+            self.fieldY=np.zeros(self.nField)
+            sensorD = 0.2347
+            
+            for i in range(nRow):
+                for j in range(nCol):
+                    self.fieldX[i*nRow+j]=(i-1)*sensorD
+                    self.fieldY[i*nRow+j]=(j-1)*sensorD
+
+            self.w = np.ones(self.nField)
+            self.nFieldp4 = self.nField
+            
+        self.w = self.w / np.sum(self.w)
+        
         # below, p is for PSF
         self.fieldXp = self.fieldX.copy()
         self.fieldYp = self.fieldY.copy()
 
-        self.fieldXp[19] += 0.004
-        self.fieldXp[22] -= 0.004
-
-        self.fwhmModelFileBase = 'data/fwhmModel/fwhm_vs_z_500nm'
+        if instName == 'lsst': #falling on chip edge
+            self.fieldXp[19] += 0.004
+            self.fieldXp[22] -= 0.004
 
         if debugLevel >= 3:
             print(self.w.shape)

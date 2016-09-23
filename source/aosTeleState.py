@@ -19,11 +19,12 @@ import matplotlib.pyplot as plt
 
 class aosTeleState(object):
 
-    def __init__(self, esti, instruFile, iSim, phosimDir,
+    def __init__(self, inst, esti, instruFile, iSim, phosimDir,
                  pertDir, imageDir, debugLevel):
         # plan to write these to txt files. no columns for iter
         self.stateV = np.zeros(esti.ndofA)  # *np.nan # telescope state(?)
 
+        self.inst = inst
         self.instruFile = os.path.join('data/', (instruFile + '.inst'))
         fid = open(self.instruFile)
         iscomment = False
@@ -70,8 +71,6 @@ class aosTeleState(object):
             10, 11, 12, 13, 14] + [
             # M13 and M2 bending
             i for i in range(15, 15 + esti.ndofA - 10)]
-        self.wfsName = ['intra', 'extra']
-        self.halfChip = ['C1', 'C0'] #C1 is always intra, C0 is extra
 
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
@@ -134,20 +133,20 @@ class aosTeleState(object):
                 aa = np.loadtxt(metr.PSSNFile_m1)
                 metr.GQFWHMeff = aa[1, -1] 
                     
-    def getOPD35(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
+    def getOPDAll(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
 
         if not opdoff:
             self.writeOPDinst(metr, wavelength)
-            self.writeOPDcmd()
-            self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter)
+            self.writeOPDcmd(metr)
+            self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
     
             if debugLevel >= 3:
                 runProgram('head %s' % self.OPD_inst)
                 runProgram('head %s' % self.OPD_cmd)
     
-            myargs = '%s -c %s -p %d -e %d > %s' % (
-                self.OPD_inst, self.OPD_cmd, numproc, self.eimage, self.OPD_log)
+            myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
+                self.OPD_inst, self.OPD_cmd, self.inst, numproc, self.eimage, self.OPD_log)
             if debugLevel >= 2:
                 print('*******Runnnig PHOSIM with following parameters*******')
                 print('Check the log file below for progress')
@@ -186,21 +185,21 @@ class aosTeleState(object):
                 print(wfs.znwcs)
                 print(wfs.inst.obscuration)
 
-    def getOPD35fromBase(self, baserun, metr):
-        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+    def getOPDAllfromBase(self, baserun, metr):
+        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         if not os.path.isfile(self.OPD_inst):
             baseFile = self.OPD_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.OPD_inst)
 
-        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd35.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd%d.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         if not os.path.isfile(self.OPD_cmd):
             baseFile = self.OPD_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.OPD_cmd)
         
-        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd35.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter, self.nFieldp4)
         if not os.path.isfile(self.OPD_log):
             baseFile = self.OPD_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.OPD_log)
@@ -217,8 +216,8 @@ class aosTeleState(object):
                 os.link(baseFile, opdFile)
                                                                     
     def writeOPDinst(self, metr, wavelength):
-        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd35.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         fid = open(self.OPD_inst, 'w')
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
@@ -232,25 +231,25 @@ SIM_NSNAP 1\n'%(self.obsID))
         fid.close()
         fpert.close()
 
-    def writeOPDcmd(self):
-        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd35.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+    def writeOPDcmd(self, metr):
+        self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd%d.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         fid = open(self.OPD_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
 perturbationmode 1\n')
         fid.close()
 
-    def getPSF31(self, psfoff, metr, numproc, debugLevel):
+    def getPSFAll(self, psfoff, metr, numproc, debugLevel):
 
         if not psfoff:
             self.writePSFinst(metr)
-            self.writePSFcmd()
-            self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter)
+            self.writePSFcmd(metr)
+            self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
     
-            myargs = '%s -c %s -p %d -e %d > %s' % (
-                self.PSF_inst, self.PSF_cmd, numproc, self.eimage, self.PSF_log)
+            myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
+                self.PSF_inst, self.PSF_cmd, self.inst, numproc, self.eimage, self.PSF_log)
             if debugLevel >= 2:
                 print('********Runnnig PHOSIM with following parameters********')
                 print('Check the log file below for progress')
@@ -281,19 +280,27 @@ perturbationmode 1\n')
                     px - self.psfStampSize / 2 + offsetx:
                     px + self.psfStampSize / 2 + offsetx]
     
-                if i == 0:
-                    pIdx = 1
-                else:
-                    pIdx = i + metr.nArm
-    
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter, i)
                 if os.path.isfile(dst):
                     os.remove(dst)
                 hdu = fits.PrimaryHDU(psf)
                 hdu.writeto(dst)
-    
-                plt.subplot(metr.nRing + 1, metr.nArm, pIdx)
+
+                if self.inst == 'lsst':
+                    if i == 0:
+                        pIdx = 1
+                    else:
+                        pIdx = i + metr.nArm
+                    nRow = metr.nRing + 1
+                    nCol = metr.nArm
+                elif self.inst == 'comcam':
+                    aa = [7, 4, 1, 8, 5, 2, 9, 6, 3]
+                    pIdx = aa[i]
+                    nRow = 3
+                    nCol = 3
+                    
+                plt.subplot(nRow, nCol, pIdx)
                 plt.imshow(extractArray(psf, 20), origin='lower', interpolation='none')
                 plt.title('%d' % i)
                 plt.axis('off')
@@ -308,9 +315,9 @@ perturbationmode 1\n')
                 self.imageDir, self.iIter, self.iSim, self.iIter)
             plt.savefig(pngFile, bbox_inches='tight')
 
-    def getPSF31fromBase(self, baserun, metr):
-        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+    def getPSFAllfromBase(self, baserun, metr):
+        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_inst):
             baseFile = self.PSF_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             #PSF files are not crucial, it is ok if the baserun doesn't have it
@@ -319,14 +326,14 @@ perturbationmode 1\n')
             else:
                 return
 
-        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf31.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_cmd):
             baseFile = self.PSF_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.PSF_cmd)
 
-        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf31.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
+            self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_log):
             baseFile = self.PSF_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.PSF_log)
@@ -345,15 +352,15 @@ perturbationmode 1\n')
             os.link(baseFile, pngFile)
                                                                               
     def writePSFinst(self, metr):
-        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf31.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         fid = open(self.PSF_inst, 'w')
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-SIM_CAMCONFIG 4\n'%(self.obsID,  self.obsID%1000-31))
+SIM_CAMCONFIG 1\n'%(self.obsID,  self.obsID%1000-31))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nField):
@@ -363,9 +370,9 @@ SIM_CAMCONFIG 4\n'%(self.obsID,  self.obsID%1000-31))
         fid.close()
         fpert.close()
 
-    def writePSFcmd(self):
-        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf31.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+    def writePSFcmd(self, metr):
+        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         fid = open(self.PSF_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -377,34 +384,47 @@ clearopacity\n\
 atmosphericdispersion 0\n')
         fid.close()
 
-    def getWFS4(self, wfs, metr, numproc, debugLevel):
+    def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
-        self.writeWFSinst(metr)
-        self.writeWFScmd()
-        self.WFS_log = '%s/iter%d/sim%d_iter%d_wfs4.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.writeWFSinst(wfs, metr)
+        for iRun in range(wfs.nRun):
+            self.WFS_log = '%s/iter%d/sim%d_iter%d_wfs%d.log' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
+            if wfs.nRun == 1:
+                self.writeWFScmd(wfs, -1)
+            else:
+                self.writeWFScmd(wfs, iRun)
+                self.WFS_log.replace('.log', '_%s.log'%(wfs.halfChip[iRun]))
+                
+            myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
+                self.WFS_inst, self.WFS_cmd, self.inst, numproc, self.eimage, self.WFS_log)
+            if debugLevel >= 2:
+                print('********Runnnig PHOSIM with following parameters********')
+                print('Check the log file below for progress')
+                print('%s' % myargs)
 
-        myargs = '%s -c %s -p %d -e %d > %s' % (
-            self.WFS_inst, self.WFS_cmd, numproc, self.eimage, self.WFS_log)
-        if debugLevel >= 2:
-            print('********Runnnig PHOSIM with following parameters********')
-            print('Check the log file below for progress')
-            print('%s' % myargs)
+            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+            plt.figure(figsize=(10, 5))
+            for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
+                chipStr, px, py = self.fieldXY2Chip(
+                    metr.fieldXp[i], metr.fieldYp[i], debugLevel)
+                src = glob.glob('%s/output/*%s*.gz' % (self.phosimDir, chipStr))
+            if wfs.nRun == 1:
+                for ioffset in [0, 1]:
+                    runProgram('gunzip -f %s' % src[ioffset])
+                    chipFile = src[ioffset].replace('.gz', '')
+                    runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
+            else:
+                runProgram('gunzip -f %s' % src[0])
+                chipFile = src[0].replace('.gz', '')
+                targetFile = chipFile.replace('E000', '%s_E000'%wfs.wfsName)
+                runProgram('mv -f %s %s/iter%d/%s' %( chipFile, self.imageDir, self.iIter, targetFile))
+                    
+    def writeWFSinst(self, wfs, metr):
 
-        runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
-        plt.figure(figsize=(10, 5))
-        for i in range(metr.nField, metr.nFieldp4):
-            chipStr, px, py = self.fieldXY2Chip(
-                metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            src = glob.glob('%s/output/*%s*.gz' % (self.phosimDir, chipStr))
-            for ioffset in [0, 1]:
-                runProgram('gunzip -f %s' % src[ioffset])
-                chipFile = src[ioffset].replace('.gz', '')
-                runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
-
-    def writeWFSinst(self, metr):
-        self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs4.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs%d.inst' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
+                
         fid = open(self.WFS_inst, 'w')
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
@@ -416,35 +436,46 @@ SIM_SEED %d\n\
 Opsim_rawseeing 0.7283\n\
 SIM_CAMCONFIG 2\n' % (self.obsID, self.obsID%1000-4))
         ii = 0
-        for i in range(metr.nField, metr.nFieldp4):
-            if i % 2 == 1:  # field 31, 33, R44 and R00
+        for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
+            if self.inst == 'lsst':
+                if i % 2 == 1:  # field 31, 33, R44 and R00
+                    fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+                        ii, metr.fieldXp[i] + 0.020, metr.fieldYp[i],
+                        self.cwfsMag))
+                    ii += 1
+                    fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+                        ii, metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                        self.cwfsMag))
+                    ii += 1
+                else:
+                    fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+                        ii, metr.fieldXp[i], metr.fieldYp[i] + 0.020,
+                        self.cwfsMag))
+                    ii += 1
+                    fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
+../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+                        ii, metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                        self.cwfsMag))
+                    ii += 1
+            elif self.inst == 'comcam':
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i] + 0.020, metr.fieldYp[i],
+                    ii, metr.fieldXp[i], metr.fieldYp[i],
                     self.cwfsMag))
-                ii += 1
-                fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                    self.cwfsMag))
-                ii += 1
-            else:
-                fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                    self.cwfsMag))
-                ii += 1
-                fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                    ii, metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                    self.cwfsMag))
-                ii += 1
+                ii += 1                    
         fid.close()
         fpert.close()
 
-    def writeWFScmd(self):
-        self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs4.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter)
+    def writeWFScmd(self, wfs, iRun=-1):
+        #iRun = -1 means only need to run it once
+        self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
+        if wfs.nRun != -1:
+            self.WFS_cmd.replace('.cmd','_%s.cmd'%wfs.halfChip[iRun])
+            
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -452,6 +483,8 @@ perturbationmode 1\n\
 trackingmode 0\n\
 cleartracking\n\
 clearclouds\n')
+        if wfs.nRun != -1:
+            fid.write('body 11 5 %+4.1f\n'%(wfs.offset[iRun]))
         fid.close()
 
     def fieldXY2Chip(self, fieldX, fieldY, debugLevel):

@@ -103,9 +103,8 @@ def main():
     # run wavefront sensing algorithm
     # *****************************************
     cwfsDir = '../../wavefront/cwfs/'
-    instruFile = args.inst
     algoFile = 'exp'
-    wfs = aosWFS(cwfsDir, instruFile, algoFile,
+    wfs = aosWFS(cwfsDir, args.inst, algoFile,
                  128, args.wavelength, args.debugLevel)
 
     cwfsModel = 'offAxis'
@@ -113,7 +112,7 @@ def main():
     # *****************************************
     # state estimator
     # *****************************************
-    esti = aosEstimator(args.estimatorParam, wfs, args.icomp, args.izn3,
+    esti = aosEstimator(args.inst, args.estimatorParam, wfs, args.icomp, args.izn3,
                         args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
@@ -123,13 +122,13 @@ def main():
     imageDir = 'image/sim%d' % args.iSim
     if not os.path.isdir(imageDir):
         os.makedirs(imageDir)
-    state = aosTeleState(esti, args.simuParam, args.iSim, phosimDir,
+    state = aosTeleState(args.inst, esti, args.simuParam, args.iSim, phosimDir,
                          pertDir, imageDir, args.debugLevel)
     # *****************************************
     # control algorithm
     # *****************************************
-    metr = aosMetric(state, wfs, args.debugLevel)
-    ctrl = aosController(args.controllerParam, esti, metr, wfs, M1M3, M2,
+    metr = aosMetric(args.inst, state, wfs, args.debugLevel)
+    ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs, M1M3, M2,
                          args.wavelength, args.gain, args.debugLevel)
 
     # *****************************************
@@ -144,7 +143,7 @@ def main():
         if not args.ctrloff:
             if iIter > 0: #args.startiter:
                 esti.estimate(state, wfs, ctrl, args.sensor)
-                ctrl.getMotions(esti, metr, args.wavelength)
+                ctrl.getMotions(esti, metr, wfs, args.wavelength)
                 ctrl.drawControlPanel(esti, state)
 
                 # need to remake the pert file here.
@@ -154,8 +153,8 @@ def main():
             state.writePertFile(esti)
 
         if args.baserun>0 and iIter == 0:
-            state.getOPD35fromBase(args.baserun, metr)
-            state.getPSF31fromBase(args.baserun, metr)
+            state.getOPDAllfromBase(args.baserun, metr)
+            state.getPSFAllfromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
             if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
@@ -163,10 +162,10 @@ def main():
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
-            state.getOPD35(args.opdoff, wfs, metr, args.numproc, args.wavelength,
+            state.getOPDAll(args.opdoff, wfs, metr, args.numproc, args.wavelength,
                            args.debugLevel)
 
-            state.getPSF31(args.psfoff, metr, args.numproc, args.debugLevel)
+            state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
     
             metr.getPSSNandMore(args.pssnoff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
     
@@ -177,7 +176,7 @@ def main():
             else:
                 if args.sensor == 'phosim':
                     # create donuts for last iter, so that picking up from there will be easy
-                    state.getWFS4(wfs, metr, args.numproc, args.debugLevel)
+                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
                     wfs.checkZ4C(state, metr, args.debugLevel)

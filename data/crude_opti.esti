@@ -6,7 +6,6 @@ This file contains the parameters for the state estimator
 
 #estimator strategy
 estimator_strategy	crude_opti
-senMFile		senM_35_19_50.txt
 
 ## the following 3 numbers define how big the sensitivity matrix needs to be
 
