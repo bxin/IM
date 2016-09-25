@@ -68,7 +68,10 @@ class aosEstimator(object):
 
         fid.close()
 
-        src = glob.glob('data/%s/senM*txt'%(instruFile))
+        aa = instruFile
+        if aa[-2:].isdigit():
+            aa = aa[:-2]
+        src = glob.glob('data/%s/senM*txt'%(aa))
         self.senMFile = src[0]
         self.zn3Max = self.znMax - 3
         self.ndofA = self.nB13Max + self.nB2Max + 10

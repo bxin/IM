@@ -38,7 +38,10 @@ class aosController(object):
                     
         fid.close()
         
-        src = glob.glob('data/%s/y2*txt'%(instruFile))
+        aa = instruFile
+        if aa[-2:].isdigit():
+            aa = aa[:-2]
+        src = glob.glob('data/%s/y2*txt'%(aa))
         self.y2File = src[0]
         if debugLevel >= 1:
             print('control strategy: %s' % self.strategy)

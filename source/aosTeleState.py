@@ -24,7 +24,10 @@ class aosTeleState(object):
         # plan to write these to txt files. no columns for iter
         self.stateV = np.zeros(esti.ndofA)  # *np.nan # telescope state(?)
 
-        self.inst = inst
+        aa = inst
+        if aa[-2:].isdigit():
+            aa = aa[:-2]
+        self.inst = aa
         self.instruFile = os.path.join('data/', (instruFile + '.inst'))
         fid = open(self.instruFile)
         iscomment = False
@@ -287,14 +290,14 @@ perturbationmode 1\n')
                 hdu = fits.PrimaryHDU(psf)
                 hdu.writeto(dst)
 
-                if self.inst == 'lsst':
+                if self.inst[:4] == 'lsst':
                     if i == 0:
                         pIdx = 1
                     else:
                         pIdx = i + metr.nArm
                     nRow = metr.nRing + 1
                     nCol = metr.nArm
-                elif self.inst == 'comcam':
+                elif self.inst[:6] == 'comcam':
                     aa = [7, 4, 1, 8, 5, 2, 9, 6, 3]
                     pIdx = aa[i]
                     nRow = 3
@@ -394,7 +397,7 @@ atmosphericdispersion 0\n')
                 self.writeWFScmd(wfs, -1)
             else:
                 self.writeWFScmd(wfs, iRun)
-                self.WFS_log.replace('.log', '_%s.log'%(wfs.halfChip[iRun]))
+                self.WFS_log = self.WFS_log.replace('.log', '_%s.log'%(wfs.halfChip[iRun]))
                 
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
                 self.WFS_inst, self.WFS_cmd, self.inst, numproc, self.eimage, self.WFS_log)
@@ -408,17 +411,19 @@ atmosphericdispersion 0\n')
             for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
                 chipStr, px, py = self.fieldXY2Chip(
                     metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-                src = glob.glob('%s/output/*%s*.gz' % (self.phosimDir, chipStr))
-            if wfs.nRun == 1:
-                for ioffset in [0, 1]:
-                    runProgram('gunzip -f %s' % src[ioffset])
-                    chipFile = src[ioffset].replace('.gz', '')
-                    runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
-            else:
-                runProgram('gunzip -f %s' % src[0])
-                chipFile = src[0].replace('.gz', '')
-                targetFile = chipFile.replace('E000', '%s_E000'%wfs.wfsName)
-                runProgram('mv -f %s %s/iter%d/%s' %( chipFile, self.imageDir, self.iIter, targetFile))
+                src = glob.glob('%s/output/*%s*%s*' % (self.phosimDir, self.obsID, chipStr))
+                if wfs.nRun == 1:
+                    for ioffset in [0, 1]:
+                        if '.gz' in src[0]:
+                            runProgram('gunzip -f %s' % src[ioffset])
+                        chipFile = src[ioffset].replace('.gz', '')
+                        runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
+                else:
+                    if '.gz' in src[0]:
+                        runProgram('gunzip -f %s' % src[0])
+                    chipFile = src[0].replace('.gz', '')
+                    targetFile = os.path.split(chipFile.replace('E000', '%s_E000'%wfs.halfChip[iRun]))[1]
+                    runProgram('mv -f %s %s/iter%d/%s' %( chipFile, self.imageDir, self.iIter, targetFile))
                     
     def writeWFSinst(self, wfs, metr):
 
@@ -433,11 +438,15 @@ Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-Opsim_rawseeing 0.7283\n\
-SIM_CAMCONFIG 2\n' % (self.obsID, self.obsID%1000-4))
+Opsim_rawseeing 0.7283\n' % (self.obsID, self.obsID%1000-4))
+        if self.inst[:4] == 'lsst':
+            fid.write('SIM_CAMCONFIG 2\n')
+        elif self.inst[:6] == 'comcam':
+            fid.write('SIM_CAMCONFIG 1\n')
+            
         ii = 0
         for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
-            if self.inst == 'lsst':
+            if self.inst[:4] == 'lsst':
                 if i % 2 == 1:  # field 31, 33, R44 and R00
                     fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
@@ -460,7 +469,7 @@ SIM_CAMCONFIG 2\n' % (self.obsID, self.obsID%1000-4))
                         ii, metr.fieldXp[i], metr.fieldYp[i] - 0.020,
                         self.cwfsMag))
                     ii += 1
-            elif self.inst == 'comcam':
+            elif self.inst[:6] == 'comcam':
                 fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i], metr.fieldYp[i],
@@ -473,8 +482,8 @@ SIM_CAMCONFIG 2\n' % (self.obsID, self.obsID%1000-4))
         #iRun = -1 means only need to run it once
         self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
-        if wfs.nRun != -1:
-            self.WFS_cmd.replace('.cmd','_%s.cmd'%wfs.halfChip[iRun])
+        if iRun != -1:
+            self.WFS_cmd = self.WFS_cmd.replace('.cmd','_%s.cmd'%wfs.halfChip[iRun])
             
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
@@ -483,7 +492,7 @@ perturbationmode 1\n\
 trackingmode 0\n\
 cleartracking\n\
 clearclouds\n')
-        if wfs.nRun != -1:
+        if iRun != -1:
             fid.write('body 11 5 %+4.1f\n'%(wfs.offset[iRun]))
         fid.close()
 

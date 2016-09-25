@@ -22,12 +22,16 @@ class aosWFS(object):
                  imgSizeinPix, wavelength, debugLevel):
         self.nWFS = 4
         self.nRun = 1
-        if instruFile == 'comcam':
+        if instruFile[:6] == 'comcam':
             self.nWFS = 9
             self.nRun = 2
         self.wfsName = ['intra', 'extra']
-        # to do: use -i comcam15 to switch to 1.5mm offset
-        self.offset = [-2, 2] # [-1.5, 1.5], comcam.param has 2e-3 already, any number works
+        self.offset = [-1.5, 1.5] #default offset
+        if  (instruFile[:6] == 'comcam' and len(instruFile)==8) or \
+          (instruFile[:4] == 'lsst' and len(instruFile)==6):
+            aa = float(instruFile[-2:])/10
+            self.offset = [-aa, aa]
+            
         self.halfChip = ['C1', 'C0'] #C1 is always intra, C0 is extra
 
         aosDir = os.getcwd()
@@ -40,7 +44,10 @@ class aosWFS(object):
         self.znwcs3 = self.znwcs - 3
         self.myZn = np.zeros((self.znwcs3 * self.nWFS, 2))
         self.trueZn = np.zeros((self.znwcs3 * self.nWFS, 2))
-        intrinsicAll = np.loadtxt('data/%s/intrinsic_zn.txt'%instruFile)
+        aa = instruFile
+        if aa[-2:].isdigit():
+            aa = aa[:-2]
+        intrinsicAll = np.loadtxt('data/%s/intrinsic_zn.txt'%aa)
         intrinsicAll = intrinsicAll * wavelength
         self.intrinsicWFS = intrinsicAll[
             -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
@@ -67,12 +74,15 @@ class aosWFS(object):
                 IHDU = fits.open(chipFile)
                 chipImage = IHDU[0].data
                 IHDU.close()
-                
-                if ioffset == 0: #intra image, C1, push away from left edge
-                    # degree to micron then to pixel
-                    px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1] 
-                elif ioffset == 1: #extra image, C0, pull away from right edge
-                    px = px0 - 0.020 * 180000 / 10 
+
+                if state.inst[:4]=='lsst':
+                    if ioffset == 0: #intra image, C1, push away from left edge
+                        # degree to micron then to pixel
+                        px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1] 
+                    elif ioffset == 1: #extra image, C0, pull away from right edge
+                        px = px0 - 0.020 * 180000 / 10
+                elif state.inst[:6]=='comcam':
+                    px =  px0
                 py = py0.copy()
                 
                 # psf here is 4 x the size of cwfsStampSize, to get centroid
@@ -95,17 +105,18 @@ class aosWFS(object):
                     px - state.psfStampSize / 2 + offsetx:
                     px + state.psfStampSize / 2 + offsetx]
 
-                # read out of corner raft are identical,
-                # cwfs knows how to handle rotated images
-                # note: rot90 rotates the array,
-                # not the image (as you see in ds9, or Matlab with "axis xy")
-                # that is why we need to flipud and then flip back
-                if iField == metr.nField:
-                    psf = np.flipud(np.rot90(np.flipud(psf), 2))
-                elif iField == metr.nField+1:
-                    psf = np.flipud(np.rot90(np.flipud(psf), 3))
-                elif iField == metr.nField+3:
-                    psf = np.flipud(np.rot90(np.flipud(psf), 1))
+                if state.inst[:4]=='lsst':
+                    # readout of corner raft are identical,
+                    # cwfs knows how to handle rotated images
+                    # note: rot90 rotates the array,
+                    # not the image (as you see in ds9, or Matlab with "axis xy")
+                    # that is why we need to flipud and then flip back
+                    if iField == metr.nField:
+                        psf = np.flipud(np.rot90(np.flipud(psf), 2))
+                    elif iField == metr.nField+1:
+                        psf = np.flipud(np.rot90(np.flipud(psf), 3))
+                    elif iField == metr.nField+3:
+                        psf = np.flipud(np.rot90(np.flipud(psf), 1))
 
                 # below, we have 0 b/c we may have many
                 stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0.fits' % (
@@ -122,7 +133,7 @@ class aosWFS(object):
                     print('passed %d, %s' % (iField, self.wfsName[ioffset]))
 
         # make an image of the 8 donuts
-        for iField in range(metr.nField, metr.nFieldp4):
+        for iField in range(metr.nFieldp4-self.nWFS, metr.nFieldp4):
             chipStr, px, py = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
             for ioffset in [0, 1]:
@@ -132,18 +143,27 @@ class aosWFS(object):
                 IHDU = fits.open(src[0])
                 psf = IHDU[0].data
                 IHDU.close()
-                if iField == metr.nField:
-                    pIdx = 3 + ioffset  # 3 and 4
-                elif iField == metr.nField + 1:
-                    pIdx = 1 + ioffset  # 1 and 2
-                elif iField == metr.nField + 2:
-                    pIdx = 5 + ioffset  # 5 and 6
-                elif iField == metr.nField + 3:
-                    pIdx = 7 + ioffset  # 7 and 8
-
-                plt.subplot(2, 4, pIdx)
+                if state.inst[:4] == 'lsst':
+                    nRow = 2
+                    nCol = 4
+                    if iField == metr.nField:
+                        pIdx = 3 + ioffset  # 3 and 4
+                    elif iField == metr.nField + 1:
+                        pIdx = 1 + ioffset  # 1 and 2
+                    elif iField == metr.nField + 2:
+                        pIdx = 5 + ioffset  # 5 and 6
+                    elif iField == metr.nField + 3:
+                        pIdx = 7 + ioffset  # 7 and 8
+                elif state.inst[:6] == 'comcam':
+                    nRow = 3
+                    nCol = 6
+                    ic = np.floor(iField/nRow)
+                    ir = iField%nRow
+                    pIdx = int((nRow-ir-1)*nCol+ ic*2 +1 + ioffset) #does iField=0 give 13 and 14?
+                    # print('pIdx = %d, chipStr= %s'%(pIdx, chipStr))
+                plt.subplot(nRow, nCol, pIdx)
                 plt.imshow(psf, origin='lower', interpolation='none')
-                plt.title('%s_%s' % (chipStr, self.wfsName[ioffset]))
+                plt.title('%s_%s' % (chipStr, self.wfsName[ioffset]), fontsize=10)
                 plt.axis('off')
 
         # plt.show()
@@ -153,32 +173,38 @@ class aosWFS(object):
 
         #write out catalog for good wfs stars
         fid = open(self.catFile, 'w')
-        for i in range(metr.nField, metr.nFieldp4):
+        for i in range(metr.nFieldp4-self.nWFS, metr.nFieldp4):
             intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i,
                 self.wfsName[0]))[0]
             extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*.fits' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter, i,
                 self.wfsName[1]))[0]
-            if i == 31: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
-                    metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                    metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                    intraFile, extraFile))
-            elif i == 32: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
-                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                    metr.fieldXp[i], metr.fieldYp[i] + 0.020,
+            if state.inst[:4] == 'lsst':
+                if i == 31: 
+                    fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                        metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                        metr.fieldXp[i] + 0.020, metr.fieldYp[i],
                         intraFile, extraFile))
-            elif i == 33: 
-                fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
-                    metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                    metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                elif i == 32: 
+                    fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                        metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                        metr.fieldXp[i], metr.fieldYp[i] + 0.020,
                         intraFile, extraFile))
-            elif i == 34: 
+                elif i == 33: 
+                    fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                        metr.fieldXp[i] + 0.020, metr.fieldYp[i],
+                        metr.fieldXp[i] - 0.020, metr.fieldYp[i],
+                        intraFile, extraFile))
+                elif i == 34: 
+                    fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
+                        metr.fieldXp[i], metr.fieldYp[i] + 0.020,
+                        metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                        intraFile, extraFile))
+            elif state.inst[:6] == 'comcam':
                 fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n'% (
-                    metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                    metr.fieldXp[i], metr.fieldYp[i] - 0.020,
+                    metr.fieldXp[i], metr.fieldYp[i],
+                    metr.fieldXp[i], metr.fieldYp[i],
                         intraFile, extraFile))
         fid.close()
         
@@ -195,6 +221,7 @@ class aosWFS(object):
             
             # test, pdb cannot go into the subprocess
             # aa = runcwfs(argList[0])
+        #aa = runcwfs(argList[4])
                       
         pool = multiprocessing.Pool(numproc)
         zcarray = pool.map(runcwfs, argList)
@@ -210,26 +237,36 @@ class aosWFS(object):
         
         x = range(4, self.znwcs+1)
         plt.figure(figsize=(10, 8))
-        # subplots go like this
-        #  2 1
-        #  3 4
-        pIdx = [2, 1, 3, 4]
-        for i in range(4):
+        if state.inst[:4] == 'lsst':
+            # subplots go like this
+            #  2 1
+            #  3 4
+            pIdx = [2, 1, 3, 4]
+            nRow = 2
+            nCol = 2
+        elif state.inst[:6] == 'comcam':
+            pIdx = [7, 4, 1, 8, 5, 2, 9, 6, 3]
+            nRow = 3
+            nCol = 3
+            
+        for i in range(self.nWFS):
             chipStr, px, py = state.fieldXY2Chip(
-                metr.fieldXp[i+metr.nField], metr.fieldYp[i+metr.nField], debugLevel)
-            plt.subplot(2,2,pIdx[i])
+                metr.fieldXp[i+metr.nFieldp4-self.nWFS], metr.fieldYp[i+metr.nFieldp4-self.nWFS], debugLevel)
+            plt.subplot(nRow, nCol,pIdx[i])
             plt.plot(x, z4c[i,:self.znwcs3], label='CWFS',
              marker='o', color='r', markersize=6)
-            plt.plot(x, z4cTrue[i+metr.nField,3:self.znwcs], label='Truth',
+            plt.plot(x, z4cTrue[i+metr.nFieldp4-self.nWFS,3:self.znwcs], label='Truth',
              marker='.', color='b', markersize=10)
-            if i==1 or i==2:
+            if ( (state.inst[:4] == 'lsst' and (i==1 or i==2)) or
+                (state.inst[:6] == 'comcam' and (i<=2)) ):
                 plt.ylabel('$\mu$m')
-            if i==2 or i==3:
+            if ( (state.inst[:4] == 'lsst' and (i==2 or i==3)) or
+                 (state.inst[:6] == 'comcam' and (i%nRow==0)) ):
                 plt.xlabel('Zernike Index')
             leg = plt.legend(loc="best")
             leg.get_frame().set_alpha(0.5)        
             plt.grid()
-            plt.title('Zernikes %s'%chipStr, fontsize=16)
+            plt.title('Zernikes %s'%chipStr, fontsize=10)
 
         plt.savefig(self.zCompFile, bbox_inches='tight')
         

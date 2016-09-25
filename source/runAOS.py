@@ -57,7 +57,7 @@ def main():
                         help='override gain in the controller parameter file, \
                         default=no override')
     parser.add_argument('-i', dest='inst',
-                        default='lsst', choices=('lsst','comcam'),
+                        default='lsst', #choices=('lsst','comcam'),
                         help='instrument name, \
                         default=lsst')
     parser.add_argument('-s', dest='simuParam',

@@ -24,7 +24,7 @@ from aosErrors import psfSamplingTooLowError
 class aosMetric(object):
 
     def __init__(self, instName, state, wfs, debugLevel):
-        if instName == 'lsst':
+        if instName[:4] == 'lsst':
             self.nArm = 6
             armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
             armW = [0.2369, 0.4786, 0.5689, 0.4786, 0.2369]
@@ -52,7 +52,7 @@ class aosMetric(object):
 
             self.fwhmModelFileBase = 'data/fwhmModel/fwhm_vs_z_500nm'
             
-        elif instName == 'comcam':
+        elif instName[:6] == 'comcam':
             nRow=3
             nCol=3
             self.nField=nRow*nCol
@@ -74,7 +74,7 @@ class aosMetric(object):
         self.fieldXp = self.fieldX.copy()
         self.fieldYp = self.fieldY.copy()
 
-        if instName == 'lsst': #falling on chip edge
+        if instName[:4] == 'lsst': #falling on chip edge
             self.fieldXp[19] += 0.004
             self.fieldXp[22] -= 0.004
 
