@@ -271,6 +271,7 @@ class aosController(object):
         pngFile = '%s/iter%d/sim%d_iter%d_ctrl.png' % (
             state.pertDir, state.iIter, state.iSim, state.iIter)
         plt.savefig(pngFile, bbox_inches='tight')
+        plt.close()
 
     def drawSummaryPlots(self, state, metr, esti, M1M3, M2, startIter, endIter, debugLevel):
         allPert = np.zeros((esti.ndofA, endIter-startIter+1))
@@ -456,6 +457,12 @@ class aosController(object):
         plt.tight_layout()
         # plt.show()
         
-        sumPlotFile = '%s/sim%d_iter%d-%d.png'%(
-            state.pertDir, state.iSim, startIter, endIter)
-        plt.savefig(sumPlotFile, bbox_inches='tight')
+        for i in range(startIter, endIter+1):
+            for j in range(i, endIter+1):
+                sumPlotFile = '%s/sim%d_iter%d-%d.png'%(
+                    state.pertDir, state.iSim, i, j)
+                if (i==startIter and j==endIter):
+                    plt.savefig(sumPlotFile, bbox_inches='tight')
+                else: #remove everything else in between startIter and endIter
+                    if os.path.isfile(sumPlotFile):
+                        os.remove(sumPlotFile)

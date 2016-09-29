@@ -118,7 +118,7 @@ class aosTeleState(object):
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt'%(
             self.imageDir, self.iIter, self.iSim, self.iIter)
         wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
-        wfs.zCompFile = '%s/iter%d/checkZ4C.png' % (self.pertDir, self.iIter)
+        wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (self.pertDir, self.iIter, self.iIter)
 
         if iIter>0:
             self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
