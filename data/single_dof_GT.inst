@@ -1,0 +1,41 @@
+###
+
+This instrument file is for single dof unit testing
+
+###
+
+dof	1	0.10	mm 	M2 piston
+#dof	2	0	mm	M2 x-decenter
+
+budget   80 79 80 80 21 54 84 22
+
+zenithAngle  27.0912   deg
+temperature	6.5650  C (temperature in (2,16), make these two sigma bounds for Gaussian)
+camRotation    -1.2323  radian (uniform between (-pi/2, pi/2))
+
+# temperature
+
+M13TxGrad   -0.0894 C (+/-2sigma spans 0.4C)
+M13TyGrad   -0.1973 C (+/-2sigma spans 0.4C)
+M13TzGrad   -0.0316 C (+/-2sigma spans 0.1C)
+M13TrGrad    0.0187 C (+/-2sigma spans 0.1C)
+M13TBulk     0.0902 C (+/-2sigma spans +/-0.8C)
+
+M2TzGrad    -0.0675 C (+/-2sigma spans 1C)
+M2TrGrad    -0.1416 C (+/-2sigma spans 1C)
+
+#wavefront sensing star magnitude
+cwfs_mag	17
+#wavefront sensing image stamp size
+cwfs_stamp_size	128
+
+#use 0 for eimage only, without backgrounds
+eimage		0
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		22
+#psf image stamp size
+psf_stamp_size	128
+

@@ -45,6 +45,10 @@ class aosTeleState(object):
                         self.stateV[int(line.split()[1]) - 1] *= 1e3
                     elif line.split()[3] == 'deg':
                         self.stateV[int(line.split()[1]) - 1] *= 3600
+                elif (line.startswith('budget')): #read in in mas, convert to arcsec
+                    self.budget = np.sqrt(np.sum([float(x)**2 for x in line.split()[1:]]))*1e-3
+                elif (line.startswith('zenithAngle')):
+                    self.zenithAngle = float(line.split()[1])/180*np.pi
                 elif (line.startswith('opd_size')):
                     self.opdSize = int(line.split()[1])
                     if self.opdSize % 2 == 0:
@@ -492,8 +496,10 @@ perturbationmode 1\n\
 trackingmode 0\n\
 cleartracking\n\
 clearclouds\n')
-        if iRun != -1:
-            fid.write('body 11 5 %+4.1f\n'%(wfs.offset[iRun]))
+        # body command interferes with move commands;
+        # let's not piston the detector only.
+        # if iRun != -1:
+        #     fid.write('body 11 5 %+4.1f\n'%(wfs.offset[iRun]))
         fid.close()
 
     def fieldXY2Chip(self, fieldX, fieldY, debugLevel):
