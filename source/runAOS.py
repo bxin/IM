@@ -176,7 +176,7 @@ def main():
             else:
                 if args.sensor == 'phosim':
                     # create donuts for last iter, so that picking up from there will be easy
-                    #state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
+                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
                     wfs.checkZ4C(state, metr, args.debugLevel)
