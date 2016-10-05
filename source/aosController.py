@@ -412,7 +412,7 @@ class aosController(object):
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
-        ax[2, 0].plot(myxticks, state.budget*np.ones(endIter-startIter+1,1), label='Error Budget')
+        ax[2, 0].plot(myxticks, state.budget*np.ones((endIter-startIter+1,1)), label='Error Budget')
         if allFWHMeff.shape[1]>1:
             ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(
                 allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
