@@ -11,8 +11,8 @@ import subprocess
 import numpy as np
 from astropy.io import fits
 
-from cwfsTools import ZernikeAnnularFit
-from cwfsTools import extractArray
+from lsst.cwfs.tools import ZernikeAnnularFit
+from lsst.cwfs.tools import extractArray
 
 import matplotlib.pyplot as plt
 
@@ -393,14 +393,14 @@ atmosphericdispersion 0\n')
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
-        self.writeWFSinst(wfs, metr)
+        self.writeWFScmd(wfs, -1)
         for iRun in range(wfs.nRun):
             self.WFS_log = '%s/iter%d/sim%d_iter%d_wfs%d.log' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
             if wfs.nRun == 1:
-                self.writeWFScmd(wfs, -1)
+                self.writeWFSinst(wfs, metr, -1)
             else:
-                self.writeWFScmd(wfs, iRun)
+                self.writeWFSinst(wfs, metr, iRun)
                 self.WFS_log = self.WFS_log.replace('.log', '_%s.log'%(wfs.halfChip[iRun]))
                 
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
@@ -429,14 +429,27 @@ atmosphericdispersion 0\n')
                     targetFile = os.path.split(chipFile.replace('E000', '%s_E000'%wfs.halfChip[iRun]))[1]
                     runProgram('mv -f %s %s/iter%d/%s' %( chipFile, self.imageDir, self.iIter, targetFile))
                     
-    def writeWFSinst(self, wfs, metr):
-
+    def writeWFSinst(self, wfs, metr, iRun=-1):
+        #iRun = -1 means only need to run it once
         self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
+        if iRun != -1:
+            self.WFS_inst = self.WFS_inst.replace('.inst','_%s.inst'%wfs.halfChip[iRun])
                 
         fid = open(self.WFS_inst, 'w')
         fpert = open(self.pertFile, 'r')
-        fid.write(fpert.read())
+        hasCamPiston = False
+        for line in fpert:
+            if iRun != -1 and line.split()[:2] ==['move', '10']:
+                # move command follow Zemax coordinate system.
+                fid.write('move 10 %9.4f\n'%(float(line.split()[2])-wfs.offset[iRun]*1e3))
+                hasCamPiston = True
+            else:
+                fid.write(line)
+        if  iRun != -1 and (not hasCamPiston):
+            fid.write('move 10 %9.4f\n'%(-wfs.offset[iRun]*1e3))
+            
+        fpert.close()
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\

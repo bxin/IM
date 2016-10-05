@@ -12,9 +12,9 @@ from astropy.io import fits
 from scipy import ndimage
 import matplotlib.pyplot as plt
 
-from cwfsAlgo import cwfsAlgo
-from cwfsInstru import cwfsInstru
-from cwfsImage import cwfsImage
+from lsst.cwfs.algorithm import Algorithm
+from lsst.cwfs.instrument import Instrument
+from lsst.cwfs.image import Image, readFile
 
 class aosWFS(object):
 
@@ -37,8 +37,8 @@ class aosWFS(object):
         aosDir = os.getcwd()
         self.cwfsDir = cwfsDir
         os.chdir(cwfsDir)
-        self.inst = cwfsInstru(instruFile, imgSizeinPix)
-        self.algo = cwfsAlgo(algoFile, self.inst, debugLevel)
+        self.inst = Instrument(instruFile, imgSizeinPix)
+        self.algo = Algorithm(algoFile, self.inst, debugLevel)
         os.chdir(aosDir)
         self.znwcs = self.algo.numTerms
         self.znwcs3 = self.znwcs - 3
@@ -287,8 +287,8 @@ def runcwfs(argList):
     algo = argList[5]
     model = argList[6]
     
-    I1 = cwfsImage(I1File, I1Field, 'intra')
-    I2 = cwfsImage(I2File, I2Field, 'extra')
+    I1 = Image(readFile(I1File), I1Field, 'intra')
+    I2 = Image(readFile(I2File), I2Field, 'extra')
     algo.reset(I1, I2)
     algo.runIt(inst, I1, I2, model)
     

@@ -11,11 +11,11 @@ import numpy as np
 import scipy.special as sp
 from astropy.io import fits
 
-from cwfsTools import padArray
-from cwfsTools import ZernikeAnnularFit
-from cwfsTools import ZernikeAnnularEval
+from lsst.cwfs.tools import padArray
+from lsst.cwfs.tools import ZernikeAnnularFit
+from lsst.cwfs.tools import ZernikeAnnularEval
 
-from cwfsErrors import nonSquareImageError
+from lsst.cwfs.errors import nonSquareImageError
 from aosErrors import psfSamplingTooLowError
 
 # import cwfsPlots as plot
