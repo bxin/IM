@@ -1,0 +1,49 @@
+###
+
+This instrument file is for single dof unit testing
+
+###
+
+dof	1	-0.8994  um 	M2 piston (1sigma = 10.8um)
+dof	2	14.4	um	M2 x-decenter (1sigma = 23.0um)
+dof     3       31.9    um      M2 y-decenter (1sigma = 23.0um)
+dof     4       -5.4530e-4  deg   M2 x-tilt (1sigma = 43.6e-5 deg)
+dof     5       3.7399e-4   deg   M2 y-tilt (1sigma = 43.6e-5 deg)
+dof     6       -1.2   um      Cam piston (1sigma = 10.3um)
+dof     7       -5.6   um      Cam x-decenter (1sigma = 17.0um)
+dof     8       0.3783  um     Cam y-decenter (1sigma = 17.0um)
+dof     9       -4.3390e-4  deg   Cam x-tilt (1sigma = 75.6e-5 deg)
+dof    10       5.5855e-4   deg   Cam y-tilt (1sigma = 75.6e-5 deg)
+
+budget   80 79 80 80 21 54 84 22
+
+zenithAngle  27.0912   deg
+temperature	6.5650  C (temperature in (2,16), make these two sigma bounds for Gaussian)
+camRotation    -1.2323  radian (uniform between (-pi/2, pi/2))
+
+# temperature
+
+M1M3TxGrad   -0.0894 C (+/-2sigma spans 0.4C)
+M1M3TyGrad   -0.1973 C (+/-2sigma spans 0.4C)
+M1M3TzGrad   -0.0316 C (+/-2sigma spans 0.1C)
+M1M3TrGrad    0.0187 C (+/-2sigma spans 0.1C)
+M1M3TBulk     0.0902 C (+/-2sigma spans +/-0.8C)
+
+M2TzGrad    -0.0675 C (+/-2sigma spans 1C)
+M2TrGrad    -0.1416 C (+/-2sigma spans 1C)
+
+#wavefront sensing star magnitude
+cwfs_mag	17
+#wavefront sensing image stamp size
+cwfs_stamp_size	128
+
+#use 0 for eimage only, without backgrounds
+eimage		0
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		22
+#psf image stamp size
+psf_stamp_size	128
+

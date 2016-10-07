@@ -122,7 +122,7 @@ def main():
     imageDir = 'image/sim%d' % args.iSim
     if not os.path.isdir(imageDir):
         os.makedirs(imageDir)
-    state = aosTeleState(args.inst, esti, args.simuParam, args.iSim, phosimDir,
+    state = aosTeleState(args.inst, esti, M1M3, M2, args.simuParam, args.iSim, phosimDir,
                          pertDir, imageDir, args.debugLevel)
     # *****************************************
     # control algorithm

@@ -10,8 +10,10 @@ import subprocess
 
 import numpy as np
 from astropy.io import fits
+import aosCoTransform as ct
 
 from lsst.cwfs.tools import ZernikeAnnularFit
+from lsst.cwfs.tools import ZernikeAnnularEval
 from lsst.cwfs.tools import extractArray
 
 import matplotlib.pyplot as plt
@@ -19,7 +21,7 @@ import matplotlib.pyplot as plt
 
 class aosTeleState(object):
 
-    def __init__(self, inst, esti, instruFile, iSim, phosimDir,
+    def __init__(self, inst, esti, M1M3, M2, instruFile, iSim, phosimDir,
                  pertDir, imageDir, debugLevel):
         # plan to write these to txt files. no columns for iter
         self.stateV = np.zeros(esti.ndofA)  # *np.nan # telescope state(?)
@@ -48,7 +50,27 @@ class aosTeleState(object):
                 elif (line.startswith('budget')): #read in in mas, convert to arcsec
                     self.budget = np.sqrt(np.sum([float(x)**2 for x in line.split()[1:]]))*1e-3
                 elif (line.startswith('zenithAngle')):
-                    self.zenithAngle = float(line.split()[1])/180*np.pi
+                    self.zAngle = float(line.split()[1])/180*np.pi
+                elif (line.startswith('temperature')):
+                    self.T = float(line.split()[1])
+                elif (line.startswith('camRotation')):
+                    self.camRot = float(line.split()[1])
+                elif (line.startswith('M1M3ForceError')):
+                    self.M1M3ForceError = float(line.split()[1])
+                elif (line.startswith('M1M3TxGrad')):
+                    self.M1M3TxGrad = float(line.split()[1])
+                elif (line.startswith('M1M3TyGrad')):
+                    self.M1M3TyGrad = float(line.split()[1])
+                elif (line.startswith('M1M3TzGrad')):
+                    self.M1M3TzGrad = float(line.split()[1])
+                elif (line.startswith('M1M3TrGrad')):
+                    self.M1M3TrGrad = float(line.split()[1])
+                elif (line.startswith('M1M3TBulk')):
+                    self.M1M3TBulk = float(line.split()[1])
+                elif (line.startswith('M2TzGrad')):
+                    self.M2TzGrad = float(line.split()[1])
+                elif (line.startswith('M2TrGrad')):
+                    self.M2TrGrad = float(line.split()[1])
                 elif (line.startswith('opd_size')):
                     self.opdSize = int(line.split()[1])
                     if self.opdSize % 2 == 0:
@@ -82,11 +104,47 @@ class aosTeleState(object):
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
         # runProgram('rm -rf %s/output/*'%self.phosimDir)
-        
+
         if debugLevel >= 3:
             print('in aosTeleState:')
             print(self.stateV)
 
+        if hasattr(self, 'zAngle'):
+            # M1M3 gravitational and thermal
+            printthx = M1M3.zdx * np.cos(self.zAngle) + M1M3.hdx * np.sin(self.zAngle)
+            printthy = M1M3.zdy * np.cos(self.zAngle) + M1M3.hdy * np.sin(self.zAngle)
+            printthz = M1M3.zdz * np.cos(self.zAngle) + M1M3.hdz * np.sin(self.zAngle)
+            u0 = M1M3.zf * np.cos(self.zAngle) + M1M3.hf * np.sin(self.zAngle)
+
+            # convert dz to grid sag
+            x, y, _ = ct.ZCRS2M1CRS(M1M3.bx, M1M3.by, M1M3.bz)
+            #M1M3.idealShape() uses mm everywhere
+            zpRef = M1M3.idealShape( (x+printthx)*1000,
+                                    (y+printthy)*1000, M1M3.nodeID)/1000
+            zRef = M1M3.idealShape(x*1000, y*1000, M1M3.nodeID)/1000
+            printthz = printthz-(zpRef-zRef)
+            zc = ZernikeAnnularFit(printthz, x/M1M3.R, y/M1M3.R, 3, M1M3.Ri/M1M3.R)
+            printthz = printthz - ZernikeAnnularEval(
+                zc, x/M1M3.R, y/M1M3.R, M1M3.Ri/M1M3.R)
+
+            LUTforce = getLUTforce(self.zAngle/np.pi*180, M1M3.LUTfile)
+            # add 5% force error
+            np.random.seed(self.iSim)
+            # if the error is a percentage error
+            # myu = (1+2*(np.random.rand(M1M3.nActuator)-0.5)
+            #        *self.M1M3ForceError)*LUTforce
+            # if the error is a absolute error in Newton
+            myu = 2*(np.random.rand(M1M3.nActuator)-0.5) \
+                    *self.M1M3ForceError + LUTforce 
+            #; %balance forces along z
+            myu[M1M3.nzActuator-1]=np.sum(LUTforce[:M1M3.nzActuator]) \
+                -np.sum(myu[:M1M3.nzActuator-1])
+            # ; %balance forces along y
+            myu[M1M3.nActuator-1]=np.sum(LUTforce[M1M3.nzActuator:]) \
+              -np.sum(myu[M1M3.nzActuator:-1])
+            
+            self.M1M3surf = (printthz + M1M3.G.dot(myu - u0))*1e6 #now in um
+                              
     def update(self, ctrl):
         self.stateV += ctrl.uk
 
@@ -576,3 +634,34 @@ def fieldAgainstRuler(ruler, field, chipPixel):
     pixel += chipPixel / 2
 
     return np.floor(p / 3), p % 3, pixel
+
+def getLUTforce(zangle, LUTfile):
+
+    """
+    zangle should be in degree
+    """
+    
+    lut = np.loadtxt(LUTfile)
+    ruler = lut[0, :]
+
+    step = ruler[1] - ruler[0]
+
+    p2 = (ruler >= zangle)
+#    print "FINE",p2, p2.shape
+    if (np.count_nonzero(p2) == 0):  # zangle is too large to be in range
+        p2 = c.shape[0] - 1
+        p1 = p2
+        w1 = 1
+        w2 = 0
+    elif (p2[0]):  # zangle is too small to be in range
+        p2 = 0  # this is going to be used as index
+        p1 = 0  # this is going to be used as index
+        w1 = 1
+        w2 = 0
+    else:
+        p1 = p2.argmax() - 1
+        p2 = p2.argmax()
+        w1 = (ruler[p2] - zangle) / step
+        w2 = (zangle - ruler[p1]) / step
+
+    return np.dot(w1, lut[1:, p1]) + np.dot(w2, lut[1:, p2])

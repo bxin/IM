@@ -7,6 +7,33 @@ The following classes have been defined and might be confused with
 each other: (use pdb mode and dir() to show the attributes and methods)
 * in the front indicates that it changes with iteration
 
+aosM1M3 -> M1M3:
+	nodeID		FEA node ID numbers (1 or 3,indicating the node is on M1 or M3)
+	bx			grid x-coordinates for the bending modes
+	by			grid y-coordinates for the bending modes
+	bz			bending mode z-displacements
+	force		actuator forces to produce the bending modes
+	bxnorm		bx normalized to be in (-1, 1)
+	bynorm		by normalized to be in (-1, 1)
+	zdx		   	zenith pointing  x-displacements
+	zdy			zenith pointing  y-displacements
+	zdz			zenith pointing  z-displacements
+	zf			zenith pointing actuator forces
+	hdx			horizon pointing x-displacements
+	hdy			horizon pointing y-displacements
+	hdz			horizon pointing z-displacements
+	hf			horizon pointing actuator forces
+	G			influence matrix
+	
+aosM2 -> M2:
+	ID			actuator ID numbers
+	bx			grid x-coordinates for the bending modes
+	by			grid y-coordinates for the bending modes
+	bz			bending mode z-displacements
+	force		actuator forces to produce the bending modes
+	bxnorm		bx normalized to be in (-1, 1)
+	bynorm		by normalized to be in (-1, 1)
+
 aosController->ctrl:
 	filename	*.ctrl in data/
 	mQ		as in (x^T Q x) in the cost function
@@ -78,6 +105,7 @@ aosTeleState  ->state
 	PSF_inst	       instance catalog file used for generating PSF images
 	zTrueFile  	filename for the zernikes from the current iteration (from Phosim, 35 points)
 	zTrueFile_m1	filename for the zernikes from the previous iteration (from Phosim, 35 points)
+	zAngle		zenith angle in radian
 
 	functions():
 	writePertFile		write state vector to pert file

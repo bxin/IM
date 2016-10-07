@@ -13,12 +13,12 @@ class aosM2(object):
         self.R = 1.760
 
         # bending modes
-        aa = np.loadtxt('data/bendingModes/M2_1um_grid.DAT')
+        aa = np.loadtxt('data/M2/M2_1um_grid.DAT')
         self.bx = aa[:, 0]
         self.by = aa[:, 1]
         self.bz = aa[:, 2:]
         # !!! we are using M1M3 forces in place of M2 forces
-        aa = np.loadtxt('data/bendingModes/M1M3_1um_force.DAT')
+        aa = np.loadtxt('data/M2/M2_1um_force.DAT')
         self.force = aa[:, :]
 
         if debugLevel >= 3:
