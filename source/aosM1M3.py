@@ -6,7 +6,7 @@
 import sys
 import numpy as np
 import aosCoTransform as ct
-
+from scipy.interpolate import Rbf
 
 class aosM1M3(object):
 
@@ -59,10 +59,31 @@ class aosM1M3(object):
         self.zf = np.loadtxt('data/M1M3/M1M3_force_zenith.txt')
         self.hf = np.loadtxt('data/M1M3/M1M3_force_horizon.txt')
         self.G = np.loadtxt('data/M1M3/M1M3_influence_256.txt')
-        self.LUTfile = 'data/M1M3/LUT.txt'
+        self.LUTfile = 'data/M1M3/M1M3_LUT.txt'
         self.nzActuator = 156
         self.nActuator = 256
 
+        # data needed to determine thermal deformation
+        aa = np.loadtxt('data/M1M3/M1M3_thermal_FEA.txt', skiprows=1)
+        x, y, _ = ct.ZCRS2M1CRS(self.bx, self.by, self.bz)
+        #these are normalized coordinates
+        # n.b. these may not have been normalized correctly, b/c max(tx)=1.0
+        # I tried to go back to the xls data, max(x)=164.6060 in,
+        # while 4.18m=164.5669 in.
+        tx = aa[:, 0] 
+        ty = aa[:, 1]
+        #below are in M1M3 coordinate system, and in micron
+        ip = Rbf(tx, ty, aa[:, 2])
+        self.tbdz = ip(x/self.R, y/self.R) 
+        ip = Rbf(tx, ty, aa[:, 3])
+        self.txdz = ip(x/self.R, y/self.R) 
+        ip = Rbf(tx, ty, aa[:, 4])
+        self.tydz = ip(x/self.R, y/self.R) 
+        ip = Rbf(tx, ty, aa[:, 5])
+        self.tzdz = ip(x/self.R, y/self.R) 
+        ip = Rbf(tx, ty, aa[:, 6])
+        self.trdz = ip(x/self.R, y/self.R) 
+                
     def idealShape(self, x, y, annulus, dr1=0, dr3=0, dk1=0, dk3=0):
         """
         x,y,and z0 are all in millimeter.

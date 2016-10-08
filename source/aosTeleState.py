@@ -144,7 +144,23 @@ class aosTeleState(object):
               -np.sum(myu[M1M3.nzActuator:-1])
             
             self.M1M3surf = (printthz + M1M3.G.dot(myu - u0))*1e6 #now in um
-                              
+
+            # M2
+            self.M2surf = M2.zdz * np.cos(self.zAngle) + M2.hdz * np.sin(self.zAngle)
+            
+        if hasattr(self, 'T'):
+            
+            self.M1M3surf += self.T * M1M3.tbdz + self.M1M3TxGrad * M1M3.txdz \
+              + self.M1M3TyGrad * M1M3.tydz + self.M1M3TzGrad * M1M3.tzdz \
+              + self.M1M3TrGrad * M1M3.trdz
+
+            _, _ , self.M1M3surf = ct.M1CRS2ZCRS(x, y, self.M1M3surf )
+
+            self.M2surf += self.M2TzGrad * M2.tzdz \
+              + self.M2TrGrad * M2.trdz
+
+            _, _ , self.M2surf = ct.M2CRS2ZCRS(x, y, self.M2surf )
+              
     def update(self, ctrl):
         self.stateV += ctrl.uk
 
@@ -649,7 +665,7 @@ def getLUTforce(zangle, LUTfile):
     p2 = (ruler >= zangle)
 #    print "FINE",p2, p2.shape
     if (np.count_nonzero(p2) == 0):  # zangle is too large to be in range
-        p2 = c.shape[0] - 1
+        p2 = ruler.shape[0] - 1
         p1 = p2
         w1 = 1
         w2 = 0
