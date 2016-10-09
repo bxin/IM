@@ -146,7 +146,11 @@ class aosTeleState(object):
             self.M1M3surf = (printthz + M1M3.G.dot(myu - u0))*1e6 #now in um
 
             # M2
-            self.M2surf = M2.zdz * np.cos(self.zAngle) + M2.hdz * np.sin(self.zAngle)
+            self.M2surf = M2.zdz * np.cos(self.zAngle) \
+              + M2.hdz * np.sin(self.zAngle)
+            pre_comp_elev=0
+            self.M2surf -= M2.zdz * np.cos(pre_comp_elev) \
+              + M2.hdz * np.sin(pre_comp_elev)
             
         if hasattr(self, 'T'):
             
