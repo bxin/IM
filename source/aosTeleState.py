@@ -154,11 +154,11 @@ class aosTeleState(object):
               + self.M1M3TyGrad * M1M3.tydz + self.M1M3TzGrad * M1M3.tzdz \
               + self.M1M3TrGrad * M1M3.trdz
 
+            self.M2surf += self.M2TzGrad * M2.tzdz + self.M2TrGrad * M2.trdz
+            
+        if hasattr(self,'M1M3surf'):
             _, _ , self.M1M3surf = ct.M1CRS2ZCRS(x, y, self.M1M3surf )
-
-            self.M2surf += self.M2TzGrad * M2.tzdz \
-              + self.M2TrGrad * M2.trdz
-
+        if hasattr(self,'M2surf'):
             _, _ , self.M2surf = ct.M2CRS2ZCRS(x, y, self.M2surf )
               
     def update(self, ctrl):
