@@ -47,12 +47,14 @@ class aosTeleState(object):
                         self.stateV[int(line.split()[1]) - 1] *= 1e3
                     elif line.split()[3] == 'deg':
                         self.stateV[int(line.split()[1]) - 1] *= 3600
-                elif (line.startswith('budget')): #read in in mas, convert to arcsec
-                    self.budget = np.sqrt(np.sum([float(x)**2 for x in line.split()[1:]]))*1e-3
+                elif (line.startswith('budget')):
+                    # read in in mas, convert to arcsec
+                    self.budget = np.sqrt(
+                        np.sum([float(x)**2 for x in line.split()[1:]])) * 1e-3
                 elif (line.startswith('zenithAngle')):
-                    self.zAngle = float(line.split()[1])/180*np.pi
-                elif (line.startswith('temperature')):
-                    self.T = float(line.split()[1])
+                    self.zAngle = float(line.split()[1]) / 180 * np.pi
+                elif (line.startswith('camTB')):
+                    self.camTB = float(line.split()[1])
                 elif (line.startswith('camRotation')):
                     self.camRot = float(line.split()[1])
                 elif (line.startswith('M1M3ForceError')):
@@ -111,60 +113,113 @@ class aosTeleState(object):
 
         if hasattr(self, 'zAngle'):
             # M1M3 gravitational and thermal
-            printthx = M1M3.zdx * np.cos(self.zAngle) + M1M3.hdx * np.sin(self.zAngle)
-            printthy = M1M3.zdy * np.cos(self.zAngle) + M1M3.hdy * np.sin(self.zAngle)
-            printthz = M1M3.zdz * np.cos(self.zAngle) + M1M3.hdz * np.sin(self.zAngle)
+            printthx = M1M3.zdx * \
+                np.cos(self.zAngle) + M1M3.hdx * np.sin(self.zAngle)
+            printthy = M1M3.zdy * \
+                np.cos(self.zAngle) + M1M3.hdy * np.sin(self.zAngle)
+            printthz = M1M3.zdz * \
+                np.cos(self.zAngle) + M1M3.hdz * np.sin(self.zAngle)
             u0 = M1M3.zf * np.cos(self.zAngle) + M1M3.hf * np.sin(self.zAngle)
 
             # convert dz to grid sag
             x, y, _ = ct.ZCRS2M1CRS(M1M3.bx, M1M3.by, M1M3.bz)
-            #M1M3.idealShape() uses mm everywhere
-            zpRef = M1M3.idealShape( (x+printthx)*1000,
-                                    (y+printthy)*1000, M1M3.nodeID)/1000
-            zRef = M1M3.idealShape(x*1000, y*1000, M1M3.nodeID)/1000
-            printthz = printthz-(zpRef-zRef)
-            zc = ZernikeAnnularFit(printthz, x/M1M3.R, y/M1M3.R, 3, M1M3.Ri/M1M3.R)
+            # M1M3.idealShape() uses mm everywhere
+            zpRef = M1M3.idealShape((x + printthx) * 1000,
+                                    (y + printthy) * 1000, M1M3.nodeID) / 1000
+            zRef = M1M3.idealShape(x * 1000, y * 1000, M1M3.nodeID) / 1000
+            printthz = printthz - (zpRef - zRef)
+            zc = ZernikeAnnularFit(printthz, x / M1M3.R,
+                                   y / M1M3.R, 3, M1M3.Ri / M1M3.R)
             printthz = printthz - ZernikeAnnularEval(
-                zc, x/M1M3.R, y/M1M3.R, M1M3.Ri/M1M3.R)
+                zc, x / M1M3.R, y / M1M3.R, M1M3.Ri / M1M3.R)
 
-            LUTforce = getLUTforce(self.zAngle/np.pi*180, M1M3.LUTfile)
+            LUTforce = getLUTforce(self.zAngle / np.pi * 180, M1M3.LUTfile)
             # add 5% force error
             np.random.seed(self.iSim)
             # if the error is a percentage error
             # myu = (1+2*(np.random.rand(M1M3.nActuator)-0.5)
             #        *self.M1M3ForceError)*LUTforce
             # if the error is a absolute error in Newton
-            myu = 2*(np.random.rand(M1M3.nActuator)-0.5) \
-                    *self.M1M3ForceError + LUTforce 
-            #; %balance forces along z
-            myu[M1M3.nzActuator-1]=np.sum(LUTforce[:M1M3.nzActuator]) \
-                -np.sum(myu[:M1M3.nzActuator-1])
+            myu = 2 * (np.random.rand(M1M3.nActuator) - 0.5) \
+                    * self.M1M3ForceError + LUTforce
+            # balance forces along z
+            myu[M1M3.nzActuator - 1] = np.sum(LUTforce[:M1M3.nzActuator]) \
+                - np.sum(myu[:M1M3.nzActuator - 1])
             # ; %balance forces along y
-            myu[M1M3.nActuator-1]=np.sum(LUTforce[M1M3.nzActuator:]) \
-              -np.sum(myu[M1M3.nzActuator:-1])
-            
-            self.M1M3surf = (printthz + M1M3.G.dot(myu - u0))*1e6 #now in um
+            myu[M1M3.nActuator - 1] = np.sum(LUTforce[M1M3.nzActuator:]) \
+                - np.sum(myu[M1M3.nzActuator:-1])
+
+            self.M1M3surf = (printthz + M1M3.G.dot(myu - u0)
+                             ) * 1e6  # now in um
 
             # M2
             self.M2surf = M2.zdz * np.cos(self.zAngle) \
-              + M2.hdz * np.sin(self.zAngle)
-            pre_comp_elev=0
+                + M2.hdz * np.sin(self.zAngle)
+            pre_comp_elev = 0
             self.M2surf -= M2.zdz * np.cos(pre_comp_elev) \
-              + M2.hdz * np.sin(pre_comp_elev)
-            
+                + M2.hdz * np.sin(pre_comp_elev)
+
         if hasattr(self, 'T'):
-            
+
             self.M1M3surf += self.T * M1M3.tbdz + self.M1M3TxGrad * M1M3.txdz \
-              + self.M1M3TyGrad * M1M3.tydz + self.M1M3TzGrad * M1M3.tzdz \
-              + self.M1M3TrGrad * M1M3.trdz
+                + self.M1M3TyGrad * M1M3.tydz + self.M1M3TzGrad * M1M3.tzdz \
+                + self.M1M3TrGrad * M1M3.trdz
 
             self.M2surf += self.M2TzGrad * M2.tzdz + self.M2TrGrad * M2.trdz
-            
-        if hasattr(self,'M1M3surf'):
-            _, _ , self.M1M3surf = ct.M1CRS2ZCRS(x, y, self.M1M3surf )
-        if hasattr(self,'M2surf'):
-            _, _ , self.M2surf = ct.M2CRS2ZCRS(x, y, self.M2surf )
-              
+
+        if hasattr(self, 'M1M3surf'):
+            _, _, self.M1M3surf = ct.M1CRS2ZCRS(x, y, self.M1M3surf)
+        if hasattr(self, 'M2surf'):
+            _, _, self.M2surf = ct.M2CRS2ZCRS(x, y, self.M2surf)
+
+        if hasattr(self, 'camRot'):
+
+            pre_elev = 0
+            pre_camR = 0
+            pre_temp_camR = 0
+            self.getCamDistortion('L1RB', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L2RB', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('FRB', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L3RB', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('FPRB', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L1S1zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L2S1zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L3S1zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L1S2zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L2S2zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortion('L3S2zer', pre_elev, pre_camR, pre_temp_camR)
+
+    def getCamDistortion(self, distType, pre_elev, pre_camR, pre_temp_camR):
+        dataFile = os.path.join('data/camera', (distType + '.txt'))
+        data = np.loadtxt(dataFile, skiprows=1)
+        distortion = data[0, 3:] * np.cos(self.zAngle) +\
+            (data[1, 3:] * np.cos(self.camRot) +
+             data[2, 3:] * np.sin(self.camRot)) * np.sin(self.zAngle)
+        # pre-compensation
+        distortion -= data[0, 3:] * np.cos(pre_elev) +\
+            (data[1, 3:] * np.cos(pre_camR) +
+             data[2, 3:] * np.sin(pre_camR)) * np.sin(pre_elev)
+
+        # simple temperature interpolation/extrapolation
+        if self.camTB < data[3, 2]:
+            distortion += data[3, 3:]
+        elif self.camTB > data[10, 2]:
+            distortion += data[10, 3:]
+        else:
+            p2 = (data[3:, 2] > self.camTB).argmax() + 3
+            p1 = p2 - 1
+            w1 = (data[p2, 2] - self.camTB) / (data[p2, 2] - data[p1, 2])
+            w2 = (self.camTB - data[p1, 2]) / (data[p2, 2] - data[p1, 2])
+            distortion += w1 * data[p1, 3:] + w2 * data[p2, 3:]
+
+        distortion -= data[(data[3:, 2] == pre_temp_camR).argmax() + 3, 3:]
+        # Andy's Zernike order is different, fix it
+        if distType[-3:] == 'zer':
+            zidx = [1, 3, 2, 5, 4, 6, 8, 9, 7, 10, 13, 14, 12, 15, 11, 19,
+                    18, 20, 17, 21, 16, 25, 24, 26, 23, 27, 22, 28]
+            distortion = distortion[[x - 1 for x in zidx]]
+        setattr(self, distType, distortion)
+
     def update(self, ctrl):
         self.stateV += ctrl.uk
 
@@ -172,16 +227,16 @@ class aosTeleState(object):
         fid = open(self.pertFile, 'w')
         for i in range(esti.ndofA):
             if (self.stateV[i] != 0):
-                #don't add comments after each move command,
-                #Phosim merges all move commands into one!
-                fid.write('move %d %7.4f \n' % ( 
+                # don't add comments after each move command,
+                # Phosim merges all move commands into one!
+                fid.write('move %d %7.4f \n' % (
                     self.phosimActuatorID[i], self.stateV[i]))
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
     def setIterNo(self, wfs, metr, iIter):
         self.iIter = iIter
-        self.obsID = 9000000 + self.iSim*100 + self.iIter
+        self.obsID = 9000000 + self.iSim * 100 + self.iIter
         self.zTrueFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
@@ -190,19 +245,20 @@ class aosTeleState(object):
             self.pertDir, self.iIter, self.iSim, self.iIter)
         self.pertMatFile = '%s/iter%d/sim%d_iter%d_pert.mat' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
-        if not os.path.exists('%s/iter%d/'%(self.imageDir, self.iIter)):
-            os.makedirs('%s/iter%d/'%(self.imageDir, self.iIter))
-        if not os.path.exists('%s/iter%d/'%(self.pertDir, self.iIter)):
-            os.makedirs('%s/iter%d/'%(self.pertDir, self.iIter))
+        if not os.path.exists('%s/iter%d/' % (self.imageDir, self.iIter)):
+            os.makedirs('%s/iter%d/' % (self.imageDir, self.iIter))
+        if not os.path.exists('%s/iter%d/' % (self.pertDir, self.iIter)):
+            os.makedirs('%s/iter%d/' % (self.pertDir, self.iIter))
 
-        metr.PSSNFile = '%s/iter%d/sim%d_iter%d_PSSN.txt'%(
+        metr.PSSNFile = '%s/iter%d/sim%d_iter%d_PSSN.txt' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
-        metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt'%(
+        metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
-        wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (self.pertDir, self.iIter, self.iIter)
+        wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
+            self.pertDir, self.iIter, self.iIter)
 
-        if iIter>0:
+        if iIter > 0:
             self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
             wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
@@ -210,33 +266,36 @@ class aosTeleState(object):
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
-            
+
             # PSSN from last iteration needs to be known for shiftGear
             if not (hasattr(metr, 'GQFWHMeff')):
-                metr.PSSNFile_m1 = '%s/iter%d/sim%d_iter%d_PSSN.txt'%(
+                metr.PSSNFile_m1 = '%s/iter%d/sim%d_iter%d_PSSN.txt' % (
                     self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
                 aa = np.loadtxt(metr.PSSNFile_m1)
-                metr.GQFWHMeff = aa[1, -1] 
-                    
+                metr.GQFWHMeff = aa[1, -1]
+
     def getOPDAll(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
 
         if not opdoff:
             self.writeOPDinst(metr, wavelength)
             self.writeOPDcmd(metr)
             self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
-    
+                self.imageDir, self.iIter, self.iSim, self.iIter,
+                metr.nFieldp4)
+
             if debugLevel >= 3:
                 runProgram('head %s' % self.OPD_inst)
                 runProgram('head %s' % self.OPD_cmd)
-    
+
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
-                self.OPD_inst, self.OPD_cmd, self.inst, numproc, self.eimage, self.OPD_log)
+                self.OPD_inst, self.OPD_cmd, self.inst, numproc, self.eimage,
+                self.OPD_log)
             if debugLevel >= 2:
                 print('*******Runnnig PHOSIM with following parameters*******')
                 print('Check the log file below for progress')
                 print('%s' % myargs)
-            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+            runProgram('python %s/phosim.py' %
+                       self.phosimDir, argstring=myargs)
             if debugLevel >= 3:
                 print('DONE RUNNING PHOSIM FOR OPD')
             if os.path.isfile(self.zTrueFile):
@@ -257,9 +316,9 @@ class aosTeleState(object):
                 Z = ZernikeAnnularFit(opd[idx], self.opdx[idx], self.opdy[idx],
                                       wfs.znwcs, wfs.inst.obscuration)
                 np.savetxt(fz, Z.reshape(1, -1), delimiter=' ')
-    
+
             fz.close()
-    
+
             if debugLevel >= 3:
                 print(self.opdGrid1d.shape)
                 print(self.opdGrid1d[0])
@@ -274,32 +333,37 @@ class aosTeleState(object):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         if not os.path.isfile(self.OPD_inst):
-            baseFile = self.OPD_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.OPD_inst.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.OPD_inst)
 
         self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         if not os.path.isfile(self.OPD_cmd):
-            baseFile = self.OPD_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.OPD_cmd.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.OPD_cmd)
-        
+
         self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
             self.imageDir, self.iIter, self.iSim, self.iIter, self.nFieldp4)
         if not os.path.isfile(self.OPD_log):
-            baseFile = self.OPD_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.OPD_log.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.OPD_log)
 
         if not os.path.isfile(self.zTrueFile):
-            baseFile = self.zTrueFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.zTrueFile.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.zTrueFile)
-        
+
         for i in range(metr.nFieldp4):
             opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, i)
             if not os.path.isfile(opdFile):
-                baseFile = opdFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+                baseFile = opdFile.replace(
+                    'sim%d' % self.iSim, 'sim%d' % baserun)
                 os.link(baseFile, opdFile)
-                                                                    
+
     def writeOPDinst(self, metr, wavelength):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
@@ -307,7 +371,7 @@ class aosTeleState(object):
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n'%(self.obsID))
+SIM_NSNAP 1\n' % (self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nFieldp4):
@@ -332,15 +396,18 @@ perturbationmode 1\n')
             self.writePSFcmd(metr)
             self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
-    
+
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
-                self.PSF_inst, self.PSF_cmd, self.inst, numproc, self.eimage, self.PSF_log)
+                self.PSF_inst, self.PSF_cmd, self.inst, numproc, self.eimage,
+                self.PSF_log)
             if debugLevel >= 2:
-                print('********Runnnig PHOSIM with following parameters********')
+                print('********Runnnig PHOSIM with following \
+                parameters********')
                 print('Check the log file below for progress')
                 print('%s' % myargs)
-    
-            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+
+            runProgram('python %s/phosim.py' %
+                       self.phosimDir, argstring=myargs)
             plt.figure(figsize=(10, 10))
             for i in range(metr.nField):
                 chipStr, px, py = self.fieldXY2Chip(
@@ -364,7 +431,7 @@ perturbationmode 1\n')
                     py + self.psfStampSize / 2 + offsety,
                     px - self.psfStampSize / 2 + offsetx:
                     px + self.psfStampSize / 2 + offsetx]
-    
+
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter, i)
                 if os.path.isfile(dst):
@@ -384,17 +451,18 @@ perturbationmode 1\n')
                     pIdx = aa[i]
                     nRow = 3
                     nCol = 3
-                    
+
                 plt.subplot(nRow, nCol, pIdx)
-                plt.imshow(extractArray(psf, 20), origin='lower', interpolation='none')
+                plt.imshow(extractArray(psf, 20),
+                           origin='lower', interpolation='none')
                 plt.title('%d' % i)
                 plt.axis('off')
-    
+
                 if debugLevel >= 3:
                     print('px = %d, py = %d' % (px, py))
                     print('offsetx = %d, offsety = %d' % (offsetx, offsety))
                     print('passed %d' % i)
-    
+
             # plt.show()
             pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter)
@@ -404,8 +472,10 @@ perturbationmode 1\n')
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_inst):
-            baseFile = self.PSF_inst.replace('sim%d'%self.iSim, 'sim%d'%baserun)
-            #PSF files are not crucial, it is ok if the baserun doesn't have it
+            baseFile = self.PSF_inst.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            # PSF files are not crucial, it is ok if the baserun doesn't have
+            # it
             if os.path.isfile(baseFile):
                 os.link(baseFile, self.PSF_inst)
             else:
@@ -414,28 +484,31 @@ perturbationmode 1\n')
         self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_cmd):
-            baseFile = self.PSF_cmd.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.PSF_cmd.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.PSF_cmd)
 
         self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
             self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
         if not os.path.isfile(self.PSF_log):
-            baseFile = self.PSF_log.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = self.PSF_log.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.PSF_log)
-        
+
         for i in range(metr.nField):
             psfFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, i)
             if not os.path.isfile(psfFile):
-                baseFile = psfFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+                baseFile = psfFile.replace(
+                    'sim%d' % self.iSim, 'sim%d' % baserun)
                 os.link(baseFile, psfFile)
 
         pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         if not os.path.isfile(pngFile):
-            baseFile = pngFile.replace('sim%d'%self.iSim, 'sim%d'%baserun)
+            baseFile = pngFile.replace('sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, pngFile)
-                                                                              
+
     def writePSFinst(self, metr):
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
@@ -445,7 +518,7 @@ Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-SIM_CAMCONFIG 1\n'%(self.obsID,  self.obsID%1000-31))
+SIM_CAMCONFIG 1\n' % (self.obsID,  self.obsID % 1000 - 31))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nField):
@@ -479,68 +552,79 @@ atmosphericdispersion 0\n')
                 self.writeWFSinst(wfs, metr, -1)
             else:
                 self.writeWFSinst(wfs, metr, iRun)
-                self.WFS_log = self.WFS_log.replace('.log', '_%s.log'%(wfs.halfChip[iRun]))
-                
+                self.WFS_log = self.WFS_log.replace(
+                    '.log', '_%s.log' % (wfs.halfChip[iRun]))
+
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
-                self.WFS_inst, self.WFS_cmd, self.inst, numproc, self.eimage, self.WFS_log)
+                self.WFS_inst, self.WFS_cmd, self.inst, numproc, self.eimage,
+                self.WFS_log)
             if debugLevel >= 2:
-                print('********Runnnig PHOSIM with following parameters********')
+                print('********Runnnig PHOSIM with following parameters\
+                ********')
                 print('Check the log file below for progress')
                 print('%s' % myargs)
 
-            runProgram('python %s/phosim.py' % self.phosimDir, argstring=myargs)
+            runProgram('python %s/phosim.py' %
+                       self.phosimDir, argstring=myargs)
             plt.figure(figsize=(10, 5))
-            for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
+            for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
                 chipStr, px, py = self.fieldXY2Chip(
                     metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-                src = glob.glob('%s/output/*%s*%s*' % (self.phosimDir, self.obsID, chipStr))
+                src = glob.glob('%s/output/*%s*%s*' %
+                                (self.phosimDir, self.obsID, chipStr))
                 if wfs.nRun == 1:
                     for ioffset in [0, 1]:
                         if '.gz' in src[0]:
                             runProgram('gunzip -f %s' % src[ioffset])
                         chipFile = src[ioffset].replace('.gz', '')
-                        runProgram('mv -f %s %s/iter%d' %( chipFile, self.imageDir, self.iIter))
+                        runProgram('mv -f %s %s/iter%d' %
+                                   (chipFile, self.imageDir, self.iIter))
                 else:
                     if '.gz' in src[0]:
                         runProgram('gunzip -f %s' % src[0])
                     chipFile = src[0].replace('.gz', '')
-                    targetFile = os.path.split(chipFile.replace('E000', '%s_E000'%wfs.halfChip[iRun]))[1]
-                    runProgram('mv -f %s %s/iter%d/%s' %( chipFile, self.imageDir, self.iIter, targetFile))
-                    
+                    targetFile = os.path.split(chipFile.replace(
+                        'E000', '%s_E000' % wfs.halfChip[iRun]))[1]
+                    runProgram('mv -f %s %s/iter%d/%s' %
+                               (chipFile, self.imageDir, self.iIter,
+                                targetFile))
+
     def writeWFSinst(self, wfs, metr, iRun=-1):
-        #iRun = -1 means only need to run it once
+        # iRun = -1 means only need to run it once
         self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
         if iRun != -1:
-            self.WFS_inst = self.WFS_inst.replace('.inst','_%s.inst'%wfs.halfChip[iRun])
-                
+            self.WFS_inst = self.WFS_inst.replace(
+                '.inst', '_%s.inst' % wfs.halfChip[iRun])
+
         fid = open(self.WFS_inst, 'w')
         fpert = open(self.pertFile, 'r')
         hasCamPiston = False
         for line in fpert:
-            if iRun != -1 and line.split()[:2] ==['move', '10']:
+            if iRun != -1 and line.split()[:2] == ['move', '10']:
                 # move command follow Zemax coordinate system.
-                fid.write('move 10 %9.4f\n'%(float(line.split()[2])-wfs.offset[iRun]*1e3))
+                fid.write('move 10 %9.4f\n' %
+                          (float(line.split()[2]) - wfs.offset[iRun] * 1e3))
                 hasCamPiston = True
             else:
                 fid.write(line)
-        if  iRun != -1 and (not hasCamPiston):
-            fid.write('move 10 %9.4f\n'%(-wfs.offset[iRun]*1e3))
-            
+        if iRun != -1 and (not hasCamPiston):
+            fid.write('move 10 %9.4f\n' % (-wfs.offset[iRun] * 1e3))
+
         fpert.close()
         fid.write('Opsim_filter 1\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-Opsim_rawseeing 0.7283\n' % (self.obsID, self.obsID%1000-4))
+Opsim_rawseeing 0.7283\n' % (self.obsID, self.obsID % 1000 - 4))
         if self.inst[:4] == 'lsst':
             fid.write('SIM_CAMCONFIG 2\n')
         elif self.inst[:6] == 'comcam':
             fid.write('SIM_CAMCONFIG 1\n')
-            
+
         ii = 0
-        for i in range(metr.nFieldp4-wfs.nWFS, metr.nFieldp4):
+        for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
             if self.inst[:4] == 'lsst':
                 if i % 2 == 1:  # field 31, 33, R44 and R00
                     fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
@@ -569,17 +653,18 @@ Opsim_rawseeing 0.7283\n' % (self.obsID, self.obsID%1000-4))
 ../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
                     ii, metr.fieldXp[i], metr.fieldYp[i],
                     self.cwfsMag))
-                ii += 1                    
+                ii += 1
         fid.close()
         fpert.close()
 
     def writeWFScmd(self, wfs, iRun=-1):
-        #iRun = -1 means only need to run it once
+        # iRun = -1 means only need to run it once
         self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
         if iRun != -1:
-            self.WFS_cmd = self.WFS_cmd.replace('.cmd','_%s.cmd'%wfs.halfChip[iRun])
-            
+            self.WFS_cmd = self.WFS_cmd.replace(
+                '.cmd', '_%s.cmd' % wfs.halfChip[iRun])
+
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -655,12 +740,12 @@ def fieldAgainstRuler(ruler, field, chipPixel):
 
     return np.floor(p / 3), p % 3, pixel
 
-def getLUTforce(zangle, LUTfile):
 
+def getLUTforce(zangle, LUTfile):
     """
     zangle should be in degree
     """
-    
+
     lut = np.loadtxt(LUTfile)
     ruler = lut[0, :]
 

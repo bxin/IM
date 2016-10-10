@@ -10,7 +10,7 @@ dof	1	0.10	mm 	M2 piston
 budget   80 79 80 80 21 54 84 22
 
 zenithAngle  27.0912   deg
-temperature	6.5650  C (temperature in (2,16), make these two sigma bounds for Gaussian)
+camTB      	6.5650  C (temperature in (2,16), make these two sigma bounds for Gaussian)
 camRotation    -1.2323  radian (uniform between (-pi/2, pi/2))
 
 M1M3ForceError    2
