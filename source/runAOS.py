@@ -5,7 +5,6 @@
 
 # main function
 
-import os
 import argparse
 # import numpy as np
 
@@ -117,17 +116,14 @@ def main():
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
     pertDir = 'pert/sim%d' % args.iSim
-    if not os.path.isdir(pertDir):
-        os.makedirs(pertDir)
     imageDir = 'image/sim%d' % args.iSim
-    if not os.path.isdir(imageDir):
-        os.makedirs(imageDir)
-    state = aosTeleState(args.inst, esti, M1M3, M2, args.simuParam, args.iSim, phosimDir,
-                         pertDir, imageDir, args.debugLevel)
+    state = aosTeleState(args.inst, args.simuParam, args.iSim,
+                         esti.ndofA, phosimDir,
+                         pertDir, imageDir, args.debugLevel, M1M3=M1M3, M2=M2)
     # *****************************************
     # control algorithm
     # *****************************************
-    metr = aosMetric(args.inst, state, wfs, args.debugLevel)
+    metr = aosMetric(args.inst, state, wfs.znwcs3, args.debugLevel)
     ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs, M1M3, M2,
                          args.wavelength, args.gain, args.debugLevel)
 
@@ -138,7 +134,7 @@ def main():
         if args.debugLevel >= 3:
             print('iteration No. %d' % iIter)
 
-        state.setIterNo(wfs, metr, iIter)
+        state.setIterNo(metr, iIter, wfs=wfs)
 
         if not args.ctrloff:
             if iIter > 0: #args.startiter:
@@ -150,7 +146,7 @@ def main():
                 # It will be inserted into OPD.inst, PSF.inst later
                 state.update(ctrl)
 
-            state.writePertFile(esti)
+            state.writePertFile(esti.ndofA)
 
         if args.baserun>0 and iIter == 0:
             state.getOPDAllfromBase(args.baserun, metr)

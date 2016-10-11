@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 
 class aosTeleState(object):
 
-    def __init__(self, inst, esti, M1M3, M2, instruFile, iSim, phosimDir,
-                 pertDir, imageDir, debugLevel):
+    def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
+                 pertDir, imageDir, debugLevel, M1M3=None, M2=None):
         # plan to write these to txt files. no columns for iter
-        self.stateV = np.zeros(esti.ndofA)  # *np.nan # telescope state(?)
+        self.stateV = np.zeros(ndofA)  # *np.nan # telescope state(?)
 
         aa = inst
         if aa[-2:].isdigit():
@@ -93,7 +93,12 @@ class aosTeleState(object):
         self.iSim = iSim
         self.phosimDir = phosimDir
         self.pertDir = pertDir
+        # if not os.path.isdir(pertDir):
+        #     os.makedirs(pertDir)
         self.imageDir = imageDir
+        # if not os.path.isdir(imageDir):
+        #     os.makedirs(imageDir)
+        
         # self.setIterNo(0)
         self.phosimActuatorID = [
             # M2 z, x, y, rx, ry
@@ -101,7 +106,7 @@ class aosTeleState(object):
             # Cam z, x, y, rx, ry
             10, 11, 12, 13, 14] + [
             # M13 and M2 bending
-            i for i in range(15, 15 + esti.ndofA - 10)]
+            i for i in range(15, 15 + ndofA - 10)]
 
         self.opdGrid1d = np.linspace(-1, 1, self.opdSize)
         self.opdx, self.opdy = np.meshgrid(self.opdGrid1d, self.opdGrid1d)
@@ -223,9 +228,9 @@ class aosTeleState(object):
     def update(self, ctrl):
         self.stateV += ctrl.uk
 
-    def writePertFile(self, esti):
+    def writePertFile(self, ndofA):
         fid = open(self.pertFile, 'w')
-        for i in range(esti.ndofA):
+        for i in range(ndofA):
             if (self.stateV[i] != 0):
                 # don't add comments after each move command,
                 # Phosim merges all move commands into one!
@@ -234,12 +239,10 @@ class aosTeleState(object):
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
-    def setIterNo(self, wfs, metr, iIter):
+    def setIterNo(self, metr, iIter, wfs=None):
         self.iIter = iIter
         self.obsID = 9000000 + self.iSim * 100 + self.iIter
         self.zTrueFile = '%s/iter%d/sim%d_iter%d_opd.zer' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
-        wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -254,18 +257,22 @@ class aosTeleState(object):
             self.imageDir, self.iIter, self.iSim, self.iIter)
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
-        wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
-        wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
-            self.pertDir, self.iIter, self.iIter)
+        if wfs is not None:
+            wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
+            wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
+            wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
+                self.pertDir, self.iIter, self.iIter)
 
         if iIter > 0:
             self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
                 self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
-            wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
-                self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
+            if wfs is not None:
+                wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
+                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
 
             # PSSN from last iteration needs to be known for shiftGear
             if not (hasattr(metr, 'GQFWHMeff')):
@@ -389,7 +396,8 @@ raydensity 0.0\n\
 perturbationmode 1\n')
         fid.close()
 
-    def getPSFAll(self, psfoff, metr, numproc, debugLevel):
+    def getPSFAll(self, psfoff, metr, numproc, debugLevel, pixelum=10,
+                  wavelength = 500):
 
         if not psfoff:
             self.writePSFinst(metr)
