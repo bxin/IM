@@ -95,6 +95,54 @@ class aosMetric(object):
     def getPSSNfromZ(self):
         pass
 
+    def getFFTPSF(self, fftpsfoff, state, wfs, wavelength, numproc,
+                       debugLevel):
+
+        if not fftpsfoff:
+            # multithreading on MacOX doesn't work with pinv
+            if sys.platform == 'darwin':
+                self.PSSN = np.zeros(self.nField)
+            argList = []
+            for i in range(self.nField):
+                opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
+    
+                argList.append((opdFile, state, wfs.znwcs,
+                                wfs.inst.obscuration, wavelength, self.stampD,
+                                debugLevel))
+    
+                # test, pdb cannot go into the subprocess
+                # aa = runEllipticity(argList[0])
+                if sys.platform == 'darwin':
+                    self.PSSN[i] = runPSSNandMore(argList[i])
+    
+            # tested, but couldn't figure out why the below didn't work
+            if sys.platform != 'darwin':
+                pool = multiprocessing.Pool(numproc)
+                self.PSSN = pool.map(runPSSNandMore, argList)
+                pool.close()
+                pool.join()
+                self.PSSN = np.array(self.PSSN)
+                
+            self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
+            self.dm5 = -1.25 * np.log10(self.PSSN)
+    
+            if debugLevel >= 2:
+                for i in range(self.nField):
+                    print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
+                        i, self.PSSN[i], self.FWHMeff[i]*1e3))
+    
+            self.GQPSSN = np.sum(self.w * self.PSSN)
+            self.GQFWHMeff = np.sum(self.w * self.FWHMeff)
+            self.GQdm5 = np.sum(self.w * self.dm5)
+            a1=np.concatenate((self.PSSN, self.GQPSSN*np.ones(1)))
+            a2=np.concatenate((self.FWHMeff, self.GQFWHMeff*np.ones(1)))
+            a3=np.concatenate((self.dm5, self.GQdm5*np.ones(1)))
+            np.savetxt(self.PSSNFile, np.vstack((a1,a2,a3)))
+            
+            if debugLevel >= 2:
+                print(self.GQPSSN)
+                    
     def getPSSNandMore(self, pssnoff, state, wfs, wavelength, numproc,
                        debugLevel):
 

@@ -16,6 +16,8 @@ def main():
     parser.add_argument('iSim', type=int, help='sim#')
     parser.add_argument('-psfoff', help='w/o regenerating psf images',
                         action='store_true')
+    parser.add_argument('-fftpsfoff', help='w/o calculating FFT psf images',
+                        action='store_true')
     parser.add_argument('-pssnoff', help='w/o calculating PSSN',
                         action='store_true')
     parser.add_argument('-p', dest='numproc', default=1, type=int,
@@ -48,21 +50,46 @@ def main():
     nIter = 6
     wave = [0, 622, 550, 694, 586, 658]
     wlwt = [1, 1, 1, 1, ,1, 1]
+    pixelum = 0.1 # 0.1um = 2mas
     
     for iIter in range(nIter):
         state.setIterNo(metr, iIter)
         state.writePertFile(ndofA)
 
-        pixelum = 0.1 # 0.1um = 2mas
+        if iIter>0:
+            state.getOPDAll(args.opdoff, wfs, metr, args.numproc,
+                            args.wavelength, args.debugLevel)
+            metr.getFFTPSF(args.fftpsfoff, state, wfs, args.wavelength,
+                            args.numproc, args.debugLevel)
+            
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
                         pixelum=pixelum, wavelength = wave[iIter])
 
+        if iIter>0:
+            checkFFTPSF()
+            metr.getPSSNandMore(args.pssnoff, state, wfs, args.wavelength,
+                                    args.numproc, args.debugLevel, pixelum=pixelum)
+            checkPSSN()
+                 
         metr.getPSSNandMoreStamp(args.pssnoff, state, wfs, args.wavelength,
                                 args.numproc, args.debugLevel, pixelum=pixelum)
         metr.getEllipticityStamp(args.ellioff, state, wfs, args.wavelength,
                                 args.numproc, args.debugLevel, pixelum=pixelum)
 
     makeSumPlot()
+
+def checkFFTPSF():
+    """
+    for a single wavelength, check Phosim fine-pixel PSF against Phosim OPD
+    """
+    pass
+
+def checkPSSN():
+    """
+    for a single wavelength, check calc_PSSN(PSF) against calc_PSSN(OPD)
+    """
+
+    pass
 
 def makeSumPlot():
     pass
