@@ -352,7 +352,7 @@ class aosTeleState(object):
             os.link(baseFile, self.OPD_cmd)
 
         self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter, self.nFieldp4)
+            self.imageDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         if not os.path.isfile(self.OPD_log):
             baseFile = self.OPD_log.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
