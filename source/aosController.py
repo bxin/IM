@@ -406,13 +406,15 @@ class aosController(object):
         for i in range(metr.nField):
             ax[2, 0].plot(myxticks, allFWHMeff[i,:], marker='.', color='b', markersize=10)
         ax[2, 0].plot(myxticks, allFWHMeff[-1,:], label='GQ($FWHM_{eff}$)', marker='.', color='r', markersize=10)
-        ax[2, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
+        xmin = np.min(myxticks) - 0.5
+        xmax = np.max(myxticks) + 0.5
+        ax[2, 0].set_xlim([xmin, xmax])
         ax[2, 0].set_xticks(myxticks)
         ax[2, 0].set_xticklabels(myxticklabels)
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
-        ax[2, 0].plot(myxticks, state.budget*np.ones((endIter-startIter+1,1)), label='Error Budget')
+        ax[2, 0].plot([xmin, xmax], state.budget*np.ones((2,1)), label='Error Budget', color = 'k')
         if allFWHMeff.shape[1]>1:
             ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(
                 allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
@@ -463,7 +465,7 @@ class aosController(object):
                 sumPlotFile = '%s/sim%d_iter%d-%d.png'%(
                     state.pertDir, state.iSim, i, j)
                 if (i==startIter and j==endIter):
-                    plt.savefig(sumPlotFile, bbox_inches='tight')
+                    plt.savefig(sumPlotFile, bbox_inches='tight', dpi=500)
                 else: #remove everything else in between startIter and endIter
                     if os.path.isfile(sumPlotFile):
                         os.remove(sumPlotFile)

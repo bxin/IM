@@ -1,14 +1,10 @@
 ###
 
-This instrument file is for multiple Rigid Body dof unit testing
+This instrument file is for single dof unit testing
 
 ###
 
-dof	6	5	um 	Cam piston
-dof	7	11	um	Cam x-decenter
-dof     8       -11       um      Cam y-decenter
-dof     9       3       arcsec      Cam x-tilt
-dof    10       -3       arcsec      Cam y-tilt
+dof	6	0.10	mm  Cam piston
 
 budget	80 79
 

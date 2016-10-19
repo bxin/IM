@@ -169,13 +169,14 @@ def main():
     
             if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
                 pass
-            else:
-                if args.sensor == 'phosim':
-                    # create donuts for last iter, so that picking up from there will be easy
-                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
-                    wfs.preprocess(state, metr, args.debugLevel)
-                    wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
-                    wfs.checkZ4C(state, metr, args.debugLevel)
+            elif args.sensor == 'phosim':
+                # create donuts for last iter, so that picking up from there will be easy
+                state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
+                wfs.preprocess(state, metr, args.debugLevel)
+            elif args.sensor == 'phosim' or args.sensor == 'cwfs':                
+                wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
+            elif args.sensor == 'phosim' or args.sensor == 'cwfs' or args.sensor == 'load':
+                wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
