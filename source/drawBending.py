@@ -23,19 +23,24 @@ def main():
         bx = aa[:, 1]
         by = aa[:, 2]
         bz = aa[:, 3:]
+    elif args.mirror == 'M2':
+        aa = np.loadtxt('data/M2/M2_1um_grid.DAT')
+        bx = aa[:, 0]
+        by = aa[:, 1]
+        bz = aa[:, 2:]
 
-        nB13Max = 20
-        nRow = 4
-        nCol = int(np.ceil(nB13Max/nRow))
-        f, ax = plt.subplots(nRow, nCol, figsize=(15, 10))
-        for iRow in range(nRow):
-            for iCol in range(nCol):
-                ib = iRow*nCol+iCol
-                color = (bz[:, ib] - min(bz[:, ib]))/(max(bz[:, ib]) - min(bz[:, ib]))*100
-                ax[iRow, iCol].scatter(bx, by, s = 5, c=color, marker='.', edgecolor='none')
-                ax[iRow, iCol].axis('equal')
+    nB = 20
+    nRow = 4
+    nCol = int(np.ceil(nB/nRow))
+    f, ax = plt.subplots(nRow, nCol, figsize=(15, 10))
+    for iRow in range(nRow):
+        for iCol in range(nCol):
+            ib = iRow*nCol+iCol
+            color = (bz[:, ib] - min(bz[:, ib]))/(max(bz[:, ib]) - min(bz[:, ib]))*100
+            ax[iRow, iCol].scatter(bx, by, s = 5, c=color, marker='.', edgecolor='none')
+            ax[iRow, iCol].axis('equal')
 
-        plt.savefig('drawBending%s.png'%args.mirror, dpi=500)
+    plt.savefig('drawBending%s.png'%args.mirror, dpi=500)
         #plt.show()
     
 if __name__ == "__main__":

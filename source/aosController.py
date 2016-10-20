@@ -35,20 +35,20 @@ class aosController(object):
                     self.rhoM2 = float(line.split()[1])
                 elif (line.startswith('Motion_penalty')):
                     self.rho = float(line.split()[1])
-                    
+
         fid.close()
-        
+
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        src = glob.glob('data/%s/y2*txt'%(aa))
+        src = glob.glob('data/%s/y2*txt' % (aa))
         self.y2File = src[0]
         if debugLevel >= 1:
             print('control strategy: %s' % self.strategy)
             print('Using y2 file: %s' % self.y2File)
         self.gain = gain
         self.y2 = np.loadtxt(self.y2File)
-        
+
         # establish control authority of the DOFs
         aa = M1M3.force[:, :esti.nB13Max]
         aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
@@ -60,11 +60,20 @@ class aosController(object):
         # For the rigid body DOF (r for rigid)
         # weight based on the total stroke
         rbStroke = np.array([5900, 6700, 6700, 432, 432,
-                                8700, 7600, 7600, 864, 864 ])
-        rbW = (rbStroke[0]/rbStroke)
+                             8700, 7600, 7600, 864, 864])
+        rbW = (rbStroke[0] / rbStroke)
         mHr = rbW[esti.compIdx[:10]]
-        self.Authority = np.concatenate((mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
-        self.range = 1/self.Authority*rbStroke[0] #range of motion for the DOFs.
+        self.Authority = np.concatenate(
+            (mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
+        # #range of motion for the DOFs.
+        # = 1/self.Authority*rbStroke[0], when there is no truncation of DOF
+        self.range = np.concatenate((rbStroke,
+                                     1 / (self.rhoM13 * np.std(
+                                         M1M3.force[:, :esti.nB13Max], axis=0))
+                                          * rbStroke[0],
+                                     1 / (self.rhoM2 * np.std(
+                                         M2.force[:, :esti.nB2Max], axis=0))
+                                          * rbStroke[0]))
 
         if esti.strategy == 'pinv':
             if esti.normalizeA:
@@ -72,7 +81,7 @@ class aosController(object):
         elif esti.strategy == 'opti':
             if esti.fmotion > 0:
                 esti.optiAinv(self, wfs)
-        
+
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
             mH = np.diag(self.Authority**2)
@@ -91,7 +100,7 @@ class aosController(object):
                 print(self.mQ[0, 9])
 
     def getMotions(self, esti, metr, wfs, wavelength):
-        self.uk=np.zeros(esti.ndofA)
+        self.uk = np.zeros(esti.ndofA)
         self.gainUse = self.gain
         if hasattr(self, 'shiftGear'):
             if self.shiftGear and (metr.GQFWHMeff > self.shiftGearThres):
@@ -105,8 +114,9 @@ class aosController(object):
             x_y2c = esti.Ainv.dot(y2c)
             if esti.normalizeA:
                 x_y2c = x_y2c / esti.dofUnit
-            self.uk[esti.compIdx] = - self.gainUse * (esti.xhat[esti.compIdx] + x_y2c)
-            
+            self.uk[esti.compIdx] = - self.gainUse * \
+                (esti.xhat[esti.compIdx] + x_y2c)
+
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
             Mx = np.zeros(esti.Ause.shape[1])
@@ -114,7 +124,7 @@ class aosController(object):
                 aa = esti.senM[iField, :, :]
                 Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
                 y2f = self.y2[iField, esti.zn3Idx]
-                yf = Afield.dot(esti.xhat[esti.compIdx])+y2f
+                yf = Afield.dot(esti.xhat[esti.compIdx]) + y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
             self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
@@ -274,138 +284,168 @@ class aosController(object):
         plt.close()
 
     def drawSummaryPlots(self, state, metr, esti, M1M3, M2, startIter, endIter, debugLevel):
-        allPert = np.zeros((esti.ndofA, endIter-startIter+1))
-        allPSSN = np.zeros((metr.nField+1, endIter-startIter+1))
-        allFWHMeff = np.zeros((metr.nField+1, endIter-startIter+1))
-        alldm5 = np.zeros((metr.nField+1, endIter-startIter+1))
-        allelli = np.zeros((metr.nField+1, endIter-startIter+1))
-        for iIter in range(0, endIter-startIter+1):
-            filename = state.pertMatFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+        allPert = np.zeros((esti.ndofA, endIter - startIter + 1))
+        allPSSN = np.zeros((metr.nField + 1, endIter - startIter + 1))
+        allFWHMeff = np.zeros((metr.nField + 1, endIter - startIter + 1))
+        alldm5 = np.zeros((metr.nField + 1, endIter - startIter + 1))
+        allelli = np.zeros((metr.nField + 1, endIter - startIter + 1))
+        for iIter in range(0, endIter - startIter + 1):
+            filename = state.pertMatFile.replace(
+                'iter%d' % endIter, 'iter%d' % iIter)
             allPert[:, iIter] = np.loadtxt(filename)
-            filename = metr.PSSNFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+            filename = metr.PSSNFile.replace(
+                'iter%d' % endIter, 'iter%d' % iIter)
             allData = np.loadtxt(filename)
             allPSSN[:, iIter] = allData[0, :]
             allFWHMeff[:, iIter] = allData[1, :]
             alldm5[:, iIter] = allData[2, :]
-            filename = metr.elliFile.replace('iter%d'%endIter, 'iter%d'%iIter)
+            filename = metr.elliFile.replace(
+                'iter%d' % endIter, 'iter%d' % iIter)
             allelli[:, iIter] = np.loadtxt(filename)
-            
+
         f, ax = plt.subplots(3, 3, figsize=(15, 10))
-        myxticks = np.arange(startIter, endIter+1)
+        myxticks = np.arange(startIter, endIter + 1)
         myxticklabels = ['%d' % (myxticks[i])
                          for i in np.arange(len(myxticks))]
-        colors = ( 'r', 'b', 'g', 'c', 'm', 'y', 'k')
-        
+        colors = ('r', 'b', 'g', 'c', 'm', 'y', 'k')
+
         # 1: M2, cam dz
-        ax[0, 0].plot(myxticks, allPert[0,:], label='M2 dz', marker='.', color='r', markersize=10)
-        ax[0, 0].plot(myxticks, allPert[5,:], label='Cam dz', marker='.', color='b', markersize=10)
+        ax[0, 0].plot(myxticks, allPert[0, :], label='M2 dz',
+                      marker='.', color='r', markersize=10)
+        ax[0, 0].plot(myxticks, allPert[5, :], label='Cam dz',
+                      marker='.', color='b', markersize=10)
         ax[0, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[0, 0].set_xticks(myxticks)
         ax[0, 0].set_xticklabels(myxticklabels)
         ax[0, 0].set_xlabel('iteration')
         ax[0, 0].set_ylabel('$\mu$m')
-        ax[0, 0].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m'%(
-            round(np.max(np.absolute(allPert[0,:]))), self.range[0],
-            round(np.max(np.absolute(allPert[5,:]))), self.range[5]))
-        leg = ax[0, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
+        ax[0, 0].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m' % (
+            round(np.max(np.absolute(allPert[0, :]))), self.range[0],
+            round(np.max(np.absolute(allPert[5, :]))), self.range[5]))
+        # , shadow=True, fancybox=True)
+        leg = ax[0, 0].legend(loc="lower left")
         leg.get_frame().set_alpha(0.5)
 
         # 2: M2, cam dx,dy
-        ax[0, 1].plot(myxticks, allPert[1,:], label='M2 dx', marker='.', color='r', markersize=10)
-        ax[0, 1].plot(myxticks, allPert[2,:], label='M2 dy', marker='*', color='r', markersize=10)
-        ax[0, 1].plot(myxticks, allPert[6,:], label='Cam dx', marker='.', color='b', markersize=10)
-        ax[0, 1].plot(myxticks, allPert[7,:], label='Cam dy', marker='*', color='b', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[1, :], label='M2 dx',
+                      marker='.', color='r', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[2, :], label='M2 dy',
+                      marker='*', color='r', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[6, :], label='Cam dx',
+                      marker='.', color='b', markersize=10)
+        ax[0, 1].plot(myxticks, allPert[7, :], label='Cam dy',
+                      marker='*', color='b', markersize=10)
         ax[0, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[0, 1].set_xticks(myxticks)
         ax[0, 1].set_xticklabels(myxticklabels)
         ax[0, 1].set_xlabel('iteration')
         ax[0, 1].set_ylabel('$\mu$m')
-        ax[0, 1].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m'%(
-            round(np.max(np.absolute(allPert[1:3,:]))), self.range[1],
-            round(np.max(np.absolute(allPert[6:8,:]))), self.range[6]))
-        leg = ax[0, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
+        ax[0, 1].set_title('M2 %d/$\pm$%d$\mu$m; Cam %d/$\pm$%d$\mu$m' % (
+            round(np.max(np.absolute(allPert[1:3, :]))), self.range[1],
+            round(np.max(np.absolute(allPert[6:8, :]))), self.range[6]))
+        # , shadow=True, fancybox=True)
+        leg = ax[0, 1].legend(loc="lower left")
         leg.get_frame().set_alpha(0.5)
-                
+
         # 3: M2, cam rx,ry
-        ax[0, 2].plot(myxticks, allPert[3,:], label='M2 rx', marker='.', color='r', markersize=10)
-        ax[0, 2].plot(myxticks, allPert[4,:], label='M2 ry', marker='*', color='r', markersize=10)
-        ax[0, 2].plot(myxticks, allPert[8,:], label='Cam rx', marker='.', color='b', markersize=10)
-        ax[0, 2].plot(myxticks, allPert[9,:], label='Cam ry', marker='*', color='b', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[3, :], label='M2 rx',
+                      marker='.', color='r', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[4, :], label='M2 ry',
+                      marker='*', color='r', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[8, :], label='Cam rx',
+                      marker='.', color='b', markersize=10)
+        ax[0, 2].plot(myxticks, allPert[9, :], label='Cam ry',
+                      marker='*', color='b', markersize=10)
         ax[0, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[0, 2].set_xticks(myxticks)
         ax[0, 2].set_xticklabels(myxticklabels)
         ax[0, 2].set_xlabel('iteration')
         ax[0, 2].set_ylabel('arcsec')
-        ax[0, 2].set_title('M2 %d/$\pm$%darcsec; Cam %d/$\pm$%darcsec'%(
-            round(np.max(np.absolute(allPert[3:5,:]))), self.range[3],
-            round(np.max(np.absolute(allPert[8:10,:]))), self.range[8]))
-        leg = ax[0, 2].legend(loc="upper left") #, shadow=True, fancybox=True)
+        ax[0, 2].set_title('M2 %d/$\pm$%darcsec; Cam %d/$\pm$%darcsec' % (
+            round(np.max(np.absolute(allPert[3:5, :]))), self.range[3],
+            round(np.max(np.absolute(allPert[8:10, :]))), self.range[8]))
+        # , shadow=True, fancybox=True)
+        leg = ax[0, 2].legend(loc="lower left")
         leg.get_frame().set_alpha(0.5)
 
         # 4: M1M3 bending
-        rms = np.std(allPert[10:esti.nB13Max+10,:],axis=1)
-        idx=np.argsort(rms)
-        for i in range(1,4+1):
-            ax[1, 0].plot(myxticks, allPert[idx[-i]+10,:], label='M1M3 b%d'%(idx[-i]+1), marker='.', color=colors[i-1], markersize=10)
-        for i in range(4, esti.nB13Max+1):
-            ax[1, 0].plot(myxticks, allPert[idx[-i]+10,:], marker='.', color=colors[-1], markersize=10)
+        rms = np.std(allPert[10:esti.nB13Max + 10, :], axis=1)
+        idx = np.argsort(rms)
+        for i in range(1, 4 + 1):
+            ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :], label='M1M3 b%d' %
+                          (idx[-i] + 1), marker='.', color=colors[i - 1], markersize=10)
+        for i in range(4, esti.nB13Max + 1):
+            ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :],
+                          marker='.', color=colors[-1], markersize=10)
         ax[1, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[1, 0].set_xticks(myxticks)
         ax[1, 0].set_xticklabels(myxticklabels)
         ax[1, 0].set_xlabel('iteration')
         ax[1, 0].set_ylabel('$\mu$m')
-        allF = M1M3.force[:, :esti.nB13Max].dot(allPert[10:esti.nB13Max+10,:])
-        stdForce = np.std(allF,axis=0)
+        allF = M1M3.force[:, :esti.nB13Max].dot(
+            allPert[10:esti.nB13Max + 10, :])
+        stdForce = np.std(allF, axis=0)
         maxForce = np.max(allF, axis=0)
-        ax[1, 0].set_title('Max %d/$\pm$%dN; RMS %dN'%(
-            round(np.max(maxForce)), round(self.range[0]/self.rhoM13),
+        ax[1, 0].set_title('Max %d/$\pm$%dN; RMS %dN' % (
+            round(np.max(maxForce)), round(self.range[0] / self.rhoM13),
             round(np.max(stdForce))))
-        leg = ax[1, 0].legend(loc="upper left") #, shadow=True, fancybox=True)
+        # , shadow=True, fancybox=True)
+        leg = ax[1, 0].legend(loc="lower left")
         leg.get_frame().set_alpha(0.5)
-                        
+
         # 5: M2 bending
-        rms = np.std(allPert[10+esti.nB13Max:esti.ndofA,:],axis=1)
-        idx=np.argsort(rms)
-        for i in range(1,4+1):
-            ax[1, 1].plot(myxticks, allPert[idx[-i]+10+esti.nB13Max,:], label='M2 b%d'%(idx[-i]+1), marker='.', color=colors[i-1], markersize=10)
-        for i in range(4, esti.nB2Max+1):
-            ax[1, 1].plot(myxticks, allPert[idx[-i]+10+esti.nB13Max,:], marker='.', color=colors[-1], markersize=10)
+        rms = np.std(allPert[10 + esti.nB13Max:esti.ndofA, :], axis=1)
+        idx = np.argsort(rms)
+        for i in range(1, 4 + 1):
+            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max, :], label='M2 b%d' %
+                          (idx[-i] + 1), marker='.', color=colors[i - 1], markersize=10)
+        for i in range(4, esti.nB2Max + 1):
+            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max,
+                                            :], marker='.', color=colors[-1], markersize=10)
         ax[1, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[1, 1].set_xticks(myxticks)
         ax[1, 1].set_xticklabels(myxticklabels)
         ax[1, 1].set_xlabel('iteration')
         ax[1, 1].set_ylabel('$\mu$m')
-        allF = M2.force[:, :esti.nB2Max].dot(allPert[10+esti.nB13Max:esti.ndofA,:])
-        stdForce = np.std(allF,axis=0)
+        allF = M2.force[:, :esti.nB2Max].dot(
+            allPert[10 + esti.nB13Max:esti.ndofA, :])
+        stdForce = np.std(allF, axis=0)
         maxForce = np.max(allF, axis=0)
-        ax[1, 1].set_title('Max %d/$\pm$%dN; RMS %dN'%(
-            round(np.max(maxForce)), round(self.range[0]/self.rhoM2),
+        ax[1, 1].set_title('Max %d/$\pm$%dN; RMS %dN' % (
+            round(np.max(maxForce)), round(self.range[0] / self.rhoM2),
             round(np.max(stdForce))))
-        leg = ax[1, 1].legend(loc="upper left") #, shadow=True, fancybox=True)
+        # , shadow=True, fancybox=True)
+        leg = ax[1, 1].legend(loc="lower left")
         leg.get_frame().set_alpha(0.5)
 
         # 6: PSSN
         for i in range(metr.nField):
-            ax[1, 2].semilogy(myxticks, 1-allPSSN[i,:], marker='.', color='b', markersize=10)
-        ax[1, 2].semilogy(myxticks, 1-allPSSN[-1,:], label='GQ(1-PSSN)', marker='.', color='r', markersize=10)
+            ax[1, 2].semilogy(myxticks, 1 - allPSSN[i, :],
+                              marker='.', color='b', markersize=10)
+        ax[1, 2].semilogy(myxticks, 1 - allPSSN[-1, :],
+                          label='GQ(1-PSSN)', marker='.', color='r', markersize=10)
         ax[1, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[1, 2].set_xticks(myxticks)
         ax[1, 2].set_xticklabels(myxticklabels)
         ax[1, 2].set_xlabel('iteration')
         # ax[1, 2].set_ylabel('um')
         ax[1, 2].grid()
-        if allPSSN.shape[1]>1:
-            ax[1, 2].set_title('Last 2 PSSN: %5.3f, %5.3f'%(allPSSN[-1,-2],allPSSN[-1,-1]))
+        if allPSSN.shape[1] > 1:
+            ax[1, 2].set_title('Last 2 PSSN: %5.3f, %5.3f' %
+                               (allPSSN[-1, -2], allPSSN[-1, -1]))
         else:
-            ax[1, 2].set_title('Last PSSN: %5.3f'%(allPSSN[-1,-1]))
-            
-        leg = ax[1, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
-        leg.get_frame().set_alpha(0.5)        
-        
+            ax[1, 2].set_title('Last PSSN: %5.3f' % (allPSSN[-1, -1]))
+
+        # , shadow=True, fancybox=True)
+        leg = ax[1, 2].legend(loc="upper right")
+        leg.get_frame().set_alpha(0.5)
+
         # 7: FWHMeff
         for i in range(metr.nField):
-            ax[2, 0].plot(myxticks, allFWHMeff[i,:], marker='.', color='b', markersize=10)
-        ax[2, 0].plot(myxticks, allFWHMeff[-1,:], label='GQ($FWHM_{eff}$)', marker='.', color='r', markersize=10)
+            ax[2, 0].plot(myxticks, allFWHMeff[i, :],
+                          marker='.', color='b', markersize=10)
+        ax[2, 0].plot(myxticks, allFWHMeff[-1, :],
+                      label='GQ($FWHM_{eff}$)', marker='.', color='r', markersize=10)
         xmin = np.min(myxticks) - 0.5
         xmax = np.max(myxticks) + 0.5
         ax[2, 0].set_xlim([xmin, xmax])
@@ -414,58 +454,69 @@ class aosController(object):
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
-        ax[2, 0].plot([xmin, xmax], state.budget*np.ones((2,1)), label='Error Budget', color = 'k')
-        if allFWHMeff.shape[1]>1:
-            ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec'%(
-                allFWHMeff[-1,-2],allFWHMeff[-1,-1]))
+        ax[2, 0].plot([xmin, xmax], state.budget *
+                      np.ones((2, 1)), label='Error Budget', color='k')
+        if allFWHMeff.shape[1] > 1:
+            ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec' % (
+                allFWHMeff[-1, -2], allFWHMeff[-1, -1]))
         else:
-            ax[2, 0].set_title('Last $FWHM_{eff}$: %5.3f arcsec'%(allFWHMeff[-1,-1]))
-        leg = ax[2, 0].legend(loc="upper right") #, shadow=True, fancybox=True)
-        leg.get_frame().set_alpha(0.5)        
+            ax[2, 0].set_title(
+                'Last $FWHM_{eff}$: %5.3f arcsec' % (allFWHMeff[-1, -1]))
+        # , shadow=True, fancybox=True)
+        leg = ax[2, 0].legend(loc="upper right")
+        leg.get_frame().set_alpha(0.5)
 
         # 8: dm5
         for i in range(metr.nField):
-            ax[2, 1].plot(myxticks, alldm5[i,:], marker='.', color='b', markersize=10)
-        ax[2, 1].plot(myxticks, alldm5[-1,:], label='GQ($\Delta$m5)', marker='.', color='r', markersize=10)
+            ax[2, 1].plot(myxticks, alldm5[i, :], marker='.',
+                          color='b', markersize=10)
+        ax[2, 1].plot(myxticks, alldm5[-1, :], label='GQ($\Delta$m5)',
+                      marker='.', color='r', markersize=10)
         ax[2, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[2, 1].set_xticks(myxticks)
         ax[2, 1].set_xticklabels(myxticklabels)
         ax[2, 1].set_xlabel('iteration')
         # ax[2, 1].set_ylabel('arcsec')
         ax[2, 1].grid()
-        if alldm5.shape[1]>1:
-            ax[2, 1].set_title('Last 2 $\Delta$m5: %5.3f, %5.3f'%(alldm5[-1,-2],alldm5[-1,-1]))
+        if alldm5.shape[1] > 1:
+            ax[2, 1].set_title('Last 2 $\Delta$m5: %5.3f, %5.3f' %
+                               (alldm5[-1, -2], alldm5[-1, -1]))
         else:
-            ax[2, 1].set_title('Last $\Delta$m5: %5.3f'%(alldm5[-1,-1]))
-        leg = ax[2, 1].legend(loc="upper right") #, shadow=True, fancybox=True)
-        leg.get_frame().set_alpha(0.5)        
+            ax[2, 1].set_title('Last $\Delta$m5: %5.3f' % (alldm5[-1, -1]))
+        # , shadow=True, fancybox=True)
+        leg = ax[2, 1].legend(loc="upper right")
+        leg.get_frame().set_alpha(0.5)
 
         # 9: elli
         for i in range(metr.nField):
-            ax[2, 2].plot(myxticks, allelli[i,:]*100, marker='.', color='b', markersize=10)
-        ax[2, 2].plot(myxticks, allelli[-1,:]*100, label='GQ(ellipticity)', marker='.', color='r', markersize=10)
+            ax[2, 2].plot(myxticks, allelli[i, :] * 100,
+                          marker='.', color='b', markersize=10)
+        ax[2, 2].plot(myxticks, allelli[-1, :] * 100,
+                      label='GQ(ellipticity)', marker='.', color='r', markersize=10)
         ax[2, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[2, 2].set_xticks(myxticks)
         ax[2, 2].set_xticklabels(myxticklabels)
         ax[2, 2].set_xlabel('iteration')
         ax[2, 2].set_ylabel('percent')
         ax[2, 2].grid()
-        if allelli.shape[1]>1:
-            ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%'%(allelli[-1,-2]*100,allelli[-1,-1]*100))
+        if allelli.shape[1] > 1:
+            ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%' %
+                               (allelli[-1, -2] * 100, allelli[-1, -1] * 100))
         else:
-            ax[2, 2].set_title('Last 2 e: %4.2f%%'%(allelli[-1,-1]*100))
-        leg = ax[2, 2].legend(loc="upper right") #, shadow=True, fancybox=True)
-        leg.get_frame().set_alpha(0.5)        
-        
+            ax[2, 2].set_title('Last 2 e: %4.2f%%' % (allelli[-1, -1] * 100))
+        # , shadow=True, fancybox=True)
+        leg = ax[2, 2].legend(loc="upper right")
+        leg.get_frame().set_alpha(0.5)
+
         plt.tight_layout()
         # plt.show()
-        
-        for i in range(startIter, endIter+1):
-            for j in range(i, endIter+1):
-                sumPlotFile = '%s/sim%d_iter%d-%d.png'%(
+
+        for i in range(startIter, endIter + 1):
+            for j in range(i, endIter + 1):
+                sumPlotFile = '%s/sim%d_iter%d-%d.png' % (
                     state.pertDir, state.iSim, i, j)
-                if (i==startIter and j==endIter):
+                if (i == startIter and j == endIter):
                     plt.savefig(sumPlotFile, bbox_inches='tight', dpi=500)
-                else: #remove everything else in between startIter and endIter
+                else:  # remove everything else in between startIter and endIter
                     if os.path.isfile(sumPlotFile):
                         os.remove(sumPlotFile)
