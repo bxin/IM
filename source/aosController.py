@@ -25,6 +25,8 @@ class aosController(object):
                     (not iscomment) and len(line) > 0):
                 if (line.startswith('control_strategy')):
                     self.strategy = line.split()[1]
+                if (line.startswith('xref')):
+                    self.xref = line.split()[1]
                 elif (line.startswith('shift_gear')):
                     self.shiftGear = bool(int(line.split()[1]))
                     if self.shiftGear:
@@ -84,7 +86,7 @@ class aosController(object):
 
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
-            mH = np.diag(self.Authority**2)
+            self.mH = np.diag(self.Authority**2)
             # wavelength below in um,b/c output of A in um
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
             self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
@@ -93,13 +95,13 @@ class aosController(object):
                 Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
                 mQf = Afield.T.dot(CCmat).dot(Afield)
                 self.mQ = self.mQ + metr.w[iField] * mQf
-            self.mF = np.linalg.pinv(self.mQ + self.rho**2 * mH)
+            self.mF = np.linalg.pinv(self.mQ + self.rho**2 * self.mH)
 
             if debugLevel >= 3:
                 print(self.mQ[0, 0])
                 print(self.mQ[0, 9])
 
-    def getMotions(self, esti, metr, wfs, wavelength):
+    def getMotions(self, esti, metr, wfs, state, wavelength):
         self.uk = np.zeros(esti.ndofA)
         self.gainUse = self.gain
         if hasattr(self, 'shiftGear'):
@@ -127,8 +129,11 @@ class aosController(object):
                 yf = Afield.dot(esti.xhat[esti.compIdx]) + y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
-            self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
-            #self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(self.mQ).dot(esti.xhat[esti.compIdx])
+            if self.xref == 'x0':
+                self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
+            elif self.xref == '0':
+                self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
+                    -self.rho**2 *self.mH * state.stateV - Mx)
 
     def drawControlPanel(self, esti, state):
 

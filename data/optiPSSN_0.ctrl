@@ -6,7 +6,7 @@ This file contains the parameters for the AOS controller
 
 #control strategy
 control_strategy      optiPSSN
-xref			x0
+xref			0
 
 shift_gear		1	0.2	arcsec
 
