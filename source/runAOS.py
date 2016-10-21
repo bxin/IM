@@ -67,7 +67,7 @@ def main():
                         default='pinv',
                         help='estimator parameter file in data/, default=pinv')
     parser.add_argument('-c', dest='controllerParam',
-                        default='optiPSSN', choices=('optiPSSN', 'null'),
+                        default='optiPSSN', choices=('optiPSSN', 'optiPSSN_0', 'null'),
                         help='controller parameter file in data/, \
                         default=optiPSSN')
     parser.add_argument('-w', dest='wavelength', type=float,
