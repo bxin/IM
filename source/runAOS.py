@@ -67,7 +67,8 @@ def main():
                         default='pinv',
                         help='estimator parameter file in data/, default=pinv')
     parser.add_argument('-c', dest='controllerParam',
-                        default='optiPSSN', choices=('optiPSSN', 'optiPSSN_0', 'null'),
+                        default='optiPSSN', choices=('optiPSSN', 'optiPSSN_0',
+                                                         'optiPSSN_x00', 'null'),
                         help='controller parameter file in data/, \
                         default=optiPSSN')
     parser.add_argument('-w', dest='wavelength', type=float,
@@ -158,14 +159,18 @@ def main():
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
-            state.getOPDAll(args.opdoff, wfs, metr, args.numproc, args.wavelength,
-                           args.debugLevel)
+            state.getOPDAll(args.opdoff, metr, args.numproc, args.wavelength,
+                           wfs.znwcs, wfs.inst.obsucration, args.debugLevel)
 
             state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
     
-            metr.getPSSNandMore(args.pssnoff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
+            metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
+                                    args.numproc, wfs.znwcs,
+                                    wfs.inst.obsucration, args.debugLevel)
     
-            metr.getEllipticity(args.ellioff, state, wfs, args.wavelength, args.numproc, args.debugLevel)
+            metr.getEllipticity(args.ellioff, state, args.wavelength,
+                                    args.numproc, wfs.znwcs,
+                                    wfs.inst.obsucration, args.debugLevel)
     
             if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
                 pass

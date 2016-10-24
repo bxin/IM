@@ -95,8 +95,8 @@ class aosMetric(object):
     def getPSSNfromZ(self):
         pass
 
-    def getFFTPSF(self, fftpsfoff, state, wfs, wavelength, numproc,
-                       debugLevel):
+    def getFFTPSF(self, fftpsfoff, state, wavelength, numproc,
+                       znwcs, obscuration, debugLevel):
 
         if not fftpsfoff:
             # multithreading on MacOX doesn't work with pinv
@@ -107,8 +107,8 @@ class aosMetric(object):
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, wfs.znwcs,
-                                wfs.inst.obscuration, wavelength, self.stampD,
+                argList.append((opdFile, state, znwcs,
+                                obscuration, wavelength, self.stampD,
                                 debugLevel))
     
                 # test, pdb cannot go into the subprocess
@@ -143,8 +143,8 @@ class aosMetric(object):
             if debugLevel >= 2:
                 print(self.GQPSSN)
                     
-    def getPSSNandMore(self, pssnoff, state, wfs, wavelength, numproc,
-                       debugLevel):
+    def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
+                       znwcs, obscuration, debugLevel):
 
         if not pssnoff:
             # multithreading on MacOX doesn't work with pinv
@@ -155,8 +155,8 @@ class aosMetric(object):
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, wfs.znwcs,
-                                wfs.inst.obscuration, wavelength, self.stampD,
+                argList.append((opdFile, state, znwcs,
+                                obscuration, wavelength, self.stampD,
                                 debugLevel))
     
                 # test, pdb cannot go into the subprocess
@@ -201,8 +201,8 @@ class aosMetric(object):
         aa = np.loadtxt(self.PSSNFile)
         self.GQFWHMeff = aa[1, -1] #needed for shiftGear
                     
-    def getPSSNandMoreStamp(self, pssnoff, state, wfs, wavelength, numproc,
-                             debugLevel, pixelum = 10):
+    def getPSSNandMoreStamp(self, pssnoff, state, wavelength, numproc,
+                             znwcs, obscuration, debugLevel, pixelum = 10):
         """
 use the Phosim image stamps with fine pixel grid to determine PSSN and more
 to be implemented
@@ -217,8 +217,8 @@ to be implemented
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, wfs.znwcs,
-                                wfs.inst.obscuration, wavelength, self.stampD,
+                argList.append((opdFile, state, znwcs,
+                                obscuration, wavelength, self.stampD,
                                 debugLevel))
     
                 # test, pdb cannot go into the subprocess
@@ -256,8 +256,8 @@ to be implemented
             aa = np.loadtxt(self.PSSNFile)
             self.GQFWHMeff = aa[1, -1] #needed for shiftGear        
 
-    def getEllipticity(self, ellioff, state, wfs, wavelength, numproc,
-                       debugLevel):
+    def getEllipticity(self, ellioff, state, wavelength, numproc,
+                       znwcs, obscuration, debugLevel):
 
         if not ellioff:
             # multithreading on MacOX doesn't work with pinv
@@ -268,8 +268,8 @@ to be implemented
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, wfs.znwcs,
-                                wfs.inst.obscuration, wavelength, self.stampD,
+                argList.append((opdFile, state, znwcs,
+                                obscuration, wavelength, self.stampD,
                                 debugLevel))
     
                 # test, pdb cannot go into the subprocess
@@ -299,8 +299,8 @@ to be implemented
             baseFile = self.elliFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.elliFile)
 
-    def getEllipticityStamp(self, ellioff, state, wfs, wavelength, numproc,
-                            debugLevel, pixelum = 10):
+    def getEllipticityStamp(self, ellioff, state, wavelength, numproc,
+                            znwcs, obscuration, debugLevel, pixelum = 10):
         if not ellioff:
             # multithreading on MacOX doesn't work with pinv
             if sys.platform == 'darwin':
@@ -310,8 +310,8 @@ to be implemented
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, wfs.znwcs,
-                                wfs.inst.obscuration, wavelength, self.stampD,
+                argList.append((opdFile, state, znwcs,
+                                obscuration, wavelength, self.stampD,
                                 debugLevel))
     
                 # test, pdb cannot go into the subprocess

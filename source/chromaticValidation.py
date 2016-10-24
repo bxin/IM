@@ -44,12 +44,14 @@ def main():
     state = aosTeleState(inst, args.simuParam, args.iSim,
                          ndofA, phosimDir,
                          pertDir, imageDir, args.debugLevel)
-    znwcs3 = 22 - 3
+    znwcs = 22
+    znwcs3 = znwcs - 3
+    obscuration = 0.61
     metr = aosMetric(inst, state, znwcs3, args.debugLevel)
 
     nIter = 6
     wave = [0, 622, 550, 694, 586, 658]
-    wlwt = [1, 1, 1, 1, ,1, 1]
+    wlwt = [1, 1, 1, 1, 1, 1]
     pixelum = 0.1 # 0.1um = 2mas
     
     for iIter in range(nIter):
@@ -57,24 +59,27 @@ def main():
         state.writePertFile(ndofA)
 
         if iIter>0:
-            state.getOPDAll(args.opdoff, wfs, metr, args.numproc,
-                            args.wavelength, args.debugLevel)
-            metr.getFFTPSF(args.fftpsfoff, state, wfs, args.wavelength,
-                            args.numproc, args.debugLevel)
+            state.getOPDAll(args.opdoff, metr, args.numproc, args.wavelength,
+                                znwcs, obscuration, args.debugLevel)
+            metr.getFFTPSF(args.fftpsfoff, state, args.wavelength,
+                            args.numproc, znwcs, obscuration, args.debugLevel)
             
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
                         pixelum=pixelum, wavelength = wave[iIter])
 
         if iIter>0:
             checkFFTPSF()
-            metr.getPSSNandMore(args.pssnoff, state, wfs, args.wavelength,
-                                    args.numproc, args.debugLevel, pixelum=pixelum)
+            metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
+                                    args.numproc, znwcs, obscuration,
+                                    args.debugLevel, pixelum=pixelum)
             checkPSSN()
                  
-        metr.getPSSNandMoreStamp(args.pssnoff, state, wfs, args.wavelength,
-                                args.numproc, args.debugLevel, pixelum=pixelum)
-        metr.getEllipticityStamp(args.ellioff, state, wfs, args.wavelength,
-                                args.numproc, args.debugLevel, pixelum=pixelum)
+        metr.getPSSNandMoreStamp(args.pssnoff, state, args.wavelength,
+                                args.numproc, znwcs, obscuration,
+                                     args.debugLevel, pixelum=pixelum)
+        metr.getEllipticityStamp(args.ellioff, state, args.wavelength,
+                                args.numproc, znwcs, obscuration, 
+                                     args.debugLevel, pixelum=pixelum)
 
     makeSumPlot()
 

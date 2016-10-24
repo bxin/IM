@@ -227,7 +227,11 @@ class aosTeleState(object):
 
     def update(self, ctrl):
         self.stateV += ctrl.uk
-
+        if np.any(self.stateV>ctrl.range):
+            ii = (self.stateV>ctrl.range).argmax()
+            raise RuntimeError("ERROR: stateV[%d] = %e > its range = %e" % (
+                ii, self.stateV[ii], ctrl.range[ii]))
+        
     def writePertFile(self, ndofA):
         fid = open(self.pertFile, 'w')
         for i in range(ndofA):
@@ -270,6 +274,9 @@ class aosTeleState(object):
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
+            self.pertMatFile_0 = '%s/iter0/sim%d_iter0_pert.mat' % (
+                self.pertDir, self.iSim)
+            self.stateV0 = np.loadtxt(self.pertMatFile_0)
             if wfs is not None:
                 wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
                     self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
@@ -281,7 +288,8 @@ class aosTeleState(object):
                 aa = np.loadtxt(metr.PSSNFile_m1)
                 metr.GQFWHMeff = aa[1, -1]
 
-    def getOPDAll(self, opdoff, wfs, metr, numproc, wavelength, debugLevel):
+    def getOPDAll(self, opdoff, metr, numproc, wavelength, znwcs,
+                      obscuration, debugLevel):
 
         if not opdoff:
             self.writeOPDinst(metr, wavelength)
@@ -321,7 +329,7 @@ class aosTeleState(object):
                 IHDU.close()
                 idx = (opd != 0)
                 Z = ZernikeAnnularFit(opd[idx], self.opdx[idx], self.opdy[idx],
-                                      wfs.znwcs, wfs.inst.obscuration)
+                                      znwcs, obscuration)
                 np.savetxt(fz, Z.reshape(1, -1), delimiter=' ')
 
             fz.close()
@@ -333,8 +341,8 @@ class aosTeleState(object):
                 print(self.opdGrid1d[-2])
                 print(self.opdx)
                 print(self.opdy)
-                print(wfs.znwcs)
-                print(wfs.inst.obscuration)
+                print(znwcs)
+                print(obscuration)
 
     def getOPDAllfromBase(self, baserun, metr):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (

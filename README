@@ -109,13 +109,17 @@ aosTeleState  ->state
 
 	functions():
 	writePertFile		write state vector to pert file
-	getOPD35	take pert file, create Phosim command and inst files, create OPDs@35 fields
-	getPSF31	take pert file, create Phosim command and inst files, create PSFs@31 fields 
-	getWFS4		take pert file, create Phosim command and inst files,
+	getOPDAll		take pert file, create Phosim command and inst files, create OPDs@35 fields
+	getOPDAllfromBase
+	getPSFAll		take pert file, create Phosim command and inst files, create PSFs@31 fields
+	getPSFAllfromBase
+	getWFSAll		take pert file, create Phosim command and inst files,
 			     	  create wavefront images@4 corners
-	setIterNo	manually update the iter No.	
-
-
+	setIterNo	manually update the iter No.
+	getChipBoundary
+	getCamDistortion	 
+	getLUTforce
+	
 aosWFS          ->wfs
 	nWFS	No. of wavefront sensors
 	nRun	for comcam, we run phosim twice to get WFS, for lsst, only once
@@ -136,7 +140,9 @@ aosWFS          ->wfs
 *	zCompFile	png file that shows the comparison between Zernikes from CWFS and the truth
 
 	functions():
-	preprocess	
+	preprocess
+	checkZ4C
+	getZ4CfromBase
 	
 aosMetric      ->metr
 	fieldX		x coordinate of the 35 fields, in deg.

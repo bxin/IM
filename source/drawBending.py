@@ -19,7 +19,7 @@ def main():
     if args.mirror == 'M1M3':
         # bending modes
         aa = np.loadtxt('data/M1M3/M1M3_1um_156_grid.DAT')
-        nodeID = aa[:, 0]
+        # nodeID = aa[:, 0]
         bx = aa[:, 1]
         by = aa[:, 2]
         bz = aa[:, 3:]

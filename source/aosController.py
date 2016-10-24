@@ -133,7 +133,13 @@ class aosController(object):
                 self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
             elif self.xref == '0':
                 self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
-                    -self.rho**2 *self.mH * state.stateV[esti.compIdx] - Mx)
+                    -self.rho**2 *self.mH.dot(state.stateV[esti.compIdx])
+                    - Mx)
+            elif self.xref == 'x00':
+                self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
+                    self.rho**2 *self.mH.dot(state.stateV0[esti.compIdx]
+                                                 - state.stateV[esti.compIdx])
+                    - Mx)
 
     def drawControlPanel(self, esti, state):
 
