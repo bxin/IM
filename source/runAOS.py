@@ -160,17 +160,17 @@ def main():
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
             state.getOPDAll(args.opdoff, metr, args.numproc, args.wavelength,
-                           wfs.znwcs, wfs.inst.obsucration, args.debugLevel)
+                           wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
 
             state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
     
             metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
                                     args.numproc, wfs.znwcs,
-                                    wfs.inst.obsucration, args.debugLevel)
+                                    wfs.inst.obscuration, args.debugLevel)
     
             metr.getEllipticity(args.ellioff, state, args.wavelength,
                                     args.numproc, wfs.znwcs,
-                                    wfs.inst.obsucration, args.debugLevel)
+                                    wfs.inst.obscuration, args.debugLevel)
     
             if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
                 pass
