@@ -87,6 +87,15 @@ class aosController(object):
         if (self.strategy == 'optiPSSN'):
             # use rms^2 as diagnal
             self.mH = np.diag(self.Authority**2)
+            if self.xref == 'x0xcor':
+                idx1 = 10 + 3 #b3 of M1M3 bending
+                idx2 = 10+esti.nB13Max+5 #b5 of M2 bending
+                if esti.compIdx[idx1] and esti.compIdx[idx2]:
+                    idx1 = sum(esti.compIdx[:idx1])-1 
+                    idx2 = sum(esti.compIdx[:idx2])-1 
+                    self.mH[idx1, idx2] = self.Authority[idx1] * \
+                      self.Authority[idx2] * 100 #10 times penalty
+
             # wavelength below in um,b/c output of A in um
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
             self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
@@ -129,7 +138,7 @@ class aosController(object):
                 yf = Afield.dot(esti.xhat[esti.compIdx]) + y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
-            if self.xref == 'x0':
+            if self.xref == 'x0' or self.xref == 'x0xcor':
                 self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
             elif self.xref == '0':
                 self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
@@ -140,6 +149,7 @@ class aosController(object):
                     self.rho**2 *self.mH.dot(state.stateV0[esti.compIdx]
                                                  - state.stateV[esti.compIdx])
                     - Mx)
+                
 
     def drawControlPanel(self, esti, state):
 
