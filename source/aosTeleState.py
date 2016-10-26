@@ -582,7 +582,14 @@ trackingmode 0\n\
 cleartracking\n\
 clearturbulence\n\
 clearopacity\n\
-atmosphericdispersion 0\n')
+atmosphericdispersion 0\n\
+lascatprob 0.0\n\
+contaminationmode 0\n\
+coatingmode 0\n\
+airrefraction 0\n\
+straylight 0\n\
+detectormode 0\n')
+#diffractionmode 0\n\
         fid.close()
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
@@ -714,7 +721,15 @@ raydensity 0.0\n\
 perturbationmode 1\n\
 trackingmode 0\n\
 cleartracking\n\
-clearclouds\n')
+clearclouds\n\
+lascatprob 0.0\n\
+contaminationmode 0\n\
+coatingmode 0\n\
+straylight 0\n\
+detectormode 0\n')
+#diffractionmode 0\n\
+#airrefraction 0\n\
+
         # body command interferes with move commands;
         # let's not piston the detector only.
         # if iRun != -1:
