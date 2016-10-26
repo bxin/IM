@@ -439,7 +439,7 @@ perturbationmode 1\n')
                     chipStr, px, py = self.fieldXY2Chip(
                         metr.fieldXp[i], metr.fieldYp[i], debugLevel)
                 elif pixelum == 0.1:
-                    chipStr = 'F%2d' % i
+                    chipStr = 'F%02d' % i
                     # px = 2000
                     # py = 2000
                 src = glob.glob('%s/output/*%d*%s*' % (
@@ -566,7 +566,7 @@ SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
         fid.write(fpert.read())
         for i in range(metr.nField):
             fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star none  none\n' % (
                 i, metr.fieldXp[i], metr.fieldYp[i], self.psfMag, sedfile))
         fid.close()
         fpert.close()

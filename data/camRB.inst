@@ -23,7 +23,7 @@ eimage		0
 #OPD grid size
 opd_size	256
 #PSF star magnitude
-psf_mag		22
+psf_mag		20
 #psf image stamp size
 psf_stamp_size	128
 
