@@ -61,8 +61,10 @@ def main():
             
         state = aosTeleState(inst, args.simuParam, args.iSim,
                             ndofA, phosimDir,
-                            pertDir, imageDir, band, wavelength, args.debugLevel)
-        metr = aosMetric(inst, state.opdSize, znwcs3, args.debugLevel)
+                            pertDir, imageDir, band, wavelength,
+                                 args.debugLevel)
+        metr = aosMetric(inst, state.opdSize, znwcs3, args.debugLevel,
+                             pixelum=pixelum)
         
         state.setIterNo(metr, iIter)
         state.writePertFile(ndofA)

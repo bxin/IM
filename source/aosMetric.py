@@ -23,7 +23,7 @@ from aosErrors import psfSamplingTooLowError
 
 class aosMetric(object):
 
-    def __init__(self, instName, opdSize, znwcs3, debugLevel):
+    def __init__(self, instName, opdSize, znwcs3, debugLevel, pixelum=10):
         if instName[:4] == 'lsst':
             self.nArm = 6
             armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
@@ -74,7 +74,7 @@ class aosMetric(object):
         self.fieldXp = self.fieldX.copy()
         self.fieldYp = self.fieldY.copy()
 
-        if instName[:4] == 'lsst': #falling on chip edge
+        if instName[:4] == 'lsst' and pixelum == 10: #falling on chip edge
             self.fieldXp[19] += 0.004
             self.fieldXp[22] -= 0.004
 

@@ -444,8 +444,13 @@ perturbationmode 1\n')
                     # py = 2000
                 src = glob.glob('%s/output/*%d*%s*' % (
                     self.phosimDir, self.obsID, chipStr))
-                if 'gz' in src[0]:
-                    runProgram('gunzip -f %s' % src[0])
+                if len(src)==0:
+                    raise RuntimeError(
+                         "cannot find Phosim output: osbID=%d, chipStr = %s" % (
+                         self.obsID, chipStr))
+                if 'gz' in src[-1]:
+                    runProgram('gunzip -f %s' % src[-1])
+
                 fitsfile = src[0].replace('.gz', '')
                 IHDU = fits.open(fitsfile)
                 chipImage = IHDU[0].data
