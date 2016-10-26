@@ -16,6 +16,7 @@ from aosM1M3 import aosM1M3
 from aosM2 import aosM2
 from aosTeleState import aosTeleState
 
+effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
 
 def main():
     parser = argparse.ArgumentParser(
@@ -72,8 +73,10 @@ def main():
                             'optiPSSN_x00', 'null'),
                         help='controller parameter file in data/, \
                         default=optiPSSN')
-    parser.add_argument('-w', dest='wavelength', type=float,
-                        default=0.5, help='wavelength in micron, default=0.5')
+    parser.add_argument('-w', dest='wavestr',
+                            choices=('0.5','u','g','r','i','z','y'),
+                        default="0.5", help='wavelength in micron, \
+                        default=0.5')
     parser.add_argument('-d', dest='debugLevel', type=int,
                         default=0, choices=(-1, 0, 1, 2, 3),
                         help='debug level, -1=quiet, 0=Zernikes, \
@@ -91,7 +94,14 @@ def main():
         
     if args.debugLevel >= 1:
         print(args)
-
+        
+    if args.wavestr == '0.5':
+        band = 'g'
+        wavelength = float(args.wavestr)
+    else:
+        band = args.wavestr
+        wavelength = effwave[args.wavestr]
+        
     # *****************************************
     # simulate the perturbations
     # *****************************************
@@ -106,7 +116,7 @@ def main():
     cwfsDir = '../../wavefront/cwfs/'
     algoFile = 'exp'
     wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, args.wavelength, args.debugLevel)
+                 128, wavelength, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
@@ -121,13 +131,14 @@ def main():
     imageDir = 'image/sim%d' % args.iSim
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
-                         pertDir, imageDir, args.debugLevel, M1M3=M1M3, M2=M2)
+                         pertDir, imageDir, band, wavelength, 
+                             args.debugLevel, M1M3=M1M3, M2=M2)
     # *****************************************
     # control algorithm
     # *****************************************
-    metr = aosMetric(args.inst, state, wfs.znwcs3, args.debugLevel)
+    metr = aosMetric(args.inst, state.opdSize, wfs.znwcs3, args.debugLevel)
     ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs, M1M3, M2,
-                         args.wavelength, args.gain, args.debugLevel)
+                         wavelength, args.gain, args.debugLevel)
 
     # *****************************************
     # start the Loop
@@ -141,7 +152,7 @@ def main():
         if not args.ctrloff:
             if iIter > 0: #args.startiter:
                 esti.estimate(state, wfs, ctrl, args.sensor)
-                ctrl.getMotions(esti, metr, wfs, state, args.wavelength)
+                ctrl.getMotions(esti, metr, wfs, state, wavelength)
                 ctrl.drawControlPanel(esti, state)
 
                 # need to remake the pert file here.
@@ -160,16 +171,16 @@ def main():
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
-            state.getOPDAll(args.opdoff, metr, args.numproc, args.wavelength,
+            state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                            wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
 
             state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
     
-            metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
+            metr.getPSSNandMore(args.pssnoff, state, wavelength,
                                     args.numproc, wfs.znwcs,
                                     wfs.inst.obscuration, args.debugLevel)
     
-            metr.getEllipticity(args.ellioff, state, args.wavelength,
+            metr.getEllipticity(args.ellioff, state, wavelength,
                                     args.numproc, wfs.znwcs,
                                     wfs.inst.obscuration, args.debugLevel)
     

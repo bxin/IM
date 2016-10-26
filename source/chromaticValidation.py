@@ -10,6 +10,8 @@ import argparse
 from aosMetric import aosMetric
 from aosTeleState import aosTeleState
 
+effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
+
 def main():
     parser = argparse.ArgumentParser(
         description='-----Chromatic Validation------')
@@ -41,47 +43,55 @@ def main():
     pertDir = 'pert/sim%d' % args.iSim
     imageDir = 'image/sim%d' % args.iSim
 
-    state = aosTeleState(inst, args.simuParam, args.iSim,
-                         ndofA, phosimDir,
-                         pertDir, imageDir, args.debugLevel)
     znwcs = 22
     znwcs3 = znwcs - 3
     obscuration = 0.61
-    metr = aosMetric(inst, state, znwcs3, args.debugLevel)
 
     nIter = 6
-    wave = [0, 622, 550, 694, 586, 658]
+    band = 'r'
+    wave = [0, 0.622, 0.550, 0.694, 0.586, 0.658]
     wlwt = [1, 1, 1, 1, 1, 1]
     pixelum = 0.1 # 0.1um = 2mas
     
-    for iIter in range(nIter):
+    # for iIter in range(nIter):
+    for iIter in range(1):
+        wavelength = wave[iIter]
+        if wavelength == 0:
+            wavelength = effwave[band]
+            
+        state = aosTeleState(inst, args.simuParam, args.iSim,
+                            ndofA, phosimDir,
+                            pertDir, imageDir, band, wavelength, args.debugLevel)
+        metr = aosMetric(inst, state.opdSize, znwcs3, args.debugLevel)
+        
         state.setIterNo(metr, iIter)
         state.writePertFile(ndofA)
 
+        
         if iIter>0:
-            state.getOPDAll(args.opdoff, metr, args.numproc, args.wavelength,
+            state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                                 znwcs, obscuration, args.debugLevel)
-            metr.getFFTPSF(args.fftpsfoff, state, args.wavelength,
+            metr.getFFTPSF(args.fftpsfoff, state, wavelength,
                             args.numproc, znwcs, obscuration, args.debugLevel)
             
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
-                        pixelum=pixelum, wavelength = wave[iIter])
+                        pixelum=pixelum)
 
-        if iIter>0:
-            checkFFTPSF()
-            metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
-                                    args.numproc, znwcs, obscuration,
-                                    args.debugLevel, pixelum=pixelum)
-            checkPSSN()
-                 
-        metr.getPSSNandMoreStamp(args.pssnoff, state, args.wavelength,
-                                args.numproc, znwcs, obscuration,
-                                     args.debugLevel, pixelum=pixelum)
-        metr.getEllipticityStamp(args.ellioff, state, args.wavelength,
-                                args.numproc, znwcs, obscuration, 
-                                     args.debugLevel, pixelum=pixelum)
+        # if iIter>0:
+        #     checkFFTPSF()
+        #     metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
+        #                             args.numproc, znwcs, obscuration,
+        #                             args.debugLevel, pixelum=pixelum)
+        #     checkPSSN()
+        #          
+        # metr.getPSSNandMoreStamp(args.pssnoff, state, args.wavelength,
+        #                         args.numproc, znwcs, obscuration,
+        #                              args.debugLevel, pixelum=pixelum)
+        # metr.getEllipticityStamp(args.ellioff, state, args.wavelength,
+        #                         args.numproc, znwcs, obscuration, 
+        #                              args.debugLevel, pixelum=pixelum)
 
-    makeSumPlot()
+    # makeSumPlot()
 
 def checkFFTPSF():
     """

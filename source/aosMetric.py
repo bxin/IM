@@ -23,7 +23,7 @@ from aosErrors import psfSamplingTooLowError
 
 class aosMetric(object):
 
-    def __init__(self, instName, state, znwcs3, debugLevel):
+    def __init__(self, instName, opdSize, znwcs3, debugLevel):
         if instName[:4] == 'lsst':
             self.nArm = 6
             armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
@@ -87,7 +87,7 @@ class aosMetric(object):
         # self.pssnRange = aa[: 1]
 
         self.znx2 = np.zeros((self.nFieldp4, znwcs3))
-        self.stampD = 2**np.ceil(np.log2(state.opdSize))
+        self.stampD = 2**np.ceil(np.log2(opdSize))
 
     def getFWHMfromZ(self):
         self.fwhm = np.zeros(self.nField)

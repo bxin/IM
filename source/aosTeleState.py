@@ -18,11 +18,17 @@ from lsst.cwfs.tools import extractArray
 
 import matplotlib.pyplot as plt
 
+phosimFilterID = {'u':0, 'g':1, 'r':2, 'i':3, 'z':4, 'y':5}
 
 class aosTeleState(object):
 
     def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
-                 pertDir, imageDir, debugLevel, M1M3=None, M2=None):
+                 pertDir, imageDir, band, wavelength, debugLevel,
+                     M1M3=None, M2=None):
+
+        self.band = band
+        self.wavelength = wavelength
+        
         # plan to write these to txt files. no columns for iter
         self.stateV = np.zeros(ndofA)  # *np.nan # telescope state(?)
 
@@ -404,8 +410,7 @@ raydensity 0.0\n\
 perturbationmode 1\n')
         fid.close()
 
-    def getPSFAll(self, psfoff, metr, numproc, debugLevel, pixelum=10,
-                  wavelength = 500):
+    def getPSFAll(self, psfoff, metr, numproc, debugLevel, pixelum=10):
 
         if not psfoff:
             self.writePSFinst(metr)
@@ -413,8 +418,12 @@ perturbationmode 1\n')
             self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
 
+            if pixelum == 10:
+                instiq = self.inst
+            elif pixelum == 0.1:
+                instiq = self.inst + 'iq'
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
-                self.PSF_inst, self.PSF_cmd, self.inst, numproc, self.eimage,
+                self.PSF_inst, self.PSF_cmd, instiq, numproc, self.eimage,
                 self.PSF_log)
             if debugLevel >= 2:
                 print('********Runnnig PHOSIM with following \
@@ -426,28 +435,44 @@ perturbationmode 1\n')
                        self.phosimDir, argstring=myargs)
             plt.figure(figsize=(10, 10))
             for i in range(metr.nField):
-                chipStr, px, py = self.fieldXY2Chip(
-                    metr.fieldXp[i], metr.fieldYp[i], debugLevel)
+                if pixelum == 10:
+                    chipStr, px, py = self.fieldXY2Chip(
+                        metr.fieldXp[i], metr.fieldYp[i], debugLevel)
+                elif pixelum == 0.1:
+                    chipStr = 'F%2d' % i
+                    # px = 2000
+                    # py = 2000
                 src = glob.glob('%s/output/*%d*%s*' % (
                     self.phosimDir, self.obsID, chipStr))
                 if 'gz' in src[0]:
                     runProgram('gunzip -f %s' % src[0])
-                IHDU = fits.open(src[0].replace('.gz', ''))
+                fitsfile = src[0].replace('.gz', '')
+                IHDU = fits.open(fitsfile)
                 chipImage = IHDU[0].data
                 IHDU.close()
-                psf = chipImage[
-                    py - self.psfStampSize / 2:py + self.psfStampSize / 2,
-                    px - self.psfStampSize / 2:px + self.psfStampSize / 2]
-                offsety = np.argwhere(psf == psf.max())[0][0] - \
-                    self.psfStampSize / 2 + 1
-                offsetx = np.argwhere(psf == psf.max())[0][1] - \
-                    self.psfStampSize / 2 + 1
-                psf = chipImage[
-                    py - self.psfStampSize / 2 + offsety:
-                    py + self.psfStampSize / 2 + offsety,
-                    px - self.psfStampSize / 2 + offsetx:
-                    px + self.psfStampSize / 2 + offsetx]
+                if pixelum == 10:
+                    psf = chipImage[
+                        py - self.psfStampSize / 2:py + self.psfStampSize / 2,
+                        px - self.psfStampSize / 2:px + self.psfStampSize / 2]
+                    offsety = np.argwhere(psf == psf.max())[0][0] - \
+                        self.psfStampSize / 2 + 1
+                    offsetx = np.argwhere(psf == psf.max())[0][1] - \
+                        self.psfStampSize / 2 + 1
+                    psf = chipImage[
+                        py - self.psfStampSize / 2 + offsety:
+                        py + self.psfStampSize / 2 + offsety,
+                        px - self.psfStampSize / 2 + offsetx:
+                        px + self.psfStampSize / 2 + offsetx]
+                    displaySize = 20
+                    if debugLevel >= 3:
+                        print('px = %d, py = %d' % (px, py))
+                        print('offsetx = %d, offsety = %d' % (offsetx, offsety))
+                        print('passed %d' % i)
 
+                elif pixelum == 0.1:
+                    psf = chipImage
+                    displaySize = 100
+                    
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter, i)
                 if os.path.isfile(dst):
@@ -469,15 +494,10 @@ perturbationmode 1\n')
                     nCol = 3
 
                 plt.subplot(nRow, nCol, pIdx)
-                plt.imshow(extractArray(psf, 20),
+                plt.imshow(extractArray(psf, displaySize),
                            origin='lower', interpolation='none')
                 plt.title('%d' % i)
                 plt.axis('off')
-
-                if debugLevel >= 3:
-                    print('px = %d, py = %d' % (px, py))
-                    print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                    print('passed %d' % i)
 
             # plt.show()
             pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
@@ -529,18 +549,25 @@ perturbationmode 1\n')
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         fid = open(self.PSF_inst, 'w')
-        fid.write('Opsim_filter 1\n\
+        fid.write('Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-SIM_CAMCONFIG 1\n' % (self.obsID,  self.obsID % 1000 - 31))
+SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
+                          self.obsID % 1000 - 31))
         fpert = open(self.pertFile, 'r')
+        
+        if self.wavelength == 0.5:
+            sedfile = 'sed_500.txt'
+        else:
+            sedfile = 'sed_flat.txt'
+            
         fid.write(fpert.read())
         for i in range(metr.nField):
             fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/sed_500.txt 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                i, metr.fieldXp[i], metr.fieldYp[i], self.psfMag))
+../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
+                i, metr.fieldXp[i], metr.fieldYp[i], self.psfMag, sedfile))
         fid.close()
         fpert.close()
 

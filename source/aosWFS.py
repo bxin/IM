@@ -100,10 +100,10 @@ class aosWFS(object):
                     offsetx -= px - 2 * state.cwfsStampSize
 
                 psf = chipImage[
-                    py - state.psfStampSize / 2 + offsety:
-                    py + state.psfStampSize / 2 + offsety,
-                    px - state.psfStampSize / 2 + offsetx:
-                    px + state.psfStampSize / 2 + offsetx]
+                    py - state.cwfsStampSize / 2 + offsety:
+                    py + state.cwfsStampSize / 2 + offsety,
+                    px - state.cwfsStampSize / 2 + offsetx:
+                    px + state.cwfsStampSize / 2 + offsetx]
 
                 if state.inst[:4]=='lsst':
                     # readout of corner raft are identical,
