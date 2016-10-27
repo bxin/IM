@@ -420,7 +420,7 @@ perturbationmode 1\n')
 
             if pixelum == 10:
                 instiq = self.inst
-            elif pixelum == 0.1:
+            elif pixelum == 0.2:
                 instiq = self.inst + 'iq'
             myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
                 self.PSF_inst, self.PSF_cmd, instiq, numproc, self.eimage,
@@ -431,15 +431,15 @@ perturbationmode 1\n')
                 print('Check the log file below for progress')
                 print('%s' % myargs)
 
-            #runProgram('python %s/phosim.py' %
-            #           self.phosimDir, argstring=myargs)
+            runProgram('python %s/phosim.py' %
+                       self.phosimDir, argstring=myargs)
             plt.figure(figsize=(10, 10))
             for i in range(metr.nField):
                 if pixelum == 10:
                     chipStr, px, py = self.fieldXY2Chip(
                         metr.fieldXp[i], metr.fieldYp[i], debugLevel)
                     self.psfStampSize = 128 #no need to be too big, 10um pixel
-                elif pixelum == 0.1:
+                elif pixelum == 0.2:
                     chipStr = 'F%02d' % i
                     px = 2000
                     py = 2000
@@ -476,7 +476,7 @@ perturbationmode 1\n')
 
                 if pixelum == 10:
                     displaySize = 20
-                elif pixelum == 0.1:
+                elif pixelum == 0.2:
                     displaySize = 100
                     
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
