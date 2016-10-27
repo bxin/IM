@@ -16,6 +16,8 @@ def main():
     parser = argparse.ArgumentParser(
         description='-----Chromatic Validation------')
     parser.add_argument('iSim', type=int, help='sim#')
+    parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
+                        action='store_true')
     parser.add_argument('-psfoff', help='w/o regenerating psf images',
                         action='store_true')
     parser.add_argument('-fftpsfoff', help='w/o calculating FFT psf images',
@@ -54,7 +56,7 @@ def main():
     pixelum = 0.2 # 0.1um = 2mas
     
     # for iIter in range(nIter):
-    for iIter in range(1):
+    for iIter in range(1, 2):
         wavelength = wave[iIter]
         if wavelength == 0:
             wavelength = effwave[band]
@@ -73,8 +75,8 @@ def main():
         if iIter>0:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                                 znwcs, obscuration, args.debugLevel)
-            metr.getFFTPSF(args.fftpsfoff, state, wavelength,
-                            args.numproc, znwcs, obscuration, args.debugLevel)
+            metr.getFFTPSF(args.fftpsfoff, state, wavelength, pixelum,
+                            args.numproc, args.debugLevel)
             
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
                         pixelum=pixelum)
