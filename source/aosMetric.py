@@ -106,7 +106,7 @@ class aosMetric(object):
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
                 psfFile = opdFile.replace('opd', 'fftpsf')
                 argList.append((opdFile, wavelength, imagedelta, sensorfactor,
-                                    fno, psfFile, debugLevel))
+                                    fno, psfFile, state.psfStampSize, debugLevel))
     
                 # test, pdb cannot go into the subprocess
                 # aa = runFFTPSF(argList[0])
@@ -643,7 +643,8 @@ def runFFTPSF(argList):
     sensorfactor = argList[3]
     fno = argList[4]
     psfFile = argList[5]
-    debugLevel = argList[6]
+    psfStampSize = argList[6]
+    debugLevel = argList[7]
     print('runFFTPSF: %s ' %opdFile)
     
     IHDU = fits.open(opdFile)
@@ -652,7 +653,7 @@ def runFFTPSF(argList):
 
     psf = opd2psf(wfm, 0, wavelength, imagedelta, sensorfactor,
                                     fno, debugLevel)
-    psf = extractArray(psf, wfm.shape[0])
+    psf = extractArray(psf, psfStampSize)
     if os.path.isfile(psfFile):
         os.remove(psfFile)
     hdu = fits.PrimaryHDU(psf)
