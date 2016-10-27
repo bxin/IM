@@ -79,17 +79,17 @@ def main():
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
                         pixelum=pixelum)
 
-        # if iIter>0:
-        #     checkFFTPSF()
-        #     metr.getPSSNandMore(args.pssnoff, state, args.wavelength,
-        #                             args.numproc, znwcs, obscuration,
-        #                             args.debugLevel, pixelum=pixelum)
-        #     checkPSSN()
-        #          
-        # metr.getPSSNandMoreStamp(args.pssnoff, state, args.wavelength,
-        #                         args.numproc, znwcs, obscuration,
-        #                              args.debugLevel, pixelum=pixelum)
-        # metr.getEllipticityStamp(args.ellioff, state, args.wavelength,
+        if iIter>0:
+            checkFFTPSF()
+            metr.getPSSNandMore(args.pssnoff, state, wavelength,
+                                    args.numproc, znwcs, obscuration,
+                                    args.debugLevel, pixelum=pixelum)
+            checkPSSN()
+                 
+        metr.getPSSNandMore(args.pssnoff, state, wavelength,
+                                args.numproc, znwcs, obscuration,
+                                     args.debugLevel, pixelum=pixelum)
+        # metr.getEllipticity(args.ellioff, state, wavelength,
         #                         args.numproc, znwcs, obscuration, 
         #                              args.debugLevel, pixelum=pixelum)
 

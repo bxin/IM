@@ -163,10 +163,8 @@ aosMetric      ->metr
 	dm5			31x1 vector
 
 	functions():
-	getPSSNandMore		calculate PSSN,FWHMeff,dm5 for 31 PSFs using Phosim OPDs
-	getEllipticity		calculate ellipticity for 31 PSFs using Phosim OPDs
-        getPSSNandMore10um  	calculate PSSN,FWHMeff,dm5 for 31 PSFs using Phosim PSFs
-        getEllipticity10um  	calculate ellipticity for 31 PSFs using Phosim PSFs
+	getPSSNandMore		calculate PSSN,FWHMeff,dm5 for 31 PSFs using Phosim OPDs or PSFs
+	getEllipticity		calculate ellipticity for 31 PSFs using Phosim OPDs or PSFs
 	getFWHMfromZ		calculate FWHMgeo using the quadrature model with wavefront Zernikes
 	getPSSNfromZ		calculate PSSN using the alpha values with wavefront Zernikes
 

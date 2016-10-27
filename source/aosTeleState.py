@@ -431,17 +431,18 @@ perturbationmode 1\n')
                 print('Check the log file below for progress')
                 print('%s' % myargs)
 
-            runProgram('python %s/phosim.py' %
-                       self.phosimDir, argstring=myargs)
+            #runProgram('python %s/phosim.py' %
+            #           self.phosimDir, argstring=myargs)
             plt.figure(figsize=(10, 10))
             for i in range(metr.nField):
                 if pixelum == 10:
                     chipStr, px, py = self.fieldXY2Chip(
                         metr.fieldXp[i], metr.fieldYp[i], debugLevel)
+                    self.psfStampSize = 128 #no need to be too big, 10um pixel
                 elif pixelum == 0.1:
                     chipStr = 'F%02d' % i
-                    # px = 2000
-                    # py = 2000
+                    px = 2000
+                    py = 2000
                 src = glob.glob('%s/output/*%d*%s*' % (
                     self.phosimDir, self.obsID, chipStr))
                 if len(src)==0:
@@ -455,27 +456,27 @@ perturbationmode 1\n')
                 IHDU = fits.open(fitsfile)
                 chipImage = IHDU[0].data
                 IHDU.close()
-                if pixelum == 10:
-                    psf = chipImage[
-                        py - self.psfStampSize / 2:py + self.psfStampSize / 2,
-                        px - self.psfStampSize / 2:px + self.psfStampSize / 2]
-                    offsety = np.argwhere(psf == psf.max())[0][0] - \
-                        self.psfStampSize / 2 + 1
-                    offsetx = np.argwhere(psf == psf.max())[0][1] - \
-                        self.psfStampSize / 2 + 1
-                    psf = chipImage[
-                        py - self.psfStampSize / 2 + offsety:
-                        py + self.psfStampSize / 2 + offsety,
-                        px - self.psfStampSize / 2 + offsetx:
-                        px + self.psfStampSize / 2 + offsetx]
-                    displaySize = 20
-                    if debugLevel >= 3:
-                        print('px = %d, py = %d' % (px, py))
-                        print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                        print('passed %d' % i)
 
+                psf = chipImage[
+                    py - self.psfStampSize *2:py + self.psfStampSize *2,
+                    px - self.psfStampSize *2:px + self.psfStampSize *2]
+                offsety = np.argwhere(psf == psf.max())[0][0] - \
+                    self.psfStampSize *2 + 1
+                offsetx = np.argwhere(psf == psf.max())[0][1] - \
+                    self.psfStampSize *2 + 1
+                psf = chipImage[
+                    py - self.psfStampSize / 2 + offsety:
+                    py + self.psfStampSize / 2 + offsety,
+                    px - self.psfStampSize / 2 + offsetx:
+                    px + self.psfStampSize / 2 + offsetx]
+                if debugLevel >= 3:
+                    print('px = %d, py = %d' % (px, py))
+                    print('offsetx = %d, offsety = %d' % (offsetx, offsety))
+                    print('passed %d' % i)
+
+                if pixelum == 10:
+                    displaySize = 20
                 elif pixelum == 0.1:
-                    psf = chipImage
                     displaySize = 100
                     
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (

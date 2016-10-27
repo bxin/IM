@@ -144,28 +144,36 @@ class aosMetric(object):
                 print(self.GQPSSN)
                     
     def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
-                       znwcs, obscuration, debugLevel):
-
+                       znwcs, obscuration, debugLevel, pixelum=0):
+        """
+        pixelum = 0: the input is opd map
+        pixelum != 0: input is a fine-pixel PSF image stamp
+        """
+        
         if not pssnoff:
             # multithreading on MacOX doesn't work with pinv
             if sys.platform == 'darwin':
                 self.PSSN = np.zeros(self.nField)
             argList = []
             for i in range(self.nField):
-                opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
+                if pixelum == 0:
+                    inputFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
+                else:
+                    inputFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
     
-                argList.append((opdFile, state, znwcs,
+                argList.append((inputFile, state, znwcs,
                                 obscuration, wavelength, self.stampD,
-                                debugLevel))
+                                debugLevel, pixelum))
     
-                # test, pdb cannot go into the subprocess
-                # aa = runEllipticity(argList[0])
                 if sys.platform == 'darwin':
                     self.PSSN[i] = runPSSNandMore(argList[i])
     
             # tested, but couldn't figure out why the below didn't work
             if sys.platform != 'darwin':
+                # test, pdb cannot go into the subprocess
+                # aa = runPSSNandMore(argList[0])
                 pool = multiprocessing.Pool(numproc)
                 self.PSSN = pool.map(runPSSNandMore, argList)
                 pool.close()
@@ -201,60 +209,6 @@ class aosMetric(object):
         aa = np.loadtxt(self.PSSNFile)
         self.GQFWHMeff = aa[1, -1] #needed for shiftGear
                     
-    def getPSSNandMoreStamp(self, pssnoff, state, wavelength, numproc,
-                             znwcs, obscuration, debugLevel, pixelum = 10):
-        """
-use the Phosim image stamps with fine pixel grid to determine PSSN and more
-to be implemented
-        """
-
-        if not pssnoff:
-            # multithreading on MacOX doesn't work with pinv
-            if sys.platform == 'darwin':
-                self.PSSN = np.zeros(self.nField)
-            argList = []
-            for i in range(self.nField):
-                opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
-    
-                argList.append((opdFile, state, znwcs,
-                                obscuration, wavelength, self.stampD,
-                                debugLevel))
-    
-                # test, pdb cannot go into the subprocess
-                # aa = runEllipticity(argList[0])
-                if sys.platform == 'darwin':
-                    self.PSSN[i] = runPSSNandMore(argList[i])
-    
-            # tested, but couldn't figure out why the below didn't work
-            if sys.platform != 'darwin':
-                pool = multiprocessing.Pool(numproc)
-                self.PSSN = pool.map(runPSSNandMore, argList)
-                pool.close()
-                pool.join()
-                self.PSSN = np.array(self.PSSN)
-                
-            self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
-            self.dm5 = -1.25 * np.log10(self.PSSN)
-    
-            if debugLevel >= 2:
-                for i in range(self.nField):
-                    print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
-                        i, self.PSSN[i], self.FWHMeff[i]*1e3))
-    
-            self.GQPSSN = np.sum(self.w * self.PSSN)
-            self.GQFWHMeff = np.sum(self.w * self.FWHMeff)
-            self.GQdm5 = np.sum(self.w * self.dm5)
-            a1=np.concatenate((self.PSSN, self.GQPSSN*np.ones(1)))
-            a2=np.concatenate((self.FWHMeff, self.GQFWHMeff*np.ones(1)))
-            a3=np.concatenate((self.dm5, self.GQdm5*np.ones(1)))
-            np.savetxt(self.PSSNFile, np.vstack((a1,a2,a3)))
-            
-            if debugLevel >= 2:
-                print(self.GQPSSN)
-        else:
-            aa = np.loadtxt(self.PSSNFile)
-            self.GQFWHMeff = aa[1, -1] #needed for shiftGear        
 
     def getEllipticity(self, ellioff, state, wavelength, numproc,
                        znwcs, obscuration, debugLevel):
@@ -299,42 +253,6 @@ to be implemented
             baseFile = self.elliFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
             os.link(baseFile, self.elliFile)
 
-    def getEllipticityStamp(self, ellioff, state, wavelength, numproc,
-                            znwcs, obscuration, debugLevel, pixelum = 10):
-        if not ellioff:
-            # multithreading on MacOX doesn't work with pinv
-            if sys.platform == 'darwin':
-                self.elli = np.zeros(self.nField)
-            argList = []
-            for i in range(self.nField):
-                opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
-    
-                argList.append((opdFile, state, znwcs,
-                                obscuration, wavelength, self.stampD,
-                                debugLevel))
-    
-                # test, pdb cannot go into the subprocess
-                # aa = runEllipticity(argList[0])
-                if sys.platform == 'darwin':
-                    self.elli[i] = runEllipticity(argList[i])
-    
-            # tested, but couldn't figure out why the below didn't work
-            if sys.platform != 'darwin':
-                pool = multiprocessing.Pool(numproc)
-                self.elli = pool.map(runEllipticity, argList)
-                pool.close()
-                pool.join()
-                
-            for i in range(self.nField):
-                if debugLevel >= 2:
-                    print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
-    
-            self.GQelli = np.sum(self.w * self.elli)
-            a1=np.concatenate((self.elli, self.GQelli*np.ones(1)))
-            np.savetxt(self.elliFile, a1)
-            if debugLevel >= 2:
-                print(self.GQelli)
 
 def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
               pmask=0, imagedelta=0.2, fno=1.2335, debugLevel=0):
@@ -354,7 +272,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
     pmask: pupil mask. when opd is used, it can be generated using opd image,
     we can put 0 or -1 or whatever here.
     when psf is used, this needs to be provided separately with same
-    size as array
+    size as array.
     imagedelta and fno are only needed when psf is used. use 0,0 for opd
 
     THE INTERNAL RESOLUTION THAT FFTS OPERATE ON IS VERY IMPORTANT
@@ -390,6 +308,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
         except NameError:
             iad = (array != 0)
     elif type == 'psf':
+        m = m * k
         iad = padArray(pmask, m)
 
     # number of non-zero elements, used for normalization later
@@ -436,7 +355,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
 
 def createMTFatm(D, m, k, wlum, zen, r0inmRef):
     """
-    m is the number of pixel we want to have to cover the length of D/wl.
+    m is the number of pixel we want to have to cover the length of D.
     If we want a k-times bigger array, we pad the mtf generated using k=1.
     """
 
@@ -696,7 +615,7 @@ def runEllipticity(argList):
     return elli
 
 def runPSSNandMore(argList):
-    opdFile = argList[0]
+    inputFile = argList[0]
     opdx = argList[1].opdx
     opdy = argList[1].opdy
     znwcs = argList[2]
@@ -704,25 +623,40 @@ def runPSSNandMore(argList):
     wavelength = argList[4]
     stampD = argList[5]
     debugLevel = argList[6]
-    print('runPSSNandMore: %s '% opdFile)
+    pixelum = argList[7]
+    print('runPSSNandMore: %s '% inputFile)
     
-    IHDU = fits.open(opdFile)
-    opd = IHDU[0].data # unit: um
+    IHDU = fits.open(inputFile)
+    myArray = IHDU[0].data # unit: um
     IHDU.close()
 
-    # before calc_pssn,
-    # (1) remove PTT,
-    # (2) make sure outside of pupil are all zeros
-    idx = (opd != 0)
-    Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)
-    Z[3:] = 0
-    opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
-
-    if stampD > opd.shape[0]:
-        a = opd
-        opd = np.zeros((stampD, stampD))
-        opd[:a.shape[0], :a.shape[1]] = a
-
-    pssn = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+    if pixelum == 0:
+        opd = myArray
+        # before calc_pssn,
+        # (1) remove PTT,
+        # (2) make sure outside of pupil are all zeros
+        idx = (opd != 0)
+        Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)
+        Z[3:] = 0
+        opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
+    
+        if stampD > opd.shape[0]:
+            a = opd
+            opd = np.zeros((stampD, stampD))
+            opd[:a.shape[0], :a.shape[1]] = a
+    
+        pssn = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+    else:
+        psf = myArray
+        m = psf.shape[0]
+        y, x = np.mgrid[-(m/2-0.5):(m/2+0.5), -(m/2-0.5):(m/2+0.5)]
+        x = x/(m/2)
+        y = y/(m/2)
+        r = np.sqrt(x**2 + y**2)
+        pmask = np.ones((m, m))
+        pmask[(r>1) * (r<obsR)] = 0
+        pssn = calc_pssn(psf, wavelength, type = 'psf', pmask = pmask,
+                             imagedelta = pixelum, debugLevel=debugLevel)        
+        
     return pssn
 
