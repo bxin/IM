@@ -19,7 +19,7 @@ from lsst.cwfs.tools import ZernikeAnnularEval
 from lsst.cwfs.errors import nonSquareImageError
 from aosErrors import psfSamplingTooLowError
 
-# import cwfsPlots as plot
+import matplotlib.pyplot as plt
 
 
 class aosMetric(object):
@@ -115,6 +115,39 @@ class aosMetric(object):
             pool.map(runFFTPSF, argList)
             pool.close()
             pool.join()
+            
+            plt.figure(figsize=(10, 10))
+            for i in range(self.nField):
+
+                psfFile = '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
+                IHDU = fits.open(psfFile)
+                psf = IHDU[0].data
+                IHDU.close()
+                
+                if state.inst[:4] == 'lsst':
+                    if i == 0:
+                        pIdx = 1
+                    else:
+                        pIdx = i + self.nArm
+                    nRow = self.nRing + 1
+                    nCol = self.nArm
+                elif state.inst[:6] == 'comcam':
+                    aa = [7, 4, 1, 8, 5, 2, 9, 6, 3]
+                    pIdx = aa[i]
+                    nRow = 3
+                    nCol = 3
+                displaySize = 100
+                plt.subplot(nRow, nCol, pIdx)
+                plt.imshow(extractArray(psf, displaySize),
+                           origin='lower', interpolation='none')
+                plt.title('%d' % i)
+                plt.axis('off')
+
+            # plt.show()
+            pngFile = '%s/iter%d/sim%d_iter%d_fftpsf.png' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter)
+            plt.savefig(pngFile, bbox_inches='tight')
 
                     
     def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
@@ -187,20 +220,30 @@ class aosMetric(object):
                     
 
     def getEllipticity(self, ellioff, state, wavelength, numproc,
-                       znwcs, obscuration, debugLevel):
-
+                       znwcs, obscuration, debugLevel, pixelum=0):
+        """
+        pixelum = 0: the input is opd map
+        pixelum != 0: input is a fine-pixel PSF image stamp
+        """
+        
         if not ellioff:
             # multithreading on MacOX doesn't work with pinv
+            # before we psf2eAtmW(), we do ZernikeFit to remove PTT
+            # pinv appears in ZernikeFit()
             if sys.platform == 'darwin':
                 self.elli = np.zeros(self.nField)
             argList = []
             for i in range(self.nField):
-                opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i)
-    
-                argList.append((opdFile, state, znwcs,
+                if pixelum == 0:                
+                    inputFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
+                else:
+                    inputFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
+        
+                argList.append((inputFile, state, znwcs,
                                 obscuration, wavelength, self.stampD,
-                                debugLevel))
+                                debugLevel, pixelum))
     
                 # test, pdb cannot go into the subprocess
                 # aa = runEllipticity(argList[0])
@@ -386,20 +429,24 @@ def r0Wz(r0inmRef, zen, wlum):
     return r0a
 
 
-def psf2eAtmW(wfm, wlum, D=8.36, pmask=0, r0inmRef=0.1382,
+def psf2eAtmW(wfm, wlum, type='opd', D=8.36, pmask=0, r0inmRef=0.1382,
               sensorFactor=1,
               zen=0, imagedelta=0.2, fno=1.2335, debugLevel=0):
     """
     wfm: wavefront OPD in micron
     """
-    psfe = opd2psf(wfm, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
-    otfe = psf2otf(psfe)  # OTF of error
-
     m = wfm.shape[0] / sensorFactor
     k = fno * wlum / imagedelta
     # since padding=k/sensorFactor<=k, any psfSamplingTooLowError
     # would have been raised in opd2psf()
     mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
+
+    if type == 'opd':
+        psfe = opd2psf(wfm, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
+    else:
+        psfe = padArray(wfm, mtfa.shape[0])
+        
+    otfe = psf2otf(psfe)  # OTF of error
 
     otf = otfe * mtfa
     psf = otf2psf(otf)
@@ -558,7 +605,7 @@ def otf2psf(otf):
     return psf
 
 def runEllipticity(argList):
-    opdFile = argList[0]
+    inputFile = argList[0]
     opdx = argList[1].opdx
     opdy = argList[1].opdy
     znwcs = argList[2]
@@ -566,28 +613,37 @@ def runEllipticity(argList):
     wavelength = argList[4]
     stampD = argList[5]
     debugLevel = argList[6]
-    print('runEllipticity: %s '% opdFile)
+    pixelum = argList[7]
+    print('runEllipticity: %s '% inputFile)
     
-    IHDU = fits.open(opdFile)
-    opd = IHDU[0].data # um
+    IHDU = fits.open(inputFile)
+    myArray = IHDU[0].data # um
     IHDU.close()
-    
-    # before psf2eAtmW()
-    # (1) remove PTT,
-    # (2) make sure outside of pupil are all zeros
-    idx = (opd != 0)
-    
-    Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)    
-    Z[3:] = 0
-    opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
 
-    if stampD > opd.shape[0]:
-        a = opd
-        opd = np.zeros((stampD, stampD))
-        opd[:a.shape[0], :a.shape[1]] = a
-
-    elli, _, _, _ = psf2eAtmW(
-        opd, wavelength, debugLevel=debugLevel)
+    if pixelum == 0:
+        opd = myArray
+        # before psf2eAtmW()
+        # (1) remove PTT,
+        # (2) make sure outside of pupil are all zeros
+        idx = (opd != 0)
+        
+        Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], znwcs, obsR)    
+        Z[3:] = 0
+        opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], obsR)
+    
+        if stampD > opd.shape[0]:
+            a = opd
+            opd = np.zeros((stampD, stampD))
+            opd[:a.shape[0], :a.shape[1]] = a
+    
+        elli, _, _, _ = psf2eAtmW(
+            opd, wavelength, debugLevel=debugLevel)
+    else:
+        psf = myArray
+        elli, _, _, _ = psf2eAtmW(
+            psf, wavelength, type='psf', imagedelta = pixelum,
+            debugLevel=debugLevel)
+        
     return elli
 
 def runPSSNandMore(argList):

@@ -24,6 +24,8 @@ def main():
                         action='store_true')
     parser.add_argument('-pssnoff', help='w/o calculating PSSN',
                         action='store_true')
+    parser.add_argument('-ellioff', help='w/o calculating ellipticity',
+                        action='store_true')
     parser.add_argument('-p', dest='numproc', default=1, type=int,
                         help='Number of Processors Phosim uses')
     parser.add_argument('-s', dest='simuParam',
@@ -71,6 +73,16 @@ def main():
         state.setIterNo(metr, iIter)
         state.writePertFile(ndofA)
 
+        #a non-zero pixelum indicates we want to use fine-pixel psf images
+        state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
+                        pixelum=pixelum)
+
+        metr.getPSSNandMore(args.pssnoff, state, wavelength,
+                                args.numproc, znwcs, obscuration,
+                                     args.debugLevel, pixelum=pixelum)
+        metr.getEllipticity(args.ellioff, state, wavelength,
+                                args.numproc, znwcs, obscuration, 
+                                     args.debugLevel, pixelum=pixelum)
         
         if iIter>0:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
@@ -78,24 +90,19 @@ def main():
             metr.getFFTPSF(args.fftpsfoff, state, wavelength, pixelum,
                             args.numproc, args.debugLevel)
             
-        state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
-                        pixelum=pixelum)
-
-        if iIter>0:
             checkFFTPSF()
+            # below, pixelum uses default value 0, opd maps will be used
             metr.getPSSNandMore(args.pssnoff, state, wavelength,
                                     args.numproc, znwcs, obscuration,
-                                    args.debugLevel, pixelum=pixelum)
+                                    args.debugLevel)
+            metr.getEllipticity(args.ellioff, state, wavelength,
+                                    args.numproc, znwcs, obscuration, 
+                                    args.debugLevel)
             checkPSSN()
+            checkEllipticity()
                  
-        metr.getPSSNandMore(args.pssnoff, state, wavelength,
-                                args.numproc, znwcs, obscuration,
-                                     args.debugLevel, pixelum=pixelum)
-        # metr.getEllipticity(args.ellioff, state, wavelength,
-        #                         args.numproc, znwcs, obscuration, 
-        #                              args.debugLevel, pixelum=pixelum)
 
-    # makeSumPlot()
+    makeSumPlot()
 
 def checkFFTPSF():
     """
@@ -104,6 +111,13 @@ def checkFFTPSF():
     pass
 
 def checkPSSN():
+    """
+    for a single wavelength, check calc_PSSN(PSF) against calc_PSSN(OPD)
+    """
+
+    pass
+
+def checkEllipticity():
     """
     for a single wavelength, check calc_PSSN(PSF) against calc_PSSN(OPD)
     """
