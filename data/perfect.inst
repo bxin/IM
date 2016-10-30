@@ -1,0 +1,26 @@
+###
+
+This instrument file is for single dof unit testing
+
+###
+
+# dof	1	0.10	mm 	M2 piston
+#dof	2	0	mm	M2 x-decenter
+
+budget	80 79
+
+#wavefront sensing star magnitude
+cwfs_mag	17
+#wavefront sensing image stamp size
+cwfs_stamp_size	128
+
+#use 0 for eimage only, without backgrounds
+eimage		0
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		20
+#psf image stamp size (it is always 128 for 10um pixels)
+psf_stamp_size	512
+
