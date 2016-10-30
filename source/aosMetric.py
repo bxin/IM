@@ -148,15 +148,18 @@ class aosMetric(object):
             pngFile = '%s/iter%d/sim%d_iter%d_fftpsf.png' % (
                 state.imageDir, state.iIter, state.iSim, state.iIter)
             plt.savefig(pngFile, bbox_inches='tight')
-
+            plt.close()
                     
     def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
-                       znwcs, obscuration, debugLevel, pixelum=0):
+                       znwcs, obscuration, debugLevel,
+                           outFile = '', pixelum=0):
         """
         pixelum = 0: the input is opd map
         pixelum != 0: input is a fine-pixel PSF image stamp
         """
-        
+        if not outFile:
+            outFile = self.PSSNFile
+            
         if not pssnoff:
             # multithreading on MacOX doesn't work with pinv
             # before we calc_pssn, we do ZernikeFit to remove PTT
@@ -203,14 +206,14 @@ class aosMetric(object):
             a1=np.concatenate((self.PSSN, self.GQPSSN*np.ones(1)))
             a2=np.concatenate((self.FWHMeff, self.GQFWHMeff*np.ones(1)))
             a3=np.concatenate((self.dm5, self.GQdm5*np.ones(1)))
-            np.savetxt(self.PSSNFile, np.vstack((a1,a2,a3)))
+            np.savetxt(outFile, np.vstack((a1,a2,a3)))
             
             if debugLevel >= 2:
                 print(self.GQPSSN)
         else:
-            aa = np.loadtxt(self.PSSNFile)
+            aa = np.loadtxt(outFile)
             self.GQFWHMeff = aa[1, -1] #needed for shiftGear
-            
+
     def getPSSNandMorefromBase(self, baserun, state):
         if not os.path.isfile(self.PSSNFile):        
             baseFile = self.PSSNFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
@@ -220,12 +223,15 @@ class aosMetric(object):
                     
 
     def getEllipticity(self, ellioff, state, wavelength, numproc,
-                       znwcs, obscuration, debugLevel, pixelum=0):
+                       znwcs, obscuration, debugLevel,
+                           outFile = '', pixelum=0):
         """
         pixelum = 0: the input is opd map
         pixelum != 0: input is a fine-pixel PSF image stamp
         """
-        
+        if not outFile:
+            outFile = self.elliFile
+            
         if not ellioff:
             # multithreading on MacOX doesn't work with pinv
             # before we psf2eAtmW(), we do ZernikeFit to remove PTT
@@ -263,7 +269,7 @@ class aosMetric(object):
     
             self.GQelli = np.sum(self.w * self.elli)
             a1=np.concatenate((self.elli, self.GQelli*np.ones(1)))
-            np.savetxt(self.elliFile, a1)
+            np.savetxt(outFile, a1)
             if debugLevel >= 2:
                 print(self.GQelli)
 

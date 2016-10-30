@@ -509,6 +509,7 @@ perturbationmode 1\n')
             pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter)
             plt.savefig(pngFile, bbox_inches='tight')
+            plt.close()
 
     def getPSFAllfromBase(self, baserun, metr):
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (

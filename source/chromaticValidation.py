@@ -6,9 +6,14 @@
 # main function
 
 import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy.io import fits
 
 from aosMetric import aosMetric
 from aosTeleState import aosTeleState
+
+from lsst.cwfs.tools import extractArray
 
 effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
 
@@ -53,12 +58,12 @@ def main():
 
     nIter = 6
     band = 'r'
-    wave = [0, 0.622, 0.550, 0.694, 0.586, 0.658]
+    wave = [0.622, 0.550, 0.694, 0.586, 0.658, 0]
     wlwt = [1, 1, 1, 1, 1, 1]
     pixelum = 0.2 # 0.1um = 2mas
     
-    # for iIter in range(nIter):
-    for iIter in range(1, 2):
+    for iIter in range(nIter):
+    # for iIter in range(1):
         wavelength = wave[iIter]
         if wavelength == 0:
             wavelength = effwave[band]
@@ -84,47 +89,145 @@ def main():
                                 args.numproc, znwcs, obscuration, 
                                      args.debugLevel, pixelum=pixelum)
         
-        if iIter>0:
+        if iIter< nIter-1:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                                 znwcs, obscuration, args.debugLevel)
             metr.getFFTPSF(args.fftpsfoff, state, wavelength, pixelum,
                             args.numproc, args.debugLevel)
             
-            checkFFTPSF()
+            checkPSF(metr, state, 2)
+            checkPSF(metr, state, 1)
             # below, pixelum uses default value 0, opd maps will be used
             metr.getPSSNandMore(args.pssnoff, state, wavelength,
                                     args.numproc, znwcs, obscuration,
-                                    args.debugLevel)
+                                    args.debugLevel, outFile =
+                                    metr.PSSNFile.replace(
+                                        'PSSN.txt','opdPSSN.txt'))
             metr.getEllipticity(args.ellioff, state, wavelength,
                                     args.numproc, znwcs, obscuration, 
-                                    args.debugLevel)
-            checkPSSN()
-            checkEllipticity()
+                                    args.debugLevel, outFile =
+                                    metr.elliFile.replace(
+                                        'elli.txt','opdElli.txt'))
+            checkPSSN(metr, state)
+            checkEllipticity(metr, state)
                  
 
     makeSumPlot()
 
-def checkFFTPSF():
+def checkPSF(metr, state, dim):
     """
     for a single wavelength, check Phosim fine-pixel PSF against Phosim OPD
     """
-    pass
+    plt.figure(figsize=(10, 10))
+    for i in range(metr.nField):    
+        psfFile = '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+            state.imageDir, state.iIter, state.iSim, state.iIter, i)
+        IHDU = fits.open(psfFile)
+        fftpsf = IHDU[0].data
+        IHDU.close()
+        fftpsf = fftpsf/np.max(fftpsf)
 
-def checkPSSN():
+        psfFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+            state.imageDir, state.iIter, state.iSim, state.iIter, i)
+        IHDU = fits.open(psfFile)
+        psf = IHDU[0].data
+        IHDU.close()
+        psf = psf/np.max(psf)
+        
+        if state.inst[:4] == 'lsst':
+            if i == 0:
+                pIdx = 1
+            else:
+                pIdx = i + metr.nArm
+            nRow = metr.nRing + 1
+            nCol = metr.nArm
+        elif state.inst[:6] == 'comcam':
+            aa = [7, 4, 1, 8, 5, 2, 9, 6, 3]
+            pIdx = aa[i]
+            nRow = 3
+            nCol = 3
+        displaySize = 100
+        ax = plt.subplot(nRow, nCol, pIdx)
+        if dim == 2:
+            plt.imshow(extractArray(psf-fftpsf, displaySize),
+                    origin='lower', interpolation='none')
+            plt.clim(-1, 1)
+            # plt.colorbar()
+            plt.axis('off')
+            
+        elif dim == 1:
+            x = range(state.psfStampSize)
+            z1 = psf[state.psfStampSize/2,:]
+            z2 = fftpsf[state.psfStampSize/2,:]                
+            plt.plot(x, z1, label = 'psf', color='r')
+            plt.plot(x, z2, label = 'fftpsf', color='b')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([0, '', '', '', '', 1])
+            ax.legend(loc="upper right", fontsize=6)
+                        
+        plt.title('%d' % i)
+
+    # plt.show()
+    pngFile = '%s/iter%d/sim%d_iter%d_checkpsf_%dD.png' % (
+        state.imageDir, state.iIter, state.iSim, state.iIter, dim)
+    plt.savefig(pngFile, bbox_inches='tight')
+    plt.close()
+            
+def checkPSSN(metr, state):
     """
     for a single wavelength, check calc_PSSN(PSF) against calc_PSSN(OPD)
     """
+    plt.figure(figsize=(10, 6))
+    x= range(metr.nField)
+    z1 = np.loadtxt(metr.PSSNFile)
+    z2 = np.loadtxt(metr.PSSNFile.replace('PSSN.txt','opdPSSN.txt'))
+    plt.subplot(1,2,1)
+    plt.plot(x, z1[0, :metr.nField],  label = 'psf', marker = 'o', color='r')
+    plt.plot(x, z2[0, :metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.legend(loc="upper right", fontsize=8)
+    plt.grid()
+    plt.xlabel('Field Index')
+    plt.ylabel('PSSN')
+    
+    plt.subplot(1,2,2)
+    plt.plot(x, z1[1, :metr.nField],  label = 'psf', marker = 'o', color='r')
+    plt.plot(x, z2[1, :metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.grid()
+    plt.xlabel('Field Index')
+    plt.ylabel('FWHMeff (arcsec)')
+    
+    # plt.show()
+    pngFile = '%s/iter%d/sim%d_iter%d_checkPSSN.png' % (
+        state.imageDir, state.iIter, state.iSim, state.iIter)
+    plt.savefig(pngFile, bbox_inches='tight')
+    plt.close()
 
-    pass
-
-def checkEllipticity():
+def checkEllipticity(metr, state):
     """
-    for a single wavelength, check calc_PSSN(PSF) against calc_PSSN(OPD)
+    for a single wavelength, check elli(PSF) against elli(OPD)
     """
 
-    pass
+    plt.figure(figsize=(6, 6))
+    x= range(metr.nField)
+    z1 = np.loadtxt(metr.elliFile)
+    z2 = np.loadtxt(metr.elliFile.replace('elli.txt','opdElli.txt'))
+    plt.plot(x, z1[:metr.nField],  label = 'psf', marker = 'o', color='r')
+    plt.plot(x, z2[:metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.legend(loc="upper right", fontsize=8)
+    plt.grid()
+    plt.xlabel('Field Index')
+    plt.ylabel('elli')
+    
+    # plt.show()
+    pngFile = '%s/iter%d/sim%d_iter%d_checkElli.png' % (
+        state.imageDir, state.iIter, state.iSim, state.iIter)
+    plt.savefig(pngFile, bbox_inches='tight')
+    plt.close()
 
 def makeSumPlot():
+    """
+    check the GQ sum of pssn/fwhm/fwhmeff/elli vs band measurements
+    """
     pass
 
 if __name__ == "__main__":
