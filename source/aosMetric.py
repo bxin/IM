@@ -333,7 +333,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
         except NameError:
             iad = (array != 0)
     elif type == 'psf':
-        m = m * k
+        m = np.rint(m * k + 1e-5)
         iad = padArray(pmask, m)
 
     # number of non-zero elements, used for normalization later
