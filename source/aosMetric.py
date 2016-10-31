@@ -171,10 +171,13 @@ class aosMetric(object):
                 if pixelum == 0:
                     inputFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter, i)
-                else:
+                elif pixelum>0:
                     inputFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter, i)
-    
+                else:
+                    inputFile = '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
+                    
                 argList.append((inputFile, state, znwcs,
                                 obscuration, wavelength, self.stampD,
                                 debugLevel, pixelum))
@@ -282,8 +285,8 @@ class aosMetric(object):
 def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
               pmask=0, imagedelta=0.2, fno=1.2335, debugLevel=0):
     """
-    array: the array that contains eitehr opd or pdf
-    opd need to be in microns
+    array: the array that contains either opd or pdf
+           opd need to be in microns
     wlum: wavelength in microns
     type: what is used to calculate pssn - either opd or psf
     psf doesn't matter, will be normalized anyway
@@ -694,7 +697,8 @@ def runPSSNandMore(argList):
         pmask = np.ones((m, m))
         pmask[(r>1) * (r<obsR)] = 0
         pssn = calc_pssn(psf, wavelength, type = 'psf', pmask = pmask,
-                             imagedelta = pixelum, debugLevel=debugLevel)        
+                             imagedelta = np.abs(pixelum),
+                             debugLevel=debugLevel)        
         
     return pssn
 

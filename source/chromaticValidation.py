@@ -103,11 +103,26 @@ def main():
                                     args.debugLevel, outFile =
                                     metr.PSSNFile.replace(
                                         'PSSN.txt','opdPSSN.txt'))
+            # below, pixelum < 0, fftpsf will be used
+            metr.getPSSNandMore(args.pssnoff, state, wavelength,
+                                    args.numproc, znwcs, obscuration,
+                                    args.debugLevel, outFile =
+                                    metr.PSSNFile.replace(
+                                        'PSSN.txt','fftpsfPSSN.txt'),
+                                    pixelum = -pixelum) #use fftpsf
+            # below, pixelum uses default value 0, opd maps will be used
             metr.getEllipticity(args.ellioff, state, wavelength,
                                     args.numproc, znwcs, obscuration, 
                                     args.debugLevel, outFile =
                                     metr.elliFile.replace(
                                         'elli.txt','opdElli.txt'))
+            # below, pixelum < 0, fftpsf will be used
+            metr.getEllipticity(args.ellioff, state, wavelength,
+                                    args.numproc, znwcs, obscuration, 
+                                    args.debugLevel, outFile =
+                                    metr.elliFile.replace(
+                                        'elli.txt','fftpsfElli.txt'),
+                                        pixelum = -pixelum) #use fftpsf 
             checkPSSN(metr, state)
             checkEllipticity(metr, state)
                  
@@ -163,14 +178,15 @@ def checkPSF(metr, state, dim):
             plt.plot(x, z2, label = 'fftpsf', color='b')
             ax.set_xticklabels([])
             ax.set_yticklabels([0, '', '', '', '', 1])
-            ax.legend(loc="upper right", fontsize=6)
-                        
+            leg = ax.legend(loc="upper right", fontsize=6)
+            leg.get_frame().set_alpha(0.5)
+            
         plt.title('%d' % i)
 
     # plt.show()
     pngFile = '%s/iter%d/sim%d_iter%d_checkpsf_%dD.png' % (
         state.imageDir, state.iIter, state.iSim, state.iIter, dim)
-    plt.savefig(pngFile, bbox_inches='tight')
+    plt.savefig(pngFile, bbox_inches='tight', dpi=500)
     plt.close()
             
 def checkPSSN(metr, state):
@@ -181,9 +197,11 @@ def checkPSSN(metr, state):
     x= range(metr.nField)
     z1 = np.loadtxt(metr.PSSNFile)
     z2 = np.loadtxt(metr.PSSNFile.replace('PSSN.txt','opdPSSN.txt'))
+    z3 = np.loadtxt(metr.PSSNFile.replace('PSSN.txt','fftpsfPSSN.txt'))
     plt.subplot(1,2,1)
     plt.plot(x, z1[0, :metr.nField],  label = 'psf', marker = 'o', color='r')
-    plt.plot(x, z2[0, :metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.plot(x, z2[0, :metr.nField],  label = 'opd', marker = 'x', color='b')
+    plt.plot(x, z3[0, :metr.nField],  label = 'fftpsf', marker = '*', color='k')    
     plt.legend(loc="upper right", fontsize=8)
     plt.grid()
     plt.xlabel('Field Index')
@@ -191,7 +209,8 @@ def checkPSSN(metr, state):
     
     plt.subplot(1,2,2)
     plt.plot(x, z1[1, :metr.nField],  label = 'psf', marker = 'o', color='r')
-    plt.plot(x, z2[1, :metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.plot(x, z2[1, :metr.nField],  label = 'opd', marker = 'x', color='b')
+    plt.plot(x, z3[1, :metr.nField],  label = 'fftpsf', marker = '*', color='k')    
     plt.grid()
     plt.xlabel('Field Index')
     plt.ylabel('FWHMeff (arcsec)')
@@ -211,8 +230,10 @@ def checkEllipticity(metr, state):
     x= range(metr.nField)
     z1 = np.loadtxt(metr.elliFile)
     z2 = np.loadtxt(metr.elliFile.replace('elli.txt','opdElli.txt'))
+    z3 = np.loadtxt(metr.elliFile.replace('elli.txt','fftpsfElli.txt'))    
     plt.plot(x, z1[:metr.nField],  label = 'psf', marker = 'o', color='r')
-    plt.plot(x, z2[:metr.nField],  label = 'fftpsf', marker = 'x', color='b')
+    plt.plot(x, z2[:metr.nField],  label = 'opd', marker = 'x', color='b')
+    plt.plot(x, z3[:metr.nField],  label = 'fftpsf', marker = '*', color='k')
     plt.legend(loc="upper right", fontsize=8)
     plt.grid()
     plt.xlabel('Field Index')
