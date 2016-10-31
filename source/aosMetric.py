@@ -246,10 +246,12 @@ class aosMetric(object):
                 if pixelum == 0:                
                     inputFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter, i)
-                else:
+                elif pixelum>0:
                     inputFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter, i)
-        
+                else:
+                    inputFile = '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i)                    
                 argList.append((inputFile, state, znwcs,
                                 obscuration, wavelength, self.stampD,
                                 debugLevel, pixelum))
@@ -622,7 +624,7 @@ def runEllipticity(argList):
     wavelength = argList[4]
     stampD = argList[5]
     debugLevel = argList[6]
-    pixelum = argList[7]
+    pixelum = np.abs(argList[7])
     print('runEllipticity: %s '% inputFile)
     
     IHDU = fits.open(inputFile)
@@ -664,7 +666,7 @@ def runPSSNandMore(argList):
     wavelength = argList[4]
     stampD = argList[5]
     debugLevel = argList[6]
-    pixelum = argList[7]
+    pixelum = np.abs(argList[7])
     print('runPSSNandMore: %s '% inputFile)
     
     IHDU = fits.open(inputFile)
@@ -697,7 +699,7 @@ def runPSSNandMore(argList):
         pmask = np.ones((m, m))
         pmask[(r>1) * (r<obsR)] = 0
         pssn = calc_pssn(psf, wavelength, type = 'psf', pmask = pmask,
-                             imagedelta = np.abs(pixelum),
+                             imagedelta = pixelum,
                              debugLevel=debugLevel)        
         
     return pssn
