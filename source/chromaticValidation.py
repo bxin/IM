@@ -62,8 +62,8 @@ def main():
     wlwt = [1, 1, 1, 1, 1, 1]
     pixelum = 0.2 # 0.1um = 2mas
     
-    for iIter in range(nIter):
-    # for iIter in range(1):
+    # for iIter in range(nIter):
+    for iIter in range(1):
         wavelength = wave[iIter]
         if wavelength == 0:
             wavelength = effwave[band]

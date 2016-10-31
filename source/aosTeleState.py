@@ -389,10 +389,10 @@ class aosTeleState(object):
         self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
         fid = open(self.OPD_inst, 'w')
-        fid.write('Opsim_filter 1\n\
+        fid.write('Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n' % (self.obsID))
+SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for i in range(metr.nFieldp4):
@@ -669,12 +669,13 @@ detectormode 0\n')
             fid.write('move 10 %9.4f\n' % (-wfs.offset[iRun] * 1e3))
 
         fpert.close()
-        fid.write('Opsim_filter 1\n\
+        fid.write('Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-Opsim_rawseeing 0.7283\n' % (self.obsID, self.obsID % 1000 - 4))
+Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
+                                 self.obsID, self.obsID % 1000 - 4))
         if self.inst[:4] == 'lsst':
             fid.write('SIM_CAMCONFIG 2\n')
         elif self.inst[:6] == 'comcam':
