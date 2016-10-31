@@ -449,7 +449,11 @@ perturbationmode 1\n')
                     raise RuntimeError(
                          "cannot find Phosim output: osbID=%d, chipStr = %s" % (
                          self.obsID, chipStr))
-                if 'gz' in src[-1]:
+                elif 'gz' in src[0]:
+                    # when .fits and .fits.gz both exist
+                    # which appears first seems random
+                    runProgram('gunzip -f %s' % src[0])
+                elif 'gz' in src[-1]:
                     runProgram('gunzip -f %s' % src[-1])
 
                 fitsfile = src[0].replace('.gz', '')
@@ -598,6 +602,7 @@ diffractionmode 0\n\
 straylight 0\n\
 detectormode 0\n')
         fid.close()
+#clearperturbations\n\
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
