@@ -19,6 +19,7 @@ from lsst.cwfs.tools import extractArray
 import matplotlib.pyplot as plt
 
 phosimFilterID = {'u':0, 'g':1, 'r':2, 'i':3, 'z':4, 'y':5}
+effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
 
 class aosTeleState(object):
 
@@ -569,10 +570,15 @@ SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
                           self.obsID % 1000 - 31))
         fpert = open(self.pertFile, 'r')
         
-        if self.wavelength == 0.5:
-            sedfile = 'sed_500.txt'
-        else:
+        if self.wavelength == 0:
             sedfile = 'sed_flat.txt'
+        else:
+            sedfile = 'sed_%d.txt' % (self.wavelength * 1e3)
+            sedfileFull = '%s/data/sky/%s' % (self.phosimDir, sedfile)
+            if not os.path.isfile(sedfileFull):
+                fsed = open(sedfileFull, 'w')
+                fsed.write('%d   1.0\n' % (self.wavelength * 1e3))
+                fsed.close()
             
         fid.write(fpert.read())
         for i in range(metr.nField):

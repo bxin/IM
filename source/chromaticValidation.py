@@ -15,8 +15,6 @@ from aosTeleState import aosTeleState
 
 from lsst.cwfs.tools import extractArray
 
-effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
-
 def main():
     parser = argparse.ArgumentParser(
         description='-----Chromatic Validation------')
@@ -65,8 +63,6 @@ def main():
     # for iIter in range(nIter):
     for iIter in range(1):
         wavelength = wave[iIter]
-        if wavelength == 0:
-            wavelength = effwave[band]
             
         state = aosTeleState(inst, args.simuParam, args.iSim,
                             ndofA, phosimDir,
@@ -141,7 +137,13 @@ def checkPSF(metr, state, dim):
         fftpsf = IHDU[0].data
         IHDU.close()
         fftpsf = fftpsf/np.max(fftpsf)
-
+        offsety = int(np.argwhere(fftpsf == fftpsf.max())[0][0] - \
+          state.psfStampSize/2  + 1)
+        offsetx = int(np.argwhere(fftpsf == fftpsf.max())[0][1] - \
+          state.psfStampSize/2  + 1)
+        fftpsf = np.roll(fftpsf, -offsety, axis = 0)
+        fftpsf = np.roll(fftpsf, -offsetx, axis = 1)
+        
         psfFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
             state.imageDir, state.iIter, state.iSim, state.iIter, i)
         IHDU = fits.open(psfFile)
@@ -172,16 +174,16 @@ def checkPSF(metr, state, dim):
             
         elif dim == 1:
             x = range(state.psfStampSize)
-            z1 = psf[state.psfStampSize/2,:]
-            z2 = fftpsf[state.psfStampSize/2,:]                
-            plt.plot(x, z1, label = 'psf', color='r')
-            plt.plot(x, z2, label = 'fftpsf', color='b')
+            z1 = psf[state.psfStampSize/2-1,:]
+            z2 = fftpsf[state.psfStampSize/2-1,:]                
+            plt.plot(x, z1, label = 'psf', color='r', linewidth=0.5)
+            plt.plot(x, z2, label = 'fftpsf', color='b', linewidth=0.5)
             ax.set_xticklabels([])
             ax.set_yticklabels([0, '', '', '', '', 1])
             leg = ax.legend(loc="upper right", fontsize=6)
             leg.get_frame().set_alpha(0.5)
             
-        plt.title('%d' % i)
+        plt.title('Field %d' % i, fontsize=8)
 
     # plt.show()
     pngFile = '%s/iter%d/sim%d_iter%d_checkpsf_%dD.png' % (
