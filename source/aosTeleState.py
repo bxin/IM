@@ -604,7 +604,7 @@ lascatprob 0.0\n\
 contaminationmode 0\n\
 coatingmode 0\n\
 airrefraction 0\n\
-diffractionmode 0\n\
+diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
         fid.close()
@@ -744,9 +744,9 @@ clearclouds\n\
 lascatprob 0.0\n\
 contaminationmode 0\n\
 coatingmode 0\n\
+diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
-#diffractionmode 0\n\
 #airrefraction 0\n\
 
         # body command interferes with move commands;

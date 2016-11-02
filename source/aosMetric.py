@@ -590,7 +590,7 @@ def opd2psf(opd, pupil, wavelength, imagedelta, sensorFactor, fno, debugLevel):
         opd = padArray(opd, N)
         if debugLevel >= 3:
             print('padding=%8.6f' % padding)
-
+    # if imagedelta = 0, we don't do any padding, and go with below
     z = pupil * np.exp(-2j * np.pi * opd / wavelength)
     z = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(z),
                                     s=z.shape))  # /sqrt(miad2/m^2)
@@ -697,7 +697,7 @@ def runPSSNandMore(argList):
         y = y/(m/2)
         r = np.sqrt(x**2 + y**2)
         pmask = np.ones((m, m))
-        pmask[(r>1) * (r<obsR)] = 0
+        pmask[(r>1) | (r<obsR)] = 0
         pssn = calc_pssn(psf, wavelength, type = 'psf', pmask = pmask,
                              imagedelta = pixelum,
                              debugLevel=debugLevel)        
@@ -721,7 +721,8 @@ def runFFTPSF(argList):
 
     psf = opd2psf(wfm, 0, wavelength, imagedelta, sensorfactor,
                                     fno, debugLevel)
-    psf = extractArray(psf, psfStampSize)
+    if psfStampSize<psf.shape[0]:
+        psf = extractArray(psf, psfStampSize)
     if os.path.isfile(psfFile):
         os.remove(psfFile)
     hdu = fits.PrimaryHDU(psf)

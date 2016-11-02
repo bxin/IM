@@ -88,9 +88,10 @@ def main():
         if iIter< nIter-1:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                                 znwcs, obscuration, args.debugLevel)
+            #pixelum = 0. # no padding
             metr.getFFTPSF(args.fftpsfoff, state, wavelength, pixelum,
                             args.numproc, args.debugLevel)
-            
+            #pixelum = 1.2335*wavelength
             checkPSF(metr, state, 2)
             checkPSF(metr, state, 1)
             # below, pixelum uses default value 0, opd maps will be used
