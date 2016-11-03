@@ -243,18 +243,18 @@ class aosMetric(object):
                 self.elli = np.zeros(self.nField)
             argList = []
             for i in range(self.nField):
-                if pixelum == 0:                
-                    inputFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
-                elif pixelum>0:
-                    inputFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i)
-                else:
-                    inputFile = '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i)                    
+                inputFile = []
+                if pixelum>0:
+                    inputFile.append('%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                elif pixelum<0:
+                    inputFile.append('%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                inputFile.append('%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                    state.imageDir, state.iIter, state.iSim, state.iIter, i))
+             
                 argList.append((inputFile, state,
-                                wavelength, self.stampD,
-                                debugLevel, pixelum))
+                                wavelength, debugLevel, pixelum))
     
                 # test, pdb cannot go into the subprocess
                 # aa = runEllipticity(argList[0])
@@ -450,28 +450,31 @@ def r0Wz(r0inmRef, zen, wlum):
     return r0a
 
 
-def psf2eAtmW(opd, wlum, type='opd', D=8.36, pmask=0, r0inmRef=0.1382,
+def psf2eAtmW(array, wlum, type='opd', D=8.36, pmask=0, r0inmRef=0.1382,
               sensorFactor=1,
               zen=0, imagedelta=0.2, fno=1.2335, debugLevel=0):
     """
-    opd: wavefront OPD in micron
+    array: wavefront OPD in micron, or psf image
+    unlike calc_pssn(), here imagedelta needs to be provided for type='opd'
+        because the ellipticity calculation operates on psf.
+    
     """
-    m = opd.shape[0] / sensorFactor
     k = fno * wlum / imagedelta
-    # since padding=k/sensorFactor<=k, any psfSamplingTooLowError
-    # would have been raised in opd2psf()
-    mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
-
     if type == 'opd':
-        psfe = opd2psf(opd, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
+        m = array.shape[0] / sensorFactor
+        psfe = opd2psf(array, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
     else:
-        psfe = padArray(opd, mtfa.shape[0])
+        m = max(pmask.shape)
+        psfe = array
+    mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
         
     otfe = psf2otf(psfe)  # OTF of error
 
     otf = otfe * mtfa
     psf = otf2psf(otf)
 
+    if debugLevel >= 3:
+        print('Below from the Gaussian weigting function on elli')
     e, q11, q22, q12 = psf2eW(psf, imagedelta, wlum, 'Gau', debugLevel)
 
     return e, q11, q22, q12
@@ -635,38 +638,39 @@ def runEllipticity(argList):
     opdx = argList[1].opdx
     opdy = argList[1].opdy
     wavelength = argList[2]
-    stampD = argList[3]
-    debugLevel = argList[4]
-    pixelum = np.abs(argList[5])
+    debugLevel = argList[3]
+    pixelum = np.abs(argList[4])
     print('runEllipticity: %s '% inputFile)
     
-    IHDU = fits.open(inputFile)
-    myArray = IHDU[0].data # um
-    IHDU.close()
-
     if pixelum == 0:
-        opd = myArray
+        IHDU = fits.open(inputFile[0])
+        opd = IHDU[0].data # um
+        IHDU.close()
+
         # before psf2eAtmW()
         # (1) remove PTT,
         # (2) make sure outside of pupil are all zeros
-        idx = (opd != 0)
-        
+        idx = (opd != 0)        
         Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], 3, 0)    
         Z[3:] = 0
         opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], 0)
-    
-        if stampD > opd.shape[0]:
-            a = opd
-            opd = np.zeros((stampD, stampD))
-            opd[:a.shape[0], :a.shape[1]] = a
-    
+
         elli, _, _, _ = psf2eAtmW(
             opd, wavelength, debugLevel=debugLevel)
     else:
-        psf = myArray
+        IHDU = fits.open(inputFile[0])
+        psf = IHDU[0].data # unit: um
+        IHDU.close()
+
+        # only opd to help determine how big mtfa needs to be
+        IHDU = fits.open(inputFile[1])
+        opd = IHDU[0].data # unit: um
+        IHDU.close()
+        iad = (opd != 0)
+
         elli, _, _, _ = psf2eAtmW(
-            psf, wavelength, type='psf', imagedelta = pixelum,
-            debugLevel=debugLevel)
+            psf, wavelength, type='psf', pmask = iad, 
+            imagedelta = pixelum, debugLevel=debugLevel)
         
     return elli
 

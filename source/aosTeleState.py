@@ -97,8 +97,8 @@ class aosTeleState(object):
 
         self.fno = 1.2335
         k = self.fno * wavelength/0.2
-        self.psfStampSize = self.opdSize + \
-          np.rint((self.opdSize*(k-1)+1e-5)/2)*2
+        self.psfStampSize = int(self.opdSize + \
+          np.rint((self.opdSize*(k-1)+1e-5)/2)*2)
         self.iSim = iSim
         self.phosimDir = phosimDir
         self.pertDir = pertDir
