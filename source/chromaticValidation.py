@@ -79,43 +79,43 @@ def main():
                         pixelum=pixelum)
 
         metr.getPSSNandMore(args.pssnoff, state, wavelength,
-                                args.numproc, znwcs, obscuration,
+                                args.numproc, 
                                      args.debugLevel, pixelum=pixelum)
         metr.getEllipticity(args.ellioff, state, wavelength,
-                                args.numproc, znwcs, obscuration, 
+                                args.numproc, 
                                      args.debugLevel, pixelum=pixelum)
         
         if iIter< nIter-1:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
                                 znwcs, obscuration, args.debugLevel)
-            #pixelum = 0. # no padding
+
             metr.getFFTPSF(args.fftpsfoff, state, wavelength, pixelum,
                             args.numproc, args.debugLevel)
-            #pixelum = 1.2335*wavelength
+
             checkPSF(metr, state, 2)
             checkPSF(metr, state, 1)
             # below, pixelum uses default value 0, opd maps will be used
             metr.getPSSNandMore(args.pssnoff, state, wavelength,
-                                    args.numproc, znwcs, obscuration,
+                                    args.numproc, 
                                     args.debugLevel, outFile =
                                     metr.PSSNFile.replace(
                                         'PSSN.txt','opdPSSN.txt'))
             # below, pixelum < 0, fftpsf will be used
             metr.getPSSNandMore(args.pssnoff, state, wavelength,
-                                    args.numproc, znwcs, obscuration,
+                                    args.numproc, 
                                     args.debugLevel, outFile =
                                     metr.PSSNFile.replace(
                                         'PSSN.txt','fftpsfPSSN.txt'),
                                     pixelum = -pixelum) #use fftpsf
             # below, pixelum uses default value 0, opd maps will be used
             metr.getEllipticity(args.ellioff, state, wavelength,
-                                    args.numproc, znwcs, obscuration, 
+                                    args.numproc, 
                                     args.debugLevel, outFile =
                                     metr.elliFile.replace(
                                         'elli.txt','opdElli.txt'))
             # below, pixelum < 0, fftpsf will be used
             metr.getEllipticity(args.ellioff, state, wavelength,
-                                    args.numproc, znwcs, obscuration, 
+                                    args.numproc, 
                                     args.debugLevel, outFile =
                                     metr.elliFile.replace(
                                         'elli.txt','fftpsfElli.txt'),

@@ -88,8 +88,6 @@ class aosTeleState(object):
                     self.eimage = bool(int(line.split()[1]))
                 elif (line.startswith('psf_mag')):
                     self.psfMag = int(line.split()[1])
-                elif (line.startswith('psf_stamp_size')):
-                    self.psfStampSize = int(line.split()[1])
                 elif (line.startswith('cwfs_mag')):
                     self.cwfsMag = int(line.split()[1])
                 elif (line.startswith('cwfs_stamp_size')):
@@ -97,6 +95,10 @@ class aosTeleState(object):
 
         fid.close()
 
+        self.fno = 1.2335
+        k = self.fno * wavelength/0.2
+        self.psfStampSize = self.opdSize + \
+          np.rint((self.opdSize*(k-1)+1e-5)/2)*2
         self.iSim = iSim
         self.phosimDir = phosimDir
         self.pertDir = pertDir

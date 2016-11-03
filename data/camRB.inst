@@ -25,5 +25,5 @@ opd_size	256
 #PSF star magnitude
 psf_mag		20
 #psf image stamp size (it is always 128 for 10um pixels)
-psf_stamp_size	512
+#otherwise it is determined using opd_size
 
