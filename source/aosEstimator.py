@@ -71,7 +71,7 @@ class aosEstimator(object):
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        src = glob.glob('data/%s/senM*txt'%(aa))
+        src = glob.glob('data/%s/senM*txt' % (aa))
         self.senMFile = src[0]
         self.zn3Max = self.znMax - 3
         self.ndofA = self.nB13Max + self.nB2Max + 10
@@ -100,8 +100,8 @@ class aosEstimator(object):
             print(self.Ause[21, -1])
             if self.strategy == 'pinv':
                 print(self.normalizeA)
-            
-        self.Anorm = self.Ause 
+
+        self.Anorm = self.Ause
         if (debugLevel >= 3):
             print('---checking Anorm (actually Ause):')
             print(self.Anorm[:5, :5])
@@ -109,57 +109,61 @@ class aosEstimator(object):
         if self.strategy == 'pinv':
             self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
         elif self.strategy == 'opti':
-            #empirical estimates (by Doug M.), not used when self.fmotion<0
-            aa=[0.5, 2, 2, 0.1, 0.1, 0.5, 2, 2, 0.1, 0.1] 
-            dX = np.concatenate((aa, 0.01*np.ones(20), 0.005*np.ones(20)))**2
+            # empirical estimates (by Doug M.), not used when self.fmotion<0
+            aa = [0.5, 2, 2, 0.1, 0.1, 0.5, 2, 2, 0.1, 0.1]
+            dX = np.concatenate(
+                (aa, 0.01 * np.ones(20), 0.005 * np.ones(20)))**2
             X = np.diag(dX)
             self.Ainv = X.dot(self.Anorm.T).dot(
                 np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
         elif self.strategy == 'crude_opti':
             self.Ainv = self.Anorm.T.dot(np.linalg.pinv(
-                self.Anorm.dot(self.Anorm.T)+self.reguMu*np.identity(self.Anorm.shape[0])))
-            
-            
+                self.Anorm.dot(self.Anorm.T) +
+                self.reguMu * np.identity(self.Anorm.shape[0])))
+
     def normA(self, ctrl):
-        self.dofUnit = 1/ctrl.Authority
-        dofUnitMat = np.repeat(self.dofUnit.reshape((1,-1)), self.Ause.shape[0] ,axis=0)
+        self.dofUnit = 1 / ctrl.Authority
+        dofUnitMat = np.repeat(self.dofUnit.reshape(
+            (1, -1)), self.Ause.shape[0], axis=0)
 
         self.Anorm = self.Ause / dofUnitMat
         self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
 
     def optiAinv(self, ctrl, wfs):
-        dX = (ctrl.range*self.fmotion)**2
+        dX = (ctrl.range * self.fmotion)**2
         X = np.diag(dX)
         self.Ainv = X.dot(self.Anorm.T).dot(
             np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
-        
-        
+
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
             aa = np.loadtxt(state.zTrueFile_m1)
             self.yfinal = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
             if sensor == 'covM':
-                mu = np.zeros(self.zn3Max*4)
+                mu = np.zeros(self.zn3Max * 4)
                 np.random.seed(state.obsID)
-                self.yfinal += np.random.multivariate_normal(mu,wfs.covM).reshape(-1,1)
+                self.yfinal += np.random.multivariate_normal(
+                    mu, wfs.covM).reshape(-1, 1)
         else:
             aa = np.loadtxt(wfs.zFile_m1)
             self.yfinal = aa[:, :self.zn3Max].reshape((-1, 1))
-                
+
         self.yfinal -= wfs.intrinsicWFS
 
         # subtract y2c
         aa = np.loadtxt(ctrl.y2File)
-        self.y2c = aa[-wfs.nWFS:, 0:self.znMax-3].reshape((-1, 1))
-        
+        self.y2c = aa[-wfs.nWFS:, 0:self.znMax - 3].reshape((-1, 1))
+
         self.xhat = np.zeros(self.ndofA)
-        self.xhat[self.compIdx] = self.Ainv.dot(self.yfinal[self.zn3IdxAx4]-self.y2c)
-        if self.strategy== 'pinv' and self.normalizeA:
+        self.xhat[self.compIdx] = self.Ainv.dot(
+            self.yfinal[self.zn3IdxAx4] - self.y2c)
+        if self.strategy == 'pinv' and self.normalizeA:
             self.xhat[self.compIdx] = self.xhat[self.compIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c
         self.yresi += np.reshape(
             self.Ause.dot(-self.xhat[self.compIdx]), (-1, 1))
+
 
 def pinv_truncate(A, n):
     Ua, Sa, VaT = np.linalg.svd(A)
@@ -173,4 +177,3 @@ def pinv_truncate(A, n):
         axis=1)
     Ainv = VaT.T.dot(Sainv).dot(Ua.T)
     return Ainv
-    

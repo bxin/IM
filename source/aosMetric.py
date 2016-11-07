@@ -21,6 +21,7 @@ from aosErrors import psfSamplingTooLowError
 
 import matplotlib.pyplot as plt
 
+
 class aosMetric(object):
 
     def __init__(self, instName, opdSize, znwcs3, debugLevel, pixelum=10):
@@ -51,30 +52,30 @@ class aosMetric(object):
             self.fieldY[self.nField:] = [1.176, 1.176, -1.176, -1.176]
 
             self.fwhmModelFileBase = 'data/fwhmModel/fwhm_vs_z_500nm'
-            
+
         elif instName[:6] == 'comcam':
-            nRow=3
-            nCol=3
-            self.nField=nRow*nCol
-            self.fieldX=np.zeros(self.nField)
-            self.fieldY=np.zeros(self.nField)
+            nRow = 3
+            nCol = 3
+            self.nField = nRow * nCol
+            self.fieldX = np.zeros(self.nField)
+            self.fieldY = np.zeros(self.nField)
             sensorD = 0.2347
-            
+
             for i in range(nRow):
                 for j in range(nCol):
-                    self.fieldX[i*nRow+j]=(i-1)*sensorD
-                    self.fieldY[i*nRow+j]=(j-1)*sensorD
+                    self.fieldX[i * nRow + j] = (i - 1) * sensorD
+                    self.fieldY[i * nRow + j] = (j - 1) * sensorD
 
             self.w = np.ones(self.nField)
             self.nFieldp4 = self.nField
-            
+
         self.w = self.w / np.sum(self.w)
-        
+
         # below, p is for PSF
         self.fieldXp = self.fieldX.copy()
         self.fieldYp = self.fieldY.copy()
 
-        if instName[:4] == 'lsst' and pixelum == 10: #falling on chip edge
+        if instName[:4] == 'lsst' and pixelum == 10:  # falling on chip edge
             self.fieldXp[19] += 0.004
             self.fieldXp[22] -= 0.004
 
@@ -96,7 +97,7 @@ class aosMetric(object):
         pass
 
     def getFFTPSF(self, fftpsfoff, state, wavelength, imagedelta, numproc,
-                       debugLevel, sensorfactor = 1, fno=1.2335):
+                  debugLevel, sensorfactor=1, fno=1.2335):
 
         if not fftpsfoff:
             argList = []
@@ -105,8 +106,8 @@ class aosMetric(object):
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
                 psfFile = opdFile.replace('opd', 'fftpsf')
                 argList.append((opdFile, state, wavelength, imagedelta,
-                                    sensorfactor, fno, psfFile,
-                                    debugLevel))
+                                sensorfactor, fno, psfFile,
+                                debugLevel))
                 if sys.platform == 'darwin':
                     runFFTPSF(argList[i])
 
@@ -117,7 +118,7 @@ class aosMetric(object):
                 pool.map(runFFTPSF, argList)
                 pool.close()
                 pool.join()
-            
+
             plt.figure(figsize=(10, 10))
             for i in range(self.nField):
 
@@ -126,7 +127,7 @@ class aosMetric(object):
                 IHDU = fits.open(psfFile)
                 psf = IHDU[0].data
                 IHDU.close()
-                
+
                 if state.inst[:4] == 'lsst':
                     if i == 0:
                         pIdx = 1
@@ -151,17 +152,17 @@ class aosMetric(object):
                 state.imageDir, state.iIter, state.iSim, state.iIter)
             plt.savefig(pngFile, bbox_inches='tight')
             plt.close()
-                    
+
     def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
                        debugLevel,
-                           outFile = '', pixelum=0):
+                       outFile='', pixelum=0):
         """
         pixelum = 0: the input is opd map
         pixelum != 0: input is a fine-pixel PSF image stamp
         """
         if not outFile:
             outFile = self.PSSNFile
-            
+
         if not pssnoff:
             # multithreading on MacOX doesn't work with pinv
             # before we calc_pssn, we do ZernikeFit to remove PTT
@@ -171,21 +172,23 @@ class aosMetric(object):
             argList = []
             for i in range(self.nField):
                 inputFile = []
-                if pixelum>0:
+                if pixelum > 0:
                     inputFile.append('%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
-                elif pixelum<0:
+                        state.imageDir, state.iIter, state.iSim, state.iIter,
+                        i))
+                elif pixelum < 0:
                     inputFile.append('%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                        state.imageDir, state.iIter, state.iSim, state.iIter,
+                        i))
                 inputFile.append('%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                    state.imageDir, state.iIter, state.iSim, state.iIter, i))
 
-                argList.append((inputFile, state, 
+                argList.append((inputFile, state,
                                 wavelength, debugLevel, pixelum))
-    
+
                 if sys.platform == 'darwin':
                     self.PSSN[i] = runPSSNandMore(argList[i])
-    
+
             if sys.platform != 'darwin':
                 # test, pdb cannot go into the subprocess
                 # aa = runPSSNandMore(argList[0])
@@ -194,47 +197,47 @@ class aosMetric(object):
                 pool.close()
                 pool.join()
                 self.PSSN = np.array(self.PSSN)
-                
-            self.FWHMeff = 1.086*0.6*np.sqrt(1/self.PSSN-1)
+
+            self.FWHMeff = 1.086 * 0.6 * np.sqrt(1 / self.PSSN - 1)
             self.dm5 = -1.25 * np.log10(self.PSSN)
-    
+
             if debugLevel >= 2:
                 for i in range(self.nField):
                     print('---field#%d, PSSN=%7.4f, FWHMeff = %5.0f mas' % (
-                        i, self.PSSN[i], self.FWHMeff[i]*1e3))
-    
+                        i, self.PSSN[i], self.FWHMeff[i] * 1e3))
+
             self.GQPSSN = np.sum(self.w * self.PSSN)
             self.GQFWHMeff = np.sum(self.w * self.FWHMeff)
             self.GQdm5 = np.sum(self.w * self.dm5)
-            a1=np.concatenate((self.PSSN, self.GQPSSN*np.ones(1)))
-            a2=np.concatenate((self.FWHMeff, self.GQFWHMeff*np.ones(1)))
-            a3=np.concatenate((self.dm5, self.GQdm5*np.ones(1)))
-            np.savetxt(outFile, np.vstack((a1,a2,a3)))
-            
+            a1 = np.concatenate((self.PSSN, self.GQPSSN * np.ones(1)))
+            a2 = np.concatenate((self.FWHMeff, self.GQFWHMeff * np.ones(1)))
+            a3 = np.concatenate((self.dm5, self.GQdm5 * np.ones(1)))
+            np.savetxt(outFile, np.vstack((a1, a2, a3)))
+
             if debugLevel >= 2:
                 print(self.GQPSSN)
         else:
             aa = np.loadtxt(outFile)
-            self.GQFWHMeff = aa[1, -1] #needed for shiftGear
+            self.GQFWHMeff = aa[1, -1]  # needed for shiftGear
 
     def getPSSNandMorefromBase(self, baserun, state):
-        if not os.path.isfile(self.PSSNFile):        
-            baseFile = self.PSSNFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
+        if not os.path.isfile(self.PSSNFile):
+            baseFile = self.PSSNFile.replace(
+                'sim%d' % state.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.PSSNFile)
         aa = np.loadtxt(self.PSSNFile)
-        self.GQFWHMeff = aa[1, -1] #needed for shiftGear
-                    
+        self.GQFWHMeff = aa[1, -1]  # needed for shiftGear
 
     def getEllipticity(self, ellioff, state, wavelength, numproc,
                        debugLevel,
-                           outFile = '', pixelum=0):
+                       outFile='', pixelum=0):
         """
         pixelum = 0: the input is opd map
         pixelum != 0: input is a fine-pixel PSF image stamp
         """
         if not outFile:
             outFile = self.elliFile
-            
+
         if not ellioff:
             # multithreading on MacOX doesn't work with pinv
             # before we psf2eAtmW(), we do ZernikeFit to remove PTT
@@ -244,42 +247,45 @@ class aosMetric(object):
             argList = []
             for i in range(self.nField):
                 inputFile = []
-                if pixelum>0:
+                if pixelum > 0:
                     inputFile.append('%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
-                elif pixelum<0:
+                        state.imageDir, state.iIter, state.iSim, state.iIter,
+                        i))
+                elif pixelum < 0:
                     inputFile.append('%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                        state.imageDir, state.iIter, state.iSim, state.iIter,
+                        i))
                 inputFile.append('%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i))
-             
+
                 argList.append((inputFile, state,
                                 wavelength, debugLevel, pixelum))
-    
+
                 # test, pdb cannot go into the subprocess
                 # aa = runEllipticity(argList[0])
                 if sys.platform == 'darwin':
                     self.elli[i] = runEllipticity(argList[i])
-    
+
             if sys.platform != 'darwin':
                 pool = multiprocessing.Pool(numproc)
                 self.elli = pool.map(runEllipticity, argList)
                 pool.close()
                 pool.join()
-                
+
             for i in range(self.nField):
                 if debugLevel >= 2:
                     print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
-    
+
             self.GQelli = np.sum(self.w * self.elli)
-            a1=np.concatenate((self.elli, self.GQelli*np.ones(1)))
+            a1 = np.concatenate((self.elli, self.GQelli * np.ones(1)))
             np.savetxt(outFile, a1)
             if debugLevel >= 2:
                 print(self.GQelli)
 
     def getEllipticityfromBase(self, baserun, state):
-        if not os.path.isfile(self.elliFile):        
-            baseFile = self.elliFile.replace('sim%d'%state.iSim, 'sim%d'%baserun)
+        if not os.path.isfile(self.elliFile):
+            baseFile = self.elliFile.replace(
+                'sim%d' % state.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.elliFile)
 
 
@@ -337,8 +343,8 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
         except NameError:
             iad = (array != 0)
     elif type == 'psf':
-        mk = m + np.rint((m * (k-1) + 1e-5)/2)*2 #add even number
-        iad = pmask #padArray(pmask, m)
+        mk = m + np.rint((m * (k - 1) + 1e-5) / 2) * 2  # add even number
+        iad = pmask  # padArray(pmask, m)
 
     # number of non-zero elements, used for normalization later
     # miad2 = np.count_nonzero(iad)
@@ -371,14 +377,14 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
     else:
         if array.shape[0] == mk:
             psfe = array
-        elif array.shape[0]>mk:
+        elif array.shape[0] > mk:
             psfe = extractArray(array, mk)
         else:
-            print('calc_pssn: image provided too small, %d < %d x %6.4f' %(
+            print('calc_pssn: image provided too small, %d < %d x %6.4f' % (
                 array.shape[0], m, k))
             print('IQ is over-estimated !!!')
             psfe = padArray(array, mk)
- 
+
         psfe = psfe / np.sum(psfe) * np.sum(psft)
 
     otfe = psf2otf(psfe)  # OTF of error
@@ -387,9 +393,9 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
     pss = np.sum(psftot**2)  # atmospheric + error PSS
 
     pssn = pss / pssa  # normalized PSS
-    if debugLevel>=3:
+    if debugLevel >= 3:
         print('pssn = %10.8e/%10.8e = %6.4f' % (pss, pssa, pssn))
-        
+
     return pssn
 
 
@@ -402,7 +408,7 @@ def createMTFatm(D, m, k, wlum, zen, r0inmRef):
     sfa = atmSF('vonK', D, m, wlum, zen, r0inmRef)
     mtfa = np.exp(-0.5 * sfa)
 
-    N = m + np.rint((m * (k-1) + 1e-5)/2)*2 #add even number
+    N = m + np.rint((m * (k - 1) + 1e-5) / 2) * 2  # add even number
     mtfa = padArray(mtfa, N)
 
     return mtfa
@@ -457,17 +463,18 @@ def psf2eAtmW(array, wlum, type='opd', D=8.36, pmask=0, r0inmRef=0.1382,
     array: wavefront OPD in micron, or psf image
     unlike calc_pssn(), here imagedelta needs to be provided for type='opd'
         because the ellipticity calculation operates on psf.
-    
+
     """
     k = fno * wlum / imagedelta
     if type == 'opd':
         m = array.shape[0] / sensorFactor
-        psfe = opd2psf(array, 0, wlum, imagedelta, sensorFactor, fno, debugLevel)
+        psfe = opd2psf(array, 0, wlum, imagedelta,
+                       sensorFactor, fno, debugLevel)
     else:
         m = max(pmask.shape)
         psfe = array
     mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
-        
+
     otfe = psf2otf(psfe)  # OTF of error
 
     otf = otfe * mtfa
@@ -599,7 +606,8 @@ def opd2psf(opd, pupil, wavelength, imagedelta, sensorFactor, fno, debugLevel):
 
         sensorSamples = opd.shape[0]
         # add even number for padding
-        N = sensorSamples + np.rint(((padding -1) * sensorSamples + 1e-5)/2)*2 
+        N = sensorSamples + \
+            np.rint(((padding - 1) * sensorSamples + 1e-5) / 2) * 2
         pupil = padArray(pupil, N)
         opd = padArray(opd, N)
         if debugLevel >= 3:
@@ -630,8 +638,9 @@ def psf2otf(psf):
 
 def otf2psf(otf):
     psf = np.absolute(np.fft.fftshift(np.fft.ifft2(np.fft.fftshift(otf),
-                                                    s=otf.shape)))
+                                                   s=otf.shape)))
     return psf
+
 
 def runEllipticity(argList):
     inputFile = argList[0]
@@ -640,18 +649,18 @@ def runEllipticity(argList):
     wavelength = argList[2]
     debugLevel = argList[3]
     pixelum = np.abs(argList[4])
-    print('runEllipticity: %s '% inputFile)
-    
+    print('runEllipticity: %s ' % inputFile)
+
     if pixelum == 0:
         IHDU = fits.open(inputFile[0])
-        opd = IHDU[0].data # um
+        opd = IHDU[0].data  # um
         IHDU.close()
 
         # before psf2eAtmW()
         # (1) remove PTT,
         # (2) make sure outside of pupil are all zeros
-        idx = (opd != 0)        
-        Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], 3, 0)    
+        idx = (opd != 0)
+        Z = ZernikeAnnularFit(opd[idx], opdx[idx], opdy[idx], 3, 0)
         Z[3:] = 0
         opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], 0)
 
@@ -659,39 +668,39 @@ def runEllipticity(argList):
             opd, wavelength, debugLevel=debugLevel)
     else:
         IHDU = fits.open(inputFile[0])
-        psf = IHDU[0].data # unit: um
+        psf = IHDU[0].data  # unit: um
         IHDU.close()
 
         # only opd to help determine how big mtfa needs to be
         IHDU = fits.open(inputFile[1])
-        opd = IHDU[0].data # unit: um
+        opd = IHDU[0].data  # unit: um
         IHDU.close()
         iad = (opd != 0)
 
         elli, _, _, _ = psf2eAtmW(
-            psf, wavelength, type='psf', pmask = iad, 
-            imagedelta = pixelum, debugLevel=debugLevel)
-        
+            psf, wavelength, type='psf', pmask=iad,
+            imagedelta=pixelum, debugLevel=debugLevel)
+
     return elli
 
+
 def runPSSNandMore(argList):
-    
     """
     pixelum = 0 means we use opd, meanwhile only opd is provided.
     pixelum !=0 means we use psf. both psf and pmask needs to be provided.
     """
-    
+
     inputFile = argList[0]
     opdx = argList[1].opdx
     opdy = argList[1].opdy
     wavelength = argList[2]
     debugLevel = argList[3]
     pixelum = np.abs(argList[4])
-    print('runPSSNandMore: %s '% inputFile)
-    
+    print('runPSSNandMore: %s ' % inputFile)
+
     if pixelum == 0:
         IHDU = fits.open(inputFile[0])
-        opd = IHDU[0].data # unit: um
+        opd = IHDU[0].data  # unit: um
         IHDU.close()
 
         # before calc_pssn,
@@ -705,39 +714,41 @@ def runPSSNandMore(argList):
         pssn = calc_pssn(opd, wavelength, debugLevel=debugLevel)
     else:
         IHDU = fits.open(inputFile[0])
-        psf = IHDU[0].data # unit: um
+        psf = IHDU[0].data  # unit: um
         IHDU.close()
 
         # only opd to help determine pupil geometry
         IHDU = fits.open(inputFile[1])
-        opd = IHDU[0].data # unit: um
+        opd = IHDU[0].data  # unit: um
         IHDU.close()
         iad = (opd != 0)
-        
-        pssn = calc_pssn(psf, wavelength, type = 'psf', pmask = iad,
-                             imagedelta = pixelum,
-                             debugLevel=debugLevel)        
-        
+
+        pssn = calc_pssn(psf, wavelength, type='psf', pmask=iad,
+                         imagedelta=pixelum,
+                         debugLevel=debugLevel)
+
     return pssn
+
 
 def runFFTPSF(argList):
     opdFile = argList[0]
     opdx = argList[1].opdx
-    opdy = argList[1].opdy    
+    opdy = argList[1].opdy
     wavelength = argList[2]
     imagedelta = argList[3]
     sensorfactor = argList[4]
     fno = argList[5]
     psfFile = argList[6]
     debugLevel = argList[7]
-    print('runFFTPSF: %s ' %opdFile)
-    
+    print('runFFTPSF: %s ' % opdFile)
+
     IHDU = fits.open(opdFile)
-    opd = IHDU[0].data # unit: um
+    opd = IHDU[0].data  # unit: um
     IHDU.close()
-    
+
     # before opd2psf,
-    # (1) remove PTT, (for consistence with calc_pssn, in principle doesn't matter,
+    # (1) remove PTT, (for consistence with calc_pssn,
+    #        in principle doesn't matter,
     # in practice, this affects centering, so it affects edge cutoff on psf)
     # (2) make sure outside of pupil are all zeros
     idx = (opd != 0)
@@ -746,7 +757,7 @@ def runFFTPSF(argList):
     opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], 0)
 
     psf = opd2psf(opd, 0, wavelength, imagedelta, sensorfactor,
-                                    fno, debugLevel)
+                  fno, debugLevel)
     if os.path.isfile(psfFile):
         os.remove(psfFile)
     hdu = fits.PrimaryHDU(psf)

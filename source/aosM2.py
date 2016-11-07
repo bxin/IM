@@ -33,13 +33,13 @@ class aosM2(object):
         self.bxnorm = self.bx / self.R
         self.bynorm = self.by / self.R
 
-        #M2 gravitational and thermal deformations
+        # M2 gravitational and thermal deformations
         aa = np.loadtxt('data/M2/M2_GT_FEA.txt', skiprows=1)
         x, y, _ = ct.ZCRS2M2CRS(self.bx, self.by, self.bz)
         # first two columns are normalized x and y,
-        # should be the same as the x,y converted from the bending modes x and y above 
+        # should be the same as the x,y converted from the bending modes x and
+        # y above
         self.zdz = aa[:, 2]
         self.hdz = aa[:, 3]
         self.tzdz = aa[:, 4]
         self.trdz = aa[:, 5]
-         

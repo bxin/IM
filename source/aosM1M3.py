@@ -8,6 +8,7 @@ import numpy as np
 import aosCoTransform as ct
 from scipy.interpolate import Rbf
 
+
 class aosM1M3(object):
 
     def __init__(self, debugLevel):
@@ -15,14 +16,14 @@ class aosM1M3(object):
         self.Ri = 2.558
         self.R3 = 2.508
         self.R3i = 0.550
-        
+
         self.r1 = -1.9835e4
         self.r3 = -8344.5
         self.k1 = -1.215
         self.k3 = 0.155
-        self.alpha1 = np.zeros((8,1))
+        self.alpha1 = np.zeros((8, 1))
         self.alpha1[2] = 1.38e-24
-        self.alpha3 = np.zeros((8,1))
+        self.alpha3 = np.zeros((8, 1))
         self.alpha3[2] = -4.5e-22
         self.alpha3[3] = -8.2e-30
 
@@ -66,24 +67,24 @@ class aosM1M3(object):
         # data needed to determine thermal deformation
         aa = np.loadtxt('data/M1M3/M1M3_thermal_FEA.txt', skiprows=1)
         x, y, _ = ct.ZCRS2M1CRS(self.bx, self.by, self.bz)
-        #these are normalized coordinates
+        # these are normalized coordinates
         # n.b. these may not have been normalized correctly, b/c max(tx)=1.0
         # I tried to go back to the xls data, max(x)=164.6060 in,
         # while 4.18m=164.5669 in.
-        tx = aa[:, 0] 
+        tx = aa[:, 0]
         ty = aa[:, 1]
-        #below are in M1M3 coordinate system, and in micron
+        # below are in M1M3 coordinate system, and in micron
         ip = Rbf(tx, ty, aa[:, 2])
-        self.tbdz = ip(x/self.R, y/self.R) 
+        self.tbdz = ip(x / self.R, y / self.R)
         ip = Rbf(tx, ty, aa[:, 3])
-        self.txdz = ip(x/self.R, y/self.R) 
+        self.txdz = ip(x / self.R, y / self.R)
         ip = Rbf(tx, ty, aa[:, 4])
-        self.tydz = ip(x/self.R, y/self.R) 
+        self.tydz = ip(x / self.R, y / self.R)
         ip = Rbf(tx, ty, aa[:, 5])
-        self.tzdz = ip(x/self.R, y/self.R) 
+        self.tzdz = ip(x / self.R, y / self.R)
         ip = Rbf(tx, ty, aa[:, 6])
-        self.trdz = ip(x/self.R, y/self.R) 
-                
+        self.trdz = ip(x / self.R, y / self.R)
+
     def idealShape(self, x, y, annulus, dr1=0, dr3=0, dk1=0, dk3=0):
         """
         x,y,and z0 are all in millimeter.
@@ -93,19 +94,20 @@ class aosM1M3(object):
         nr = x.shape
         mr = y.shape
         if (nr != mr):
-            print('idealM1M3.m: x is [%d] while y is [%d]. exit. \n'%(nr,mr))
+            print(
+                'idealM1M3.m: x is [%d] while y is [%d]. exit. \n' % (nr, mr))
             sys.exit()
-        
-        c1=1/(self.r1+dr1)
-        k1=self.k1+dk1
-        c3 = 1/(self.r3+dr3)
-        k3 = self.k3+dk3
+
+        c1 = 1 / (self.r1 + dr1)
+        k1 = self.k1 + dk1
+        c3 = 1 / (self.r3 + dr3)
+        k3 = self.k3 + dk3
 
         r2 = x**2 + y**2
 
         idxM1 = annulus == 1
         idxM3 = annulus == 3
-        
+
         cMat = np.zeros(nr)
         kMat = np.zeros(nr)
         alphaMat = np.tile(np.zeros(nr), (8, 1))
@@ -116,15 +118,16 @@ class aosM1M3(object):
         for i in range(8):
             alphaMat[i, idxM1] = self.alpha1[i]
             alphaMat[i, idxM3] = self.alpha3[i]
-        
-        #M3 vertex offset from M1 vertex, values from Zemax model
-        M3voffset=(233.8-233.8-900-3910.701-1345.500+1725.701+3530.500+900+233.800)
+
+        # M3 vertex offset from M1 vertex, values from Zemax model
+        M3voffset = (233.8 - 233.8 - 900 - 3910.701 - 1345.500 +
+                     1725.701 + 3530.500 + 900 + 233.800)
 
         # ideal surface
-        z0=cMat * r2 /(1+np.sqrt(1-(1+kMat)*cMat**2*r2) )
+        z0 = cMat * r2 / (1 + np.sqrt(1 - (1 + kMat) * cMat**2 * r2))
         for i in range(8):
-            z0=z0+alphaMat[i,:] *r2**(i+1)
+            z0 = z0 + alphaMat[i, :] * r2**(i + 1)
 
-        z0[idxM3]=z0[idxM3]+M3voffset
-        #in Zemax, z axis points from M1M3 to M2. We want z0>0
-        return -z0 
+        z0[idxM3] = z0[idxM3] + M3voffset
+        # in Zemax, z axis points from M1M3 to M2. We want z0>0
+        return -z0

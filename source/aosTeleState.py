@@ -18,18 +18,20 @@ from lsst.cwfs.tools import extractArray
 
 import matplotlib.pyplot as plt
 
-phosimFilterID = {'u':0, 'g':1, 'r':2, 'i':3, 'z':4, 'y':5}
-effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
+phosimFilterID = {'u': 0, 'g': 1, 'r': 2, 'i': 3, 'z': 4, 'y': 5}
+effwave = {'u': 0.365, 'g': 0.480, 'r': 0.622,
+           'i': 0.754, 'z': 0.868, 'y': 0.973}
+
 
 class aosTeleState(object):
 
     def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
                  pertDir, imageDir, band, wavelength, debugLevel,
-                     M1M3=None, M2=None):
+                 M1M3=None, M2=None):
 
         self.band = band
         self.wavelength = wavelength
-        
+
         # plan to write these to txt files. no columns for iter
         self.stateV = np.zeros(ndofA)  # *np.nan # telescope state(?)
 
@@ -96,9 +98,10 @@ class aosTeleState(object):
         fid.close()
 
         self.fno = 1.2335
-        k = self.fno * wavelength/0.2
-        self.psfStampSize = int(self.opdSize + \
-          np.rint((self.opdSize*(k-1)+1e-5)/2)*2)
+        k = self.fno * wavelength / 0.2
+        self.psfStampSize = int(self.opdSize +
+                                np.rint((self.opdSize * (k - 1) + 1e-5) / 2) *
+                                2)
         self.iSim = iSim
         self.phosimDir = phosimDir
         self.pertDir = pertDir
@@ -107,7 +110,7 @@ class aosTeleState(object):
         self.imageDir = imageDir
         # if not os.path.isdir(imageDir):
         #     os.makedirs(imageDir)
-        
+
         # self.setIterNo(0)
         self.phosimActuatorID = [
             # M2 z, x, y, rx, ry
@@ -236,11 +239,11 @@ class aosTeleState(object):
 
     def update(self, ctrl):
         self.stateV += ctrl.uk
-        if np.any(self.stateV>ctrl.range):
-            ii = (self.stateV>ctrl.range).argmax()
+        if np.any(self.stateV > ctrl.range):
+            ii = (self.stateV > ctrl.range).argmax()
             raise RuntimeError("ERROR: stateV[%d] = %e > its range = %e" % (
                 ii, self.stateV[ii], ctrl.range[ii]))
-        
+
     def writePertFile(self, ndofA):
         fid = open(self.pertFile, 'w')
         for i in range(ndofA):
@@ -273,7 +276,8 @@ class aosTeleState(object):
         if wfs is not None:
             wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter)
-            wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (self.pertDir, self.iIter)
+            wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (
+                self.pertDir, self.iIter)
             wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
                 self.pertDir, self.iIter, self.iIter)
 
@@ -298,7 +302,7 @@ class aosTeleState(object):
                 metr.GQFWHMeff = aa[1, -1]
 
     def getOPDAll(self, opdoff, metr, numproc, wavelength, znwcs,
-                      obscuration, debugLevel):
+                  obscuration, debugLevel):
 
         if not opdoff:
             self.writeOPDinst(metr, wavelength)
@@ -441,17 +445,18 @@ perturbationmode 1\n')
                 if pixelum == 10:
                     chipStr, px, py = self.fieldXY2Chip(
                         metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-                    self.psfStampSize = 128 #no need to be too big, 10um pixel
+                    # no need to be too big, 10um pixel
+                    self.psfStampSize = 128
                 elif pixelum == 0.2:
                     chipStr = 'F%02d' % i
                     px = 2000
                     py = 2000
                 src = glob.glob('%s/output/*%d*%s*' % (
                     self.phosimDir, self.obsID, chipStr))
-                if len(src)==0:
+                if len(src) == 0:
                     raise RuntimeError(
-                         "cannot find Phosim output: osbID=%d, chipStr = %s" % (
-                         self.obsID, chipStr))
+                        "cannot find Phosim output: osbID=%d, chipStr = %s" % (
+                            self.obsID, chipStr))
                 elif 'gz' in src[0]:
                     # when .fits and .fits.gz both exist
                     # which appears first seems random
@@ -465,12 +470,12 @@ perturbationmode 1\n')
                 IHDU.close()
 
                 psf = chipImage[
-                    py - self.psfStampSize *2:py + self.psfStampSize *2,
-                    px - self.psfStampSize *2:px + self.psfStampSize *2]
+                    py - self.psfStampSize * 2:py + self.psfStampSize * 2,
+                    px - self.psfStampSize * 2:px + self.psfStampSize * 2]
                 offsety = np.argwhere(psf == psf.max())[0][0] - \
-                    self.psfStampSize *2 + 1
+                    self.psfStampSize * 2 + 1
                 offsetx = np.argwhere(psf == psf.max())[0][1] - \
-                    self.psfStampSize *2 + 1
+                    self.psfStampSize * 2 + 1
                 psf = chipImage[
                     py - self.psfStampSize / 2 + offsety:
                     py + self.psfStampSize / 2 + offsety,
@@ -485,7 +490,7 @@ perturbationmode 1\n')
                     displaySize = 20
                 elif pixelum == 0.2:
                     displaySize = 100
-                    
+
                 dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter, i)
                 if os.path.isfile(dst):
@@ -569,9 +574,9 @@ SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
 SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
-                          self.obsID % 1000 - 31))
+                      self.obsID % 1000 - 31))
         fpert = open(self.pertFile, 'r')
-        
+
         if self.wavelength == 0:
             sedfile = 'sed_flat.txt'
         else:
@@ -581,7 +586,7 @@ SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
                 fsed = open(sedfileFull, 'w')
                 fsed.write('%d   1.0\n' % (self.wavelength * 1e3))
                 fsed.close()
-            
+
         fid.write(fpert.read())
         for i in range(metr.nField):
             fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
@@ -610,7 +615,7 @@ diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
         fid.close()
-#clearperturbations\n\
+# clearperturbations\n\
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
@@ -688,7 +693,7 @@ SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
 Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
-                                 self.obsID, self.obsID % 1000 - 4))
+                             self.obsID, self.obsID % 1000 - 4))
         if self.inst[:4] == 'lsst':
             fid.write('SIM_CAMCONFIG 2\n')
         elif self.inst[:6] == 'comcam':
@@ -749,7 +754,7 @@ coatingmode 0\n\
 diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
-#airrefraction 0\n\
+# airrefraction 0\n\
 
         # body command interferes with move commands;
         # let's not piston the detector only.

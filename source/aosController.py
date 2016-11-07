@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 class aosController(object):
 
-    def __init__(self, instruFile, paramFile, esti, metr, wfs, M1M3, M2, wavelength, gain,
-                 debugLevel):
+    def __init__(self, instruFile, paramFile, esti, metr, wfs, M1M3, M2,
+                 wavelength, gain, debugLevel):
 
         self.filename = os.path.join('data/', (paramFile + '.ctrl'))
         fid = open(self.filename)
@@ -71,11 +71,11 @@ class aosController(object):
         # = 1/self.Authority*rbStroke[0], when there is no truncation of DOF
         self.range = np.concatenate((rbStroke,
                                      1 / (self.rhoM13 * np.std(
-                                         M1M3.force[:, :esti.nB13Max], axis=0))
-                                          * rbStroke[0],
+                                         M1M3.force[:, :esti.nB13Max],
+                                         axis=0)) * rbStroke[0],
                                      1 / (self.rhoM2 * np.std(
-                                         M2.force[:, :esti.nB2Max], axis=0))
-                                          * rbStroke[0]))
+                                         M2.force[:, :esti.nB2Max],
+                                         axis=0)) * rbStroke[0]))
 
         if esti.strategy == 'pinv':
             if esti.normalizeA:
@@ -88,13 +88,13 @@ class aosController(object):
             # use rms^2 as diagnal
             self.mH = np.diag(self.Authority**2)
             if self.xref == 'x0xcor':
-                idx1 = 10 + 3 #b3 of M1M3 bending
-                idx2 = 10+esti.nB13Max+5 #b5 of M2 bending
+                idx1 = 10 + 3  # b3 of M1M3 bending
+                idx2 = 10 + esti.nB13Max + 5  # b5 of M2 bending
                 if esti.compIdx[idx1] and esti.compIdx[idx2]:
-                    idx1 = sum(esti.compIdx[:idx1])-1 
-                    idx2 = sum(esti.compIdx[:idx2])-1 
+                    idx1 = sum(esti.compIdx[:idx1]) - 1
+                    idx2 = sum(esti.compIdx[:idx2]) - 1
                     self.mH[idx1, idx2] = self.Authority[idx1] * \
-                      self.Authority[idx2] * 100 #10 times penalty
+                        self.Authority[idx2] * 100  # 10 times penalty
 
             # wavelength below in um,b/c output of A in um
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
@@ -142,14 +142,13 @@ class aosController(object):
                 self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
             elif self.xref == '0':
                 self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
-                    -self.rho**2 *self.mH.dot(state.stateV[esti.compIdx])
-                    - Mx)
+                    -self.rho**2 * self.mH.dot(state.stateV[esti.compIdx]) -
+                    Mx)
             elif self.xref == 'x00':
                 self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
-                    self.rho**2 *self.mH.dot(state.stateV0[esti.compIdx]
-                                                 - state.stateV[esti.compIdx])
-                    - Mx)
-                
+                    self.rho**2 * self.mH.dot(state.stateV0[esti.compIdx] -
+                                              state.stateV[esti.compIdx]) -
+                    Mx)
 
     def drawControlPanel(self, esti, state):
 
@@ -304,7 +303,8 @@ class aosController(object):
         plt.savefig(pngFile, bbox_inches='tight')
         plt.close()
 
-    def drawSummaryPlots(self, state, metr, esti, M1M3, M2, startIter, endIter, debugLevel):
+    def drawSummaryPlots(self, state, metr, esti, M1M3, M2,
+                         startIter, endIter, debugLevel):
         allPert = np.zeros((esti.ndofA, endIter - startIter + 1))
         allPSSN = np.zeros((metr.nField + 1, endIter - startIter + 1))
         allFWHMeff = np.zeros((metr.nField + 1, endIter - startIter + 1))
@@ -393,8 +393,10 @@ class aosController(object):
         rms = np.std(allPert[10:esti.nB13Max + 10, :], axis=1)
         idx = np.argsort(rms)
         for i in range(1, 4 + 1):
-            ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :], label='M1M3 b%d' %
-                          (idx[-i] + 1), marker='.', color=colors[i - 1], markersize=10)
+            ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :],
+                          label='M1M3 b%d' %
+                          (idx[-i] + 1), marker='.', color=colors[i - 1],
+                          markersize=10)
         for i in range(4, esti.nB13Max + 1):
             ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :],
                           marker='.', color=colors[-1], markersize=10)
@@ -418,11 +420,14 @@ class aosController(object):
         rms = np.std(allPert[10 + esti.nB13Max:esti.ndofA, :], axis=1)
         idx = np.argsort(rms)
         for i in range(1, 4 + 1):
-            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max, :], label='M2 b%d' %
-                          (idx[-i] + 1), marker='.', color=colors[i - 1], markersize=10)
+            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max, :],
+                          label='M2 b%d' %
+                          (idx[-i] + 1), marker='.', color=colors[i - 1],
+                          markersize=10)
         for i in range(4, esti.nB2Max + 1):
             ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max,
-                                            :], marker='.', color=colors[-1], markersize=10)
+                                            :], marker='.', color=colors[-1],
+                          markersize=10)
         ax[1, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[1, 1].set_xticks(myxticks)
         ax[1, 1].set_xticklabels(myxticklabels)
@@ -444,7 +449,8 @@ class aosController(object):
             ax[1, 2].semilogy(myxticks, 1 - allPSSN[i, :],
                               marker='.', color='b', markersize=10)
         ax[1, 2].semilogy(myxticks, 1 - allPSSN[-1, :],
-                          label='GQ(1-PSSN)', marker='.', color='r', markersize=10)
+                          label='GQ(1-PSSN)',
+                          marker='.', color='r', markersize=10)
         ax[1, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[1, 2].set_xticks(myxticks)
         ax[1, 2].set_xticklabels(myxticklabels)
@@ -466,7 +472,8 @@ class aosController(object):
             ax[2, 0].plot(myxticks, allFWHMeff[i, :],
                           marker='.', color='b', markersize=10)
         ax[2, 0].plot(myxticks, allFWHMeff[-1, :],
-                      label='GQ($FWHM_{eff}$)', marker='.', color='r', markersize=10)
+                      label='GQ($FWHM_{eff}$)',
+                      marker='.', color='r', markersize=10)
         xmin = np.min(myxticks) - 0.5
         xmax = np.max(myxticks) + 0.5
         ax[2, 0].set_xlim([xmin, xmax])
@@ -513,7 +520,8 @@ class aosController(object):
             ax[2, 2].plot(myxticks, allelli[i, :] * 100,
                           marker='.', color='b', markersize=10)
         ax[2, 2].plot(myxticks, allelli[-1, :] * 100,
-                      label='GQ(ellipticity)', marker='.', color='r', markersize=10)
+                      label='GQ(ellipticity)',
+                      marker='.', color='r', markersize=10)
         ax[2, 2].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
         ax[2, 2].set_xticks(myxticks)
         ax[2, 2].set_xticklabels(myxticklabels)
@@ -538,6 +546,7 @@ class aosController(object):
                     state.pertDir, state.iSim, i, j)
                 if (i == startIter and j == endIter):
                     plt.savefig(sumPlotFile, bbox_inches='tight', dpi=500)
-                else:  # remove everything else in between startIter and endIter
+                else:
+                    # remove everything else in between startIter and endIter
                     if os.path.isfile(sumPlotFile):
                         os.remove(sumPlotFile)

@@ -16,7 +16,9 @@ from aosM1M3 import aosM1M3
 from aosM2 import aosM2
 from aosTeleState import aosTeleState
 
-effwave = {'u':0.365, 'g':0.480, 'r':0.622, 'i':0.754, 'z':0.868, 'y':0.973}
+effwave = {'u': 0.365, 'g': 0.480, 'r': 0.622,
+           'i': 0.754, 'z': 0.868, 'y': 0.973}
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -33,13 +35,16 @@ def main():
                         help='iteration No. to start with, default=0')
     parser.add_argument('-end', dest='enditer', type=int, default=5,
                         help='iteration No. to end with, default=5')
-    parser.add_argument('-sensor', dest='sensor', choices = ('ideal','covM','phosim','cwfs','load'),
+    parser.add_argument('-sensor', dest='sensor',
+                        choices=('ideal', 'covM', 'phosim', 'cwfs',
+                                 'load'),
                         help='ideal: use true wavefront in estimator;\
                         covM: use covarance matrix to estimate wavefront;\
                         phosim: run Phosim to create WFS images;\
                         cwfs: start by running cwfs on existing images;\
                         load: load wavefront from txt files')
-    parser.add_argument('-ctrloff', help='w/o applying ctrl rules or regenrating pert files',
+    parser.add_argument('-ctrloff', help='w/o applying ctrl rules or\
+regenrating pert files',
                         action='store_true')
     parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
                         action='store_true')
@@ -49,7 +54,8 @@ def main():
                         action='store_true')
     parser.add_argument('-ellioff', help='w/o calculating ellipticity',
                         action='store_true')
-    parser.add_argument('-makesum', help='make summary plot, assuming all data available',
+    parser.add_argument('-makesum', help='make summary plot,\
+assuming all data available',
                         action='store_true')
     parser.add_argument('-p', dest='numproc', default=1, type=int,
                         help='Number of Processors Phosim uses')
@@ -57,7 +63,7 @@ def main():
                         help='override gain in the controller parameter file, \
                         default=no override')
     parser.add_argument('-i', dest='inst',
-                        default='lsst', #choices=('lsst','comcam'),
+                        default='lsst',  # choices=('lsst','comcam'),
                         help='instrument name, \
                         default=lsst')
     parser.add_argument('-s', dest='simuParam',
@@ -74,7 +80,7 @@ def main():
                         help='controller parameter file in data/, \
                         default=optiPSSN')
     parser.add_argument('-w', dest='wavestr',
-                            choices=('0.5','u','g','r','i','z','y'),
+                        choices=('0.5', 'u', 'g', 'r', 'i', 'z', 'y'),
                         default="0.5", help='wavelength in micron, \
                         default=0.5')
     parser.add_argument('-d', dest='debugLevel', type=int,
@@ -91,24 +97,24 @@ def main():
         args.psfoff = True
         args.pssnoff = True
         args.ellioff = True
-        
+
     if args.debugLevel >= 1:
         print(args)
-        
+
     if args.wavestr == '0.5':
         band = 'g'
         wavelength = float(args.wavestr)
     else:
         band = args.wavestr
         wavelength = effwave[args.wavestr]
-        
+
     # *****************************************
     # simulate the perturbations
     # *****************************************
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
     phosimDir = '../phosimSE/'
-    #znPert = 28  # znmax used in pert file to define surfaces
+    # znPert = 28  # znmax used in pert file to define surfaces
 
     # *****************************************
     # run wavefront sensing algorithm
@@ -123,21 +129,22 @@ def main():
     # *****************************************
     # state estimator
     # *****************************************
-    esti = aosEstimator(args.inst, args.estimatorParam, wfs, args.icomp, args.izn3,
-                        args.debugLevel)
+    esti = aosEstimator(args.inst, args.estimatorParam, wfs, args.icomp,
+                        args.izn3, args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
     pertDir = 'pert/sim%d' % args.iSim
     imageDir = 'image/sim%d' % args.iSim
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
-                         pertDir, imageDir, band, wavelength, 
-                             args.debugLevel, M1M3=M1M3, M2=M2)
+                         pertDir, imageDir, band, wavelength,
+                         args.debugLevel, M1M3=M1M3, M2=M2)
     # *****************************************
     # control algorithm
     # *****************************************
     metr = aosMetric(args.inst, state.opdSize, wfs.znwcs3, args.debugLevel)
-    ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs, M1M3, M2,
+    ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs,
+                         M1M3, M2,
                          wavelength, args.gain, args.debugLevel)
 
     # *****************************************
@@ -150,7 +157,7 @@ def main():
         state.setIterNo(metr, iIter, wfs=wfs)
 
         if not args.ctrloff:
-            if iIter > 0: #args.startiter:
+            if iIter > 0:  # args.startiter:
                 esti.estimate(state, wfs, ctrl, args.sensor)
                 ctrl.getMotions(esti, metr, wfs, state, wavelength)
                 ctrl.drawControlPanel(esti, state)
@@ -161,39 +168,41 @@ def main():
 
             state.writePertFile(esti.ndofA)
 
-        if args.baserun>0 and iIter == 0:
+        if args.baserun > 0 and iIter == 0:
             state.getOPDAllfromBase(args.baserun, metr)
             state.getPSFAllfromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
-            if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
+            if (args.sensor == 'ideal' or args.sensor == 'covM' or
+                    args.sensor == 'load'):
                 pass
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
             state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
-                           wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
+                            wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
 
             state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
-    
+
             metr.getPSSNandMore(args.pssnoff, state, wavelength,
-                                    args.numproc, wfs.znwcs,
-                                    wfs.inst.obscuration, args.debugLevel)
-    
+                                args.numproc, args.debugLevel)
+
             metr.getEllipticity(args.ellioff, state, wavelength,
-                                    args.numproc, wfs.znwcs,
-                                    wfs.inst.obscuration, args.debugLevel)
-    
-            if (args.sensor == 'ideal' or args.sensor == 'covM' or args.sensor == 'load'):
+                                args.numproc, args.debugLevel)
+
+            if (args.sensor == 'ideal' or args.sensor == 'covM' or
+                    args.sensor == 'load'):
                 pass
             else:
                 if args.sensor == 'phosim':
-                    # create donuts for last iter, so that picking up from there will be easy
+                    # create donuts for last iter,
+                    # so that picking up from there will be easy
                     state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
-                if args.sensor == 'phosim' or args.sensor == 'cwfs':                
+                if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
-                if args.sensor == 'phosim' or args.sensor == 'cwfs' or args.sensor == 'load':
+                if args.sensor == 'phosim' or args.sensor == 'cwfs' \
+                        or args.sensor == 'load':
                     wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
