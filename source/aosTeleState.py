@@ -4,6 +4,7 @@
 # @      Large Synoptic Survey Telescope
 
 import os
+import sys
 import shutil
 import glob
 import subprocess
@@ -401,13 +402,16 @@ class aosTeleState(object):
                                     self.zTrueFile[i], metr.nFieldp4,
                                     znwcs, obscuration, self.opdx, self.opdy,
                                     srcFile, dstFile, debugLevel))
+                if sys.platform == 'darwin':
+                    runOPD1w(argList[i])
+                
+            if sys.platform != 'darwin':
                 # test, pdb cannot go into the subprocess
                 # runOPD1w(argList[0])
-                
-            pool = multiprocessing.Pool(numproc)
-            pool.map(runOPD1w, argList)
-            pool.close()
-            pool.join()
+                pool = multiprocessing.Pool(numproc)
+                pool.map(runOPD1w, argList)
+                pool.close()
+                pool.join()
             
             
     def getOPDAllfromBase(self, baserun, metr):
@@ -627,7 +631,7 @@ SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
 SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
-                      self.obsID % 1000 - 31))
+                      self.obsID % 10000 + 31))
         fpert = open(self.pertFile, 'r')
 
         fid.write(fpert.read())
@@ -736,7 +740,7 @@ SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
 Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
-                             self.obsID, self.obsID % 1000 - 4))
+                             self.obsID, self.obsID % 10000 + 4))
         if self.inst[:4] == 'lsst':
             fid.write('SIM_CAMCONFIG 2\n')
         elif self.inst[:6] == 'comcam':

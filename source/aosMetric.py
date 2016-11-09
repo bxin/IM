@@ -171,6 +171,7 @@ class aosMetric(object):
             if sys.platform == 'darwin':
                 self.PSSNw = np.zeros((self.nField, state.nOPDrun))
             argList = []
+            icount = 0
             for i in range(self.nField):
                 for irun in range(state.nOPDrun):
                     inputFile = []
@@ -198,12 +199,13 @@ class aosMetric(object):
                             state.imageDir, state.iIter, state.iSim,
                             state.iIter, i, irun))                        
                     argList.append((inputFile, state,
-                                        aosTeleState.GQwave[state.band],
+                                        aosTeleState.GQwave[state.band][irun],
                                     debugLevel, pixelum))
 
                     if sys.platform == 'darwin':
-                        self.PSSNw[i, irun] = runPSSNandMore(argList[i])
-
+                        self.PSSNw[i, irun] = runPSSNandMore(argList[icount])
+                    icount += 1
+                    
             if sys.platform != 'darwin':
                 # test, pdb cannot go into the subprocess
                 # aa = runPSSNandMore(argList[0])
@@ -213,7 +215,9 @@ class aosMetric(object):
                 pool.join()
                 self.PSSNw = np.array(self.PSSNw).reshape(self.nField, -1)
 
-            self.PSSN = np.sum(aosTeleState.GQwt * self.PSSNw, axis = 0)
+            wt = np.tile(np.array(aosTeleState.GQwt[state.band]),
+                             (self.nField,1))
+            self.PSSN = np.sum(wt * self.PSSNw, axis=1)
             self.FWHMeff = 1.086 * 0.6 * np.sqrt(1 / self.PSSN - 1)
             self.dm5 = -1.25 * np.log10(self.PSSN)
 

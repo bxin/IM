@@ -58,7 +58,7 @@ def main():
     nIter = 6
     band = 'r'
     wave = [0.622, 0.550, 0.694, 0.586, 0.658, 0]
-    wlwt = [1, 1, 1, 1, 1, 1]
+    # wlwt = [1, 1, 1, 1, 1, 1]
     pixelum = 0.2  # 0.1um = 2mas
 
     # for iIter in range(nIter):
