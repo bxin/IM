@@ -18,6 +18,7 @@ from lsst.cwfs.tools import ZernikeAnnularEval
 
 from lsst.cwfs.errors import nonSquareImageError
 from aosErrors import psfSamplingTooLowError
+from aosTeleState import aosTeleState
 
 import matplotlib.pyplot as plt
 
@@ -96,7 +97,7 @@ class aosMetric(object):
     def getPSSNfromZ(self):
         pass
 
-    def getFFTPSF(self, fftpsfoff, state, wavelength, imagedelta, numproc,
+    def getFFTPSF(self, fftpsfoff, state, imagedelta, numproc,
                   debugLevel, sensorfactor=1, fno=1.2335):
 
         if not fftpsfoff:
@@ -105,7 +106,7 @@ class aosMetric(object):
                 opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i)
                 psfFile = opdFile.replace('opd', 'fftpsf')
-                argList.append((opdFile, state, wavelength, imagedelta,
+                argList.append((opdFile, state, imagedelta,
                                 sensorfactor, fno, psfFile,
                                 debugLevel))
                 if sys.platform == 'darwin':
@@ -153,7 +154,7 @@ class aosMetric(object):
             plt.savefig(pngFile, bbox_inches='tight')
             plt.close()
 
-    def getPSSNandMore(self, pssnoff, state, wavelength, numproc,
+    def getPSSNandMore(self, pssnoff, state, numproc,
                        debugLevel,
                        outFile='', pixelum=0):
         """
@@ -168,36 +169,51 @@ class aosMetric(object):
             # before we calc_pssn, we do ZernikeFit to remove PTT
             # pinv appears in ZernikeFit()
             if sys.platform == 'darwin':
-                self.PSSN = np.zeros(self.nField)
+                self.PSSNw = np.zeros((self.nField, state.nOPDrun))
             argList = []
             for i in range(self.nField):
-                inputFile = []
-                if pixelum > 0:
-                    inputFile.append('%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        i))
-                elif pixelum < 0:
-                    inputFile.append('%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        i))
-                inputFile.append('%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                for irun in range(state.nOPDrun):
+                    inputFile = []
+                    if pixelum > 0:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter,
+                            i))
+                    elif pixelum < 0:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter,
+                            i))
+                        
+                    if state.nOPDrun == 1:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter, i))
+                    else:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter, i, irun))                        
+                    argList.append((inputFile, state,
+                                        aosTeleState.GQwave[state.band],
+                                    debugLevel, pixelum))
 
-                argList.append((inputFile, state,
-                                wavelength, debugLevel, pixelum))
-
-                if sys.platform == 'darwin':
-                    self.PSSN[i] = runPSSNandMore(argList[i])
+                    if sys.platform == 'darwin':
+                        self.PSSNw[i, irun] = runPSSNandMore(argList[i])
 
             if sys.platform != 'darwin':
                 # test, pdb cannot go into the subprocess
                 # aa = runPSSNandMore(argList[0])
                 pool = multiprocessing.Pool(numproc)
-                self.PSSN = pool.map(runPSSNandMore, argList)
+                self.PSSNw = pool.map(runPSSNandMore, argList)
                 pool.close()
                 pool.join()
-                self.PSSN = np.array(self.PSSN)
+                self.PSSNw = np.array(self.PSSNw).reshape(self.nField, -1)
 
+            self.PSSN = np.sum(aosTeleState.GQwt * self.PSSNw, axis = 0)
             self.FWHMeff = 1.086 * 0.6 * np.sqrt(1 / self.PSSN - 1)
             self.dm5 = -1.25 * np.log10(self.PSSN)
 
@@ -228,7 +244,7 @@ class aosMetric(object):
         aa = np.loadtxt(self.PSSNFile)
         self.GQFWHMeff = aa[1, -1]  # needed for shiftGear
 
-    def getEllipticity(self, ellioff, state, wavelength, numproc,
+    def getEllipticity(self, ellioff, state, numproc,
                        debugLevel,
                        outFile='', pixelum=0):
         """
@@ -243,35 +259,49 @@ class aosMetric(object):
             # before we psf2eAtmW(), we do ZernikeFit to remove PTT
             # pinv appears in ZernikeFit()
             if sys.platform == 'darwin':
-                self.elli = np.zeros(self.nField)
+                self.elliw = np.zeros((self.nField, state.nOPDrun))
             argList = []
             for i in range(self.nField):
-                inputFile = []
-                if pixelum > 0:
-                    inputFile.append('%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        i))
-                elif pixelum < 0:
-                    inputFile.append('%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        i))
-                inputFile.append('%s/iter%d/sim%d_iter%d_opd%d.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i))
+                for irun in range(state.nOPDrun):
+                    inputFile = []
+                    if pixelum > 0:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter,
+                            i))
+                    elif pixelum < 0:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_fftpsf%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter,
+                            i))
 
-                argList.append((inputFile, state,
-                                wavelength, debugLevel, pixelum))
+                    if state.nOPDrun == 1:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter, i))
+                    else:
+                        inputFile.append(
+                            '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
+                            state.imageDir, state.iIter, state.iSim,
+                            state.iIter, i, irun))                    
+                    argList.append((inputFile, state,
+                                    aosTeleState.GQwave[state.band],
+                                        debugLevel, pixelum))
 
-                # test, pdb cannot go into the subprocess
-                # aa = runEllipticity(argList[0])
-                if sys.platform == 'darwin':
-                    self.elli[i] = runEllipticity(argList[i])
+                    if sys.platform == 'darwin':
+                        self.elliw[i, irun] = runEllipticity(argList[i])
 
             if sys.platform != 'darwin':
                 pool = multiprocessing.Pool(numproc)
-                self.elli = pool.map(runEllipticity, argList)
+                self.elliw = pool.map(runEllipticity, argList)
                 pool.close()
                 pool.join()
+                self.elliw = np.array(self.elliw).reshape(self.nField, -1)
 
+            self.elli = np.sum(aosTeleState.GQwt * self.elliw, axis = 0)
             for i in range(self.nField):
                 if debugLevel >= 2:
                     print('---field#%d, elli=%7.4f' % (i, self.elli[i]))
@@ -734,12 +764,12 @@ def runFFTPSF(argList):
     opdFile = argList[0]
     opdx = argList[1].opdx
     opdy = argList[1].opdy
-    wavelength = argList[2]
-    imagedelta = argList[3]
-    sensorfactor = argList[4]
-    fno = argList[5]
-    psfFile = argList[6]
-    debugLevel = argList[7]
+    wavelength = argList[1].effwave
+    imagedelta = argList[2]
+    sensorfactor = argList[3]
+    fno = argList[4]
+    psfFile = argList[5]
+    debugLevel = argList[6]
     print('runFFTPSF: %s ' % opdFile)
 
     IHDU = fits.open(opdFile)

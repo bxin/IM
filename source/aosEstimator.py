@@ -7,7 +7,7 @@ import os
 import glob
 
 import numpy as np
-
+from aosTeleState import aosTeleState
 
 class aosEstimator(object):
 
@@ -137,8 +137,11 @@ class aosEstimator(object):
 
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
-            aa = np.loadtxt(state.zTrueFile_m1)
-            self.yfinal = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
+            bb = np.zeros((self.znwcs, state.nOPDrun))
+            for irun in range(self.nOPDrun):
+                aa = np.loadtxt(state.zTrueFile_m1[irun])
+                bb[:, irun] = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
+            self.yfinal = np.sum(aosTeleState.GQwt * bb)
             if sensor == 'covM':
                 mu = np.zeros(self.zn3Max * 4)
                 np.random.seed(state.obsID)

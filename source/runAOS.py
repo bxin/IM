@@ -16,9 +16,6 @@ from aosM1M3 import aosM1M3
 from aosM2 import aosM2
 from aosTeleState import aosTeleState
 
-effwave = {'u': 0.365, 'g': 0.480, 'r': 0.622,
-           'i': 0.754, 'z': 0.868, 'y': 0.973}
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -106,7 +103,7 @@ assuming all data available',
         wavelength = float(args.wavestr)
     else:
         band = args.wavestr
-        wavelength = effwave[args.wavestr]
+        wavelength = 0 #effwave[args.wavestr]
 
     # *****************************************
     # simulate the perturbations
@@ -121,8 +118,12 @@ assuming all data available',
     # *****************************************
     cwfsDir = '../../wavefront/cwfs/'
     algoFile = 'exp'
+    if wavelength == 0:
+        effwave = aosTeleState.effwave[band]
+    else:
+        effwave = wavelength
     wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, wavelength, args.debugLevel)
+                 128, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
@@ -145,7 +146,7 @@ assuming all data available',
     metr = aosMetric(args.inst, state.opdSize, wfs.znwcs3, args.debugLevel)
     ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs,
                          M1M3, M2,
-                         wavelength, args.gain, args.debugLevel)
+                         effwave, args.gain, args.debugLevel)
 
     # *****************************************
     # start the Loop
@@ -159,7 +160,7 @@ assuming all data available',
         if not args.ctrloff:
             if iIter > 0:  # args.startiter:
                 esti.estimate(state, wfs, ctrl, args.sensor)
-                ctrl.getMotions(esti, metr, wfs, state, wavelength)
+                ctrl.getMotions(esti, metr, wfs, state)
                 ctrl.drawControlPanel(esti, state)
 
                 # need to remake the pert file here.
@@ -179,15 +180,15 @@ assuming all data available',
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
         else:
-            state.getOPDAll(args.opdoff, metr, args.numproc, wavelength,
+            state.getOPDAll(args.opdoff, metr, args.numproc,
                             wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
 
             state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
 
-            metr.getPSSNandMore(args.pssnoff, state, wavelength,
+            metr.getPSSNandMore(args.pssnoff, state,
                                 args.numproc, args.debugLevel)
 
-            metr.getEllipticity(args.ellioff, state, wavelength,
+            metr.getEllipticity(args.ellioff, state,
                                 args.numproc, args.debugLevel)
 
             if (args.sensor == 'ideal' or args.sensor == 'covM' or

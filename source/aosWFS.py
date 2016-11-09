@@ -33,7 +33,7 @@ class aosWFS(object):
             aa = float(instruFile[-2:]) / 10
             self.offset = [-aa, aa]
 
-        self.halfChip = ['C1', 'C0']  # C1 is always intra, C0 is extra
+        self.halfChip = ['C0', 'C1']  # C0 is always intra, C1 is extra
 
         aosDir = os.getcwd()
         self.cwfsDir = cwfsDir
@@ -80,12 +80,12 @@ class aosWFS(object):
 
                 if state.inst[:4] == 'lsst':
                     if ioffset == 0:
-                        # intra image, C1, push away from left edge
+                        # intra image, C0, pulled 0.02 deg from right edge
                         # degree to micron then to pixel
-                        px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1]
-                    elif ioffset == 1:
-                        # extra image, C0, pull away from right edge
                         px = px0 - 0.020 * 180000 / 10
+                    elif ioffset == 1:
+                        # extra image, C1, pulled 0.02 deg away from left edge
+                        px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1]
                 elif state.inst[:6] == 'comcam':
                     px = px0
                 py = py0.copy()
@@ -242,7 +242,9 @@ class aosWFS(object):
 
     def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile)  # in micron
-        z4cTrue = np.loadtxt(state.zTrueFile)
+        z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDrun))
+        for i in range(state.nOPDrun):
+            z4cTrue[:, :, i] = np.loadtxt(state.zTrueFile[i])
 
         x = range(4, self.znwcs + 1)
         plt.figure(figsize=(10, 8))
@@ -265,9 +267,15 @@ class aosWFS(object):
             plt.subplot(nRow, nCol, pIdx[i])
             plt.plot(x, z4c[i, :self.znwcs3], label='CWFS',
                      marker='o', color='r', markersize=6)
-            plt.plot(x, z4cTrue[i + metr.nFieldp4 - self.nWFS, 3:self.znwcs],
-                     label='Truth',
-                     marker='.', color='b', markersize=10)
+            for i in range(state.nOPDrun):
+                if i==0:
+                    mylabel = 'Truth'
+                else:
+                    mylabel = ''
+                plt.plot(x, z4cTrue[i + metr.nFieldp4 - self.nWFS, 3:self.znwcs,
+                                        i],
+                             label=mylabel,
+                        marker='.', color='b', markersize=10)
             if ((state.inst[:4] == 'lsst' and (i == 1 or i == 2)) or
                     (state.inst[:6] == 'comcam' and (i <= 2))):
                 plt.ylabel('$\mu$m')

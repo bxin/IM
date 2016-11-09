@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 class aosController(object):
 
     def __init__(self, instruFile, paramFile, esti, metr, wfs, M1M3, M2,
-                 wavelength, gain, debugLevel):
+                 effwave, gain, debugLevel):
 
         self.filename = os.path.join('data/', (paramFile + '.ctrl'))
         fid = open(self.filename)
@@ -97,7 +97,7 @@ class aosController(object):
                         self.Authority[idx2] * 100  # 10 times penalty
 
             # wavelength below in um,b/c output of A in um
-            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
+            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / effwave)**2
             self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
             for iField in range(metr.nField):
                 aa = esti.senM[iField, :, :]
@@ -110,7 +110,7 @@ class aosController(object):
                 print(self.mQ[0, 0])
                 print(self.mQ[0, 9])
 
-    def getMotions(self, esti, metr, wfs, state, wavelength):
+    def getMotions(self, esti, metr, wfs, state):
         self.uk = np.zeros(esti.ndofA)
         self.gainUse = self.gain
         if hasattr(self, 'shiftGear'):
@@ -129,7 +129,7 @@ class aosController(object):
                 (esti.xhat[esti.compIdx] + x_y2c)
 
         elif (self.strategy == 'optiPSSN'):
-            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / wavelength)**2
+            CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / state.effwave)**2
             Mx = np.zeros(esti.Ause.shape[1])
             for iField in range(metr.nField):
                 aa = esti.senM[iField, :, :]

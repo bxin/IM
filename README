@@ -103,9 +103,14 @@ aosTeleState  ->state
 	OPD_cmd		command file used for generating OPD maps
 	OPD_log		Phosim log from the OPD run
 	PSF_inst	       instance catalog file used for generating PSF images
+	nOPDrun		number of GQ wavelength used for IQ evaluation
 	zTrueFile  	filename for the zernikes from the current iteration (from Phosim, 35 points)
 	zTrueFile_m1	filename for the zernikes from the previous iteration (from Phosim, 35 points)
 	zAngle		zenith angle in radian
+	band		optical band, can be monochromatic or polychromatic
+	wavelength	0 for broad band; !=0 for monochromatic, this is the actually wavelength
+	effwave		for monochromatic, this is the actually wavelength,
+			for broadband, this is effective wavelength
 
 	functions():
 	writePertFile		write state vector to pert file
