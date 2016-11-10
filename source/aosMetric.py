@@ -265,6 +265,7 @@ class aosMetric(object):
             if sys.platform == 'darwin':
                 self.elliw = np.zeros((self.nField, state.nOPDrun))
             argList = []
+            icount = 0
             for i in range(self.nField):
                 for irun in range(state.nOPDrun):
                     inputFile = []
@@ -292,11 +293,12 @@ class aosMetric(object):
                             state.imageDir, state.iIter, state.iSim,
                             state.iIter, i, irun))                    
                     argList.append((inputFile, state,
-                                    aosTeleState.GQwave[state.band],
+                                    aosTeleState.GQwave[state.band][irun],
                                         debugLevel, pixelum))
 
                     if sys.platform == 'darwin':
-                        self.elliw[i, irun] = runEllipticity(argList[i])
+                        self.elliw[i, irun] = runEllipticity(argList[icount])
+                    icount += 1
 
             if sys.platform != 'darwin':
                 pool = multiprocessing.Pool(numproc)
@@ -305,7 +307,9 @@ class aosMetric(object):
                 pool.join()
                 self.elliw = np.array(self.elliw).reshape(self.nField, -1)
 
-            self.elli = np.sum(aosTeleState.GQwt * self.elliw, axis = 0)
+            wt = np.tile(np.array(aosTeleState.GQwt[state.band]),
+                             (self.nField,1))
+            self.elli = np.sum(wt * self.elliw, axis = 1)
             for i in range(self.nField):
                 if debugLevel >= 2:
                     print('---field#%d, elli=%7.4f' % (i, self.elli[i]))

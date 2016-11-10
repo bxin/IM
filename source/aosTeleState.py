@@ -525,6 +525,7 @@ perturbationmode 1\n')
                 IHDU = fits.open(fitsfile)
                 chipImage = IHDU[0].data
                 IHDU.close()
+                os.rename(fitsfile, fitsfile.replace('.fits','psf.fits'))
 
                 psf = chipImage[
                     py - self.psfStampSize * 2:py + self.psfStampSize * 2,
