@@ -70,7 +70,7 @@ class aosWFS(object):
             chipStr, px0, py0 = state.fieldXY2Chip(
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
             for ioffset in [0, 1]:
-                src = glob.glob('%s/iter%d/*%d*%s*%s*' %
+                src = glob.glob('%s/iter%d/*%d*%s*%s*.fits' %
                                 (state.imageDir, state.iIter, state.obsID,
                                  chipStr, self.halfChip[ioffset]))
                 chipFile = src[0]

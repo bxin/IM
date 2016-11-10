@@ -508,7 +508,7 @@ perturbationmode 1\n')
                     chipStr = 'F%02d' % i
                     px = 2000
                     py = 2000
-                src = glob.glob('%s/output/*%d*%s*' % (
+                src = glob.glob('%s/output/*%d*%s*E000.fit*' % (
                     self.phosimDir, self.obsID, chipStr))
                 if len(src) == 0:
                     raise RuntimeError(
@@ -693,7 +693,7 @@ detectormode 0\n')
             for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
                 chipStr, px, py = self.fieldXY2Chip(
                     metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-                src = glob.glob('%s/output/*%s*%s*' %
+                src = glob.glob('%s/output/*%s*%s*E000.fit*' %
                                 (self.phosimDir, self.obsID, chipStr))
                 if wfs.nRun == 1:
                     for ioffset in [0, 1]:
