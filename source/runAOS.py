@@ -211,6 +211,8 @@ assuming all data available',
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
 
+    print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
+    
 if __name__ == "__main__":
     timea = datetime.datetime.now().replace(microsecond=0)
     main()
