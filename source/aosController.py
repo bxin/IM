@@ -310,19 +310,19 @@ class aosController(object):
         allFWHMeff = np.zeros((metr.nField + 1, endIter - startIter + 1))
         alldm5 = np.zeros((metr.nField + 1, endIter - startIter + 1))
         allelli = np.zeros((metr.nField + 1, endIter - startIter + 1))
-        for iIter in range(0, endIter - startIter + 1):
+        for iIter in range(startIter, endIter + 1):
             filename = state.pertMatFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
-            allPert[:, iIter] = np.loadtxt(filename)
+            allPert[:, iIter - startIter] = np.loadtxt(filename)
             filename = metr.PSSNFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
             allData = np.loadtxt(filename)
-            allPSSN[:, iIter] = allData[0, :]
-            allFWHMeff[:, iIter] = allData[1, :]
-            alldm5[:, iIter] = allData[2, :]
+            allPSSN[:, iIter - startIter] = allData[0, :]
+            allFWHMeff[:, iIter - startIter] = allData[1, :]
+            alldm5[:, iIter - startIter] = allData[2, :]
             filename = metr.elliFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
-            allelli[:, iIter] = np.loadtxt(filename)
+            allelli[:, iIter - startIter] = np.loadtxt(filename)
 
         f, ax = plt.subplots(3, 3, figsize=(15, 10))
         myxticks = np.arange(startIter, endIter + 1)

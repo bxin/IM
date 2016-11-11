@@ -525,6 +525,9 @@ perturbationmode 1\n')
                 IHDU = fits.open(fitsfile)
                 chipImage = IHDU[0].data
                 IHDU.close()
+                
+                # move it out of the way,
+                # otherwise WFS images will have same name
                 os.rename(fitsfile, fitsfile.replace('.fits','psf.fits'))
 
                 psf = chipImage[

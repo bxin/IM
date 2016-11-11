@@ -20,7 +20,7 @@ from lsst.cwfs.image import Image, readFile
 class aosWFS(object):
 
     def __init__(self, cwfsDir, instruFile, algoFile,
-                 imgSizeinPix, wavelength, debugLevel):
+                 imgSizeinPix, band, wavelength, debugLevel):
         self.nWFS = 4
         self.nRun = 1
         if instruFile[:6] == 'comcam':
@@ -48,7 +48,11 @@ class aosWFS(object):
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        intrinsicAll = np.loadtxt('data/%s/intrinsic_zn.txt' % aa)
+        intrinsicFile = 'data/%s/intrinsic_zn.txt' % aa
+        if np.abs(wavelength - 0.5)>1e-3:
+            intrinsicFile = intrinsicFile.replace(
+                'zn.txt', 'zn_%s.txt' % band.upper)
+        intrinsicAll = np.loadtxt(intrinsicFile)
         intrinsicAll = intrinsicAll * wavelength
         self.intrinsicWFS = intrinsicAll[
             -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
