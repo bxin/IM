@@ -271,13 +271,13 @@ class aosWFS(object):
             plt.subplot(nRow, nCol, pIdx[i])
             plt.plot(x, z4c[i, :self.znwcs3], label='CWFS',
                      marker='o', color='r', markersize=6)
-            for i in range(state.nOPDrun):
-                if i==0:
+            for irun in range(state.nOPDrun):
+                if irun==0:
                     mylabel = 'Truth'
                 else:
                     mylabel = ''
                 plt.plot(x, z4cTrue[i + metr.nFieldp4 - self.nWFS, 3:self.znwcs,
-                                        i],
+                                        irun],
                              label=mylabel,
                         marker='.', color='b', markersize=10)
             if ((state.inst[:4] == 'lsst' and (i == 1 or i == 2)) or

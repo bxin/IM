@@ -7,6 +7,7 @@
 
 import argparse
 # import numpy as np
+import datetime
 
 from aosWFS import aosWFS
 from aosEstimator import aosEstimator
@@ -34,12 +35,13 @@ def main():
                         help='iteration No. to end with, default=5')
     parser.add_argument('-sensor', dest='sensor',
                         choices=('ideal', 'covM', 'phosim', 'cwfs',
-                                 'load'),
+                                 'check', 'pass'),
                         help='ideal: use true wavefront in estimator;\
                         covM: use covarance matrix to estimate wavefront;\
                         phosim: run Phosim to create WFS images;\
                         cwfs: start by running cwfs on existing images;\
-                        load: load wavefront from txt files')
+                        check: check wavefront against truth; \
+                        pass: do nothing')
     parser.add_argument('-ctrloff', help='w/o applying ctrl rules or\
 regenrating pert files',
                         action='store_true')
@@ -88,7 +90,7 @@ assuming all data available',
                         help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
     if args.makesum:
-        args.sensor = 'load'
+        args.sensor = 'pass'
         args.ctrloff = True
         args.opdoff = True
         args.psfoff = True
@@ -175,7 +177,7 @@ assuming all data available',
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
             if (args.sensor == 'ideal' or args.sensor == 'covM' or
-                    args.sensor == 'load'):
+                    args.sensor == 'pass' or args.sensor == 'check'):
                 pass
             else:
                 wfs.getZ4CfromBase(args.baserun, state)
@@ -192,7 +194,7 @@ assuming all data available',
                                 args.numproc, args.debugLevel)
 
             if (args.sensor == 'ideal' or args.sensor == 'covM' or
-                    args.sensor == 'load'):
+                    args.sensor == 'pass'):
                 pass
             else:
                 if args.sensor == 'phosim':
@@ -203,11 +205,14 @@ assuming all data available',
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs' \
-                        or args.sensor == 'load':
+                        or args.sensor == 'check':
                     wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
 
 if __name__ == "__main__":
+    timea = datetime.datetime.now().replace(microsecond=0)
     main()
+    timeb = datetime.datetime.now().replace(microsecond=0)
+    print('This is how long this took: %s' % (timeb - timea))
