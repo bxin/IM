@@ -660,13 +660,13 @@ clearopacity\n\
 atmosphericdispersion 0\n\
 lascatprob 0.0\n\
 contaminationmode 0\n\
-coatingmode 0\n\
 airrefraction 0\n\
 diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
         fid.close()
 # clearperturbations\n\
+# coatingmode 0\n\ #this clears filter coating too
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
@@ -801,11 +801,11 @@ cleartracking\n\
 clearclouds\n\
 lascatprob 0.0\n\
 contaminationmode 0\n\
-coatingmode 0\n\
 diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
 # airrefraction 0\n\
+# coatingmode 0\n\ #this clears filter coating too
 
         # body command interferes with move commands;
         # let's not piston the detector only.

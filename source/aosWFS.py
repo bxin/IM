@@ -51,7 +51,7 @@ class aosWFS(object):
         intrinsicFile = 'data/%s/intrinsic_zn.txt' % aa
         if np.abs(wavelength - 0.5)>1e-3:
             intrinsicFile = intrinsicFile.replace(
-                'zn.txt', 'zn_%s.txt' % band.upper)
+                'zn.txt', 'zn_%s.txt' % band.upper())
         intrinsicAll = np.loadtxt(intrinsicFile)
         intrinsicAll = intrinsicAll * wavelength
         self.intrinsicWFS = intrinsicAll[
