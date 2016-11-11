@@ -123,7 +123,7 @@ assuming all data available',
     else:
         effwave = wavelength
     wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, effwave, args.debugLevel)
+                 128, band, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
