@@ -75,7 +75,8 @@ class aosWFS(object):
                 metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
             for ioffset in [0, 1]:
                 src = glob.glob('%s/iter%d/*%d*%s*%s*.fits' %
-                                (state.imageDir, state.iIter, state.obsID,
+                                (state.imageDir, state.iIter,
+                                     state.obsID + ioffset,
                                  chipStr, self.halfChip[ioffset]))
                 chipFile = src[0]
                 IHDU = fits.open(chipFile)

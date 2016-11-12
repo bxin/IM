@@ -381,7 +381,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
         except NameError:
             iad = (array != 0)
     elif type == 'psf':
-        mk = m + np.rint((m * (k - 1) + 1e-5) / 2) * 2  # add even number
+        mk = int(m + np.rint((m * (k - 1) + 1e-5) / 2) * 2)  # add even number
         iad = pmask  # padArray(pmask, m)
 
     # number of non-zero elements, used for normalization later
@@ -446,7 +446,7 @@ def createMTFatm(D, m, k, wlum, zen, r0inmRef):
     sfa = atmSF('vonK', D, m, wlum, zen, r0inmRef)
     mtfa = np.exp(-0.5 * sfa)
 
-    N = m + np.rint((m * (k - 1) + 1e-5) / 2) * 2  # add even number
+    N = int(m + np.rint((m * (k - 1) + 1e-5) / 2) * 2)  # add even number
     mtfa = padArray(mtfa, N)
 
     return mtfa
@@ -644,8 +644,8 @@ def opd2psf(opd, pupil, wavelength, imagedelta, sensorFactor, fno, debugLevel):
 
         sensorSamples = opd.shape[0]
         # add even number for padding
-        N = sensorSamples + \
-            np.rint(((padding - 1) * sensorSamples + 1e-5) / 2) * 2
+        N = int(sensorSamples + \
+            np.rint(((padding - 1) * sensorSamples + 1e-5) / 2) * 2)
         pupil = padArray(pupil, N)
         opd = padArray(opd, N)
         if debugLevel >= 3:

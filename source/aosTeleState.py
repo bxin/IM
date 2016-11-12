@@ -719,30 +719,31 @@ detectormode 0\n')
         for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            if wfs.nRun == 1:
+            if wfs.nRun == 1: # phosim generates C0 & C1 already
                 for ioffset in [0, 1]:
                     src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
-                                (self.phosimDir, self.obsID + ioffset,
+                                (self.phosimDir, self.obsID,
                                     phosimFilterID[self.band],
                                 chipStr))
-                    if '.gz' in src[0]:
+                    if '.gz' in src[ioffset]:
                         runProgram('gunzip -f %s' % src[ioffset])
                     chipFile = src[ioffset].replace('.gz', '')
                     runProgram('mv -f %s %s/iter%d' %
                                (chipFile, self.imageDir, self.iIter))
-            else:
-                src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
-                                (self.phosimDir, self.obsID,
-                                    phosimFilterID[self.band],
-                                chipStr))
-                if '.gz' in src[0]:
-                    runProgram('gunzip -f %s' % src[0])
-                chipFile = src[0].replace('.gz', '')
-                targetFile = os.path.split(chipFile.replace(
-                    'E000', '%s_E000' % wfs.halfChip[irun]))[1]
-                runProgram('mv -f %s %s/iter%d/%s' %
-                           (chipFile, self.imageDir, self.iIter,
-                            targetFile))
+            else: # need to pick up two sets of fits.gz with diff phosim ID
+                for ioffset in [0, 1]:
+                    src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
+                                    (self.phosimDir, self.obsID + ioffset,
+                                        phosimFilterID[self.band],
+                                    chipStr))
+                    if '.gz' in src[0]:
+                        runProgram('gunzip -f %s' % src[0])
+                    chipFile = src[0].replace('.gz', '')
+                    targetFile = os.path.split(chipFile.replace(
+                        'E000', '%s_E000' % wfs.halfChip[ioffset]))[1]
+                    runProgram('mv -f %s %s/iter%d/%s' %
+                            (chipFile, self.imageDir, self.iIter,
+                                targetFile))
 
     def writeWFSinst(self, wfs, metr):
         for irun in range(wfs.nRun):
