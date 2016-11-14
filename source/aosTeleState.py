@@ -738,14 +738,14 @@ detectormode 0\n')
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             if wfs.nRun == 1: # phosim generates C0 & C1 already
-                src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
-                            (self.phosimDir, self.obsID,
-                                phosimFilterID[self.band],
-                            chipStr))
                 for ioffset in [0, 1]:
-                    if '.gz' in src[ioffset]:
-                        runProgram('gunzip -f %s' % src[ioffset])
-                    chipFile = src[ioffset].replace('.gz', '')
+                    src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
+                                (self.phosimDir, self.obsID,
+                                    phosimFilterID[self.band],
+                                chipStr,  wfs.halfChip[ioffset]))
+                    if '.gz' in src[0]:
+                        runProgram('gunzip -f %s' % src[0])
+                    chipFile = src[0].replace('.gz', '')
                     runProgram('mv -f %s %s/iter%d' %
                                (chipFile, self.imageDir, self.iIter))
             else: # need to pick up two sets of fits.gz with diff phosim ID
