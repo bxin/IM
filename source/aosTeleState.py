@@ -191,11 +191,11 @@ class aosTeleState(object):
             # add 5% force error
             np.random.seed(self.iSim)
             # if the error is a percentage error
-            # myu = (1+2*(np.random.rand(M1M3.nActuator)-0.5)
-            #        *self.M1M3ForceError)*LUTforce
+            myu = (1+2*(np.random.rand(M1M3.nActuator)-0.5)
+                   *self.M1M3ForceError)*LUTforce
             # if the error is a absolute error in Newton
-            myu = 2 * (np.random.rand(M1M3.nActuator) - 0.5) \
-                    * self.M1M3ForceError + LUTforce
+            # myu = 2 * (np.random.rand(M1M3.nActuator) - 0.5) \
+            #         * self.M1M3ForceError + LUTforce
             # balance forces along z
             myu[M1M3.nzActuator - 1] = np.sum(LUTforce[:M1M3.nzActuator]) \
                 - np.sum(myu[:M1M3.nzActuator - 1])
@@ -289,6 +289,21 @@ class aosTeleState(object):
                 # Phosim merges all move commands into one!
                 fid.write('move %d %7.4f \n' % (
                     self.phosimActuatorID[i], self.stateV[i]))
+        if hasattr(self, 'M1M3surf'):
+            zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (self.pertDir, self.iSim)
+            resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
+            resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
+            if self.iIter == 0: # it is not changing, for now
+                writeM1M3zres(self.M1M3surf, zlist, resFile1, resFile3)
+            fid.write('izernike 0 %s' % zlist)
+            fid.write('izernike 2 %s' % zlist)
+            fid.write('surfacemap 0 %s 1' % resFile1)
+            fid.write('surfacemap 2 %s 1' % resFile3)
+            
+        # if hasattr(self, 'M2surf'):
+        #     self.M2surf 
+        # if hasattr(self, 'camRot'):
+            
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
@@ -341,6 +356,9 @@ class aosTeleState(object):
                         '%s/iter%d/sim%d_iter%d_wfs%d_%s.log' % (
                             self.imageDir, self.iIter, self.iSim, self.iIter,
                             wfs.nWFS, wfs.halfChip[irun]))
+            self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
+                self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
+
                     
         self.OPD_inst = []
         for irun in range(self.nOPDrun):
@@ -720,11 +738,11 @@ detectormode 0\n')
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             if wfs.nRun == 1: # phosim generates C0 & C1 already
+                src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
+                            (self.phosimDir, self.obsID,
+                                phosimFilterID[self.band],
+                            chipStr))
                 for ioffset in [0, 1]:
-                    src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
-                                (self.phosimDir, self.obsID,
-                                    phosimFilterID[self.band],
-                                chipStr))
                     if '.gz' in src[ioffset]:
                         runProgram('gunzip -f %s' % src[ioffset])
                     chipFile = src[ioffset].replace('.gz', '')
@@ -809,9 +827,6 @@ Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
             fpert.close()
 
     def writeWFScmd(self, wfs):
-        self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
-
         fid = open(self.WFS_cmd, 'w')
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
@@ -1001,3 +1016,6 @@ def runWFS1side(argList):
     runProgram('python %s/phosim.py' %
                phosimDir, argstring=myargs)
     
+
+def writeM1M3zres(surf, zlist, resFile1, resFile3):
+    pass
