@@ -290,6 +290,34 @@ class aosTeleState(object):
             raise RuntimeError("ERROR: stateV[%d] = %e > its range = %e" % (
                 ii, self.stateV[ii], ctrl.range[ii]))
 
+    def getPertFilefromBase(self, baserun):
+        
+        if not os.path.isfile(self.pertFile):
+            baseFile = self.pertFile.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.pertFile)
+        if not os.path.isfile(self.pertMatFile):
+            baseFile = self.pertMatFile.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.pertMatFile)
+        if not os.path.isfile(self.pertCmdFile):
+            baseFile = self.pertCmdFile.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.pertCmdFile)
+            
+        if not os.path.isfile(self.resFile1):
+            baseFile = self.resFile1.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.resFile1)
+        if not os.path.isfile(self.resFile3):
+            baseFile = self.resFile3.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.resFile3)
+        if not os.path.isfile(self.resFile2):
+            baseFile = self.resFile2.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.resFile2)
+                        
     def writePertFile(self, ndofA, M1M3=None, M2=None):
         fid = open(self.pertFile, 'w')
         for i in range(ndofA):
@@ -306,33 +334,30 @@ class aosTeleState(object):
         if hasattr(self, 'M1M3surf'):
             # M1M3surf already converted into ZCRS
             zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (self.pertDir, self.iSim)
-            resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
-            resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
             if self.iIter == 0: # it is not changing, for now
                 writeM1M3zres(self.M1M3surf, M1M3.bx, M1M3.by, M1M3.Ri,
                                   M1M3.R, M1M3.R3i, M1M3.R3, self.znPert, 
-                                  zlist, resFile1, resFile3, M1M3.nodeID,
+                                  zlist, self.resFile1, self.resFile3, M1M3.nodeID,
                                   self.surfaceGridN)
             zz = np.loadtxt(zlist)
             for i in range(self.znPert):
                 fid.write('izernike 0 %d %s\n' % (i, zz[i] * 1e-3))
             for i in range(self.znPert):
                 fid.write('izernike 2 %d %s\n' % (i, zz[i] * 1e-3))
-            fid.write('surfacemap 0 %s 1\n' % os.path.abspath(resFile1))
-            fid.write('surfacemap 2 %s 1\n' % os.path.abspath(resFile3))
+            fid.write('surfacemap 0 %s 1\n' % os.path.abspath(self.resFile1))
+            fid.write('surfacemap 2 %s 1\n' % os.path.abspath(self.resFile3))
             
         if hasattr(self, 'M2surf'):
             # M2surf already converted into ZCRS
             zlist = '%s/iter0/sim%d_M2zlist.txt' % (self.pertDir, self.iSim)
-            resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
             if self.iIter == 0: # it is not changing, for now
                 writeM2zres(self.M2surf, M2.bx, M2.by, M2.R, M2.Ri,
-                                  self.znPert, zlist, resFile2,
+                                  self.znPert, zlist, self.resFile2,
                                   self.surfaceGridN)
             zz = np.loadtxt(zlist)
             for i in range(self.znPert):
                 fid.write('izernike 1 %d %s\n' % (i, zz[i] * 1e-3))
-            fid.write('surfacemap 1 %s 1\n' % os.path.abspath(resFile2))
+            fid.write('surfacemap 1 %s 1\n' % os.path.abspath(self.resFile2))
             
         if hasattr(self, 'camRot') and self.inst[:4] == 'lsst':
             for i in range(self.znPert):
@@ -435,6 +460,11 @@ class aosTeleState(object):
                 self.zTrueFile.append('%s/iter%d/sim%d_iter%d_opd_w%d.zer' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter, irun))
 
+        if hasattr(self, 'M1M3surf'):
+            self.resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
+            self.resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
+        if hasattr(self, 'M2surf'):
+            self.resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
         if iIter > 0:
             self.zTrueFile_m1 = []
             for irun in range(self.nOPDrun):
@@ -514,10 +544,20 @@ class aosTeleState(object):
                     'sim%d' % self.iSim, 'sim%d' % baserun)
                 os.link(baseFile, self.OPD_log[i])
 
+            if not os.path.isfile(self.zTrueFile[i]):
+                baseFile = self.zTrueFile[i].replace(
+                    'sim%d' % self.iSim, 'sim%d' % baserun)
+                os.link(baseFile, self.zTrueFile[i])
+
             for iField in range(metr.nFieldp4):
-                opdFile = '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
-                    self.imageDir, self.iIter, self.iSim, self.iIter,
-                    iField, i)
+                if self.nOPDrun == 1:
+                    opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
+                        self.imageDir, self.iIter, self.iSim, self.iIter,
+                        iField)
+                else:
+                    opdFile = '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
+                        self.imageDir, self.iIter, self.iSim, self.iIter,
+                        iField, i)
                 if not os.path.isfile(opdFile):
                     baseFile = opdFile.replace(
                         'sim%d' % self.iSim, 'sim%d' % baserun)
@@ -527,11 +567,6 @@ class aosTeleState(object):
             baseFile = self.OPD_cmd.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.OPD_cmd)
-
-        if not os.path.isfile(self.zTrueFile):
-            baseFile = self.zTrueFile.replace(
-                'sim%d' % self.iSim, 'sim%d' % baserun)
-            os.link(baseFile, self.zTrueFile)
 
 
     def writeOPDinst(self, metr):
