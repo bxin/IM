@@ -13,9 +13,12 @@ import multiprocessing
 import numpy as np
 from astropy.io import fits
 import aosCoTransform as ct
+from scipy.interpolate import Rbf
 
 from lsst.cwfs.tools import ZernikeAnnularFit
 from lsst.cwfs.tools import ZernikeAnnularEval
+from lsst.cwfs.tools import ZernikeFit
+from lsst.cwfs.tools import ZernikeEval
 from lsst.cwfs.tools import extractArray
 
 import matplotlib.pyplot as plt
@@ -105,6 +108,10 @@ class aosTeleState(object):
                     self.M2TzGrad = float(line.split()[1])
                 elif (line.startswith('M2TrGrad')):
                     self.M2TrGrad = float(line.split()[1])
+                elif (line.startswith('znPert')):
+                    self.znPert = int(line.split()[1])
+                elif (line.startswith('surfaceGridN')):
+                    self.surfaceGridN = int(line.split()[1])
                 elif (line.startswith('opd_size')):
                     self.opdSize = int(line.split()[1])
                     if self.opdSize % 2 == 0:
@@ -176,6 +183,8 @@ class aosTeleState(object):
             u0 = M1M3.zf * np.cos(self.zAngle) + M1M3.hf * np.sin(self.zAngle)
 
             # convert dz to grid sag
+            # bx, by, bz, written out by senM35pointZMX.m, has been converted
+            # to ZCRS, b/c we needed to import those directly into Zemax
             x, y, _ = ct.ZCRS2M1CRS(M1M3.bx, M1M3.by, M1M3.bz)
             # M1M3.idealShape() uses mm everywhere
             zpRef = M1M3.idealShape((x + printthx) * 1000,
@@ -281,7 +290,7 @@ class aosTeleState(object):
             raise RuntimeError("ERROR: stateV[%d] = %e > its range = %e" % (
                 ii, self.stateV[ii], ctrl.range[ii]))
 
-    def writePertFile(self, ndofA):
+    def writePertFile(self, ndofA, M1M3=None, M2=None):
         fid = open(self.pertFile, 'w')
         for i in range(ndofA):
             if (self.stateV[i] != 0):
@@ -289,29 +298,61 @@ class aosTeleState(object):
                 # Phosim merges all move commands into one!
                 fid.write('move %d %7.4f \n' % (
                     self.phosimActuatorID[i], self.stateV[i]))
-        if hasattr(self, 'M1M3surf'):
-            zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (self.pertDir, self.iSim)
-            resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
-            resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
-            if self.iIter == 0: # it is not changing, for now
-                writeM1M3zres(self.M1M3surf, zlist, resFile1, resFile3)
-            fid.write('izernike 0 %s' % zlist)
-            fid.write('izernike 2 %s' % zlist)
-            fid.write('surfacemap 0 %s 1' % resFile1)
-            fid.write('surfacemap 2 %s 1' % resFile3)
-            
-        # if hasattr(self, 'M2surf'):
-        #     self.M2surf 
-        # if hasattr(self, 'camRot'):
             
         fid.close()
         np.savetxt(self.pertMatFile, self.stateV)
 
+        fid = open(self.pertCmdFile, 'w')        
+        if hasattr(self, 'M1M3surf'):
+            # M1M3surf already converted into ZCRS
+            zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (self.pertDir, self.iSim)
+            resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
+            resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
+            if self.iIter == 0: # it is not changing, for now
+                writeM1M3zres(self.M1M3surf, M1M3.bx, M1M3.by, M1M3.Ri,
+                                  M1M3.R, M1M3.R3i, M1M3.R3, self.znPert, 
+                                  zlist, resFile1, resFile3, M1M3.nodeID,
+                                  self.surfaceGridN)
+            zz = np.loadtxt(zlist)
+            for i in range(self.znPert):
+                fid.write('izernike 0 %d %s\n' % (i, zz[i] * 1e-3))
+            for i in range(self.znPert):
+                fid.write('izernike 2 %d %s\n' % (i, zz[i] * 1e-3))
+            fid.write('surfacemap 0 %s 1\n' % os.path.abspath(resFile1))
+            fid.write('surfacemap 2 %s 1\n' % os.path.abspath(resFile3))
+            
+        if hasattr(self, 'M2surf'):
+            # M2surf already converted into ZCRS
+            zlist = '%s/iter0/sim%d_M2zlist.txt' % (self.pertDir, self.iSim)
+            resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
+            if self.iIter == 0: # it is not changing, for now
+                writeM2zres(self.M2surf, M2.bx, M2.by, M2.R, M2.Ri,
+                                  self.znPert, zlist, resFile2,
+                                  self.surfaceGridN)
+            zz = np.loadtxt(zlist)
+            for i in range(self.znPert):
+                fid.write('izernike 1 %d %s\n' % (i, zz[i] * 1e-3))
+            fid.write('surfacemap 1 %s 1\n' % os.path.abspath(resFile2))
+            
+        if hasattr(self, 'camRot') and self.inst[:4] == 'lsst':
+            for i in range(self.znPert):
+                # Andy uses mm, same as Zemax
+                fid.write('izernike 3 %d %s\n' % (i, self.L1S1zer[i]))
+                fid.write('izernike 4 %d %s\n' % (i, self.L1S2zer[i]))
+                fid.write('izernike 5 %d %s\n' % (i, self.L2S1zer[i]))
+                fid.write('izernike 6 %d %s\n' % (i, self.L2S2zer[i]))
+                fid.write('izernike 9 %d %s\n' % (i, self.L3S1zer[i]))
+                fid.write('izernike 10 %d %s\n' % (i, self.L3S2zer[i]))
+                
+        fid.close()
+        
     def setIterNo(self, metr, iIter, wfs=None):
         self.iIter = iIter
         #leave last digit for wavelength
         self.obsID = 9000000 + self.iSim * 1000 + self.iIter * 10
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
+            self.pertDir, self.iIter, self.iSim, self.iIter)
+        self.pertCmdFile = '%s/iter%d/sim%d_iter%d_pert.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
         self.pertMatFile = '%s/iter%d/sim%d_iter%d_pert.mat' % (
             self.pertDir, self.iIter, self.iSim, self.iIter)
@@ -519,6 +560,9 @@ SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID + irun))
         fid.write('zenith_v 1000.0\n\
 raydensity 0.0\n\
 perturbationmode 1\n')
+        fpert = open(self.pertCmdFile, 'r')
+        fid.write(fpert.read())
+        fpert.close()
         fid.close()
 
     def getPSFAll(self, psfoff, metr, numproc, debugLevel, pixelum=10):
@@ -713,6 +757,9 @@ diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
         fid.close()
+        fpert = open(self.pertCmdFile, 'r')
+        fid.write(fpert.read())
+        fpert.close()        
 # clearperturbations\n\
 # coatingmode 0\n\ #this clears filter coating too
 
@@ -739,12 +786,14 @@ detectormode 0\n')
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             if wfs.nRun == 1: # phosim generates C0 & C1 already
                 for ioffset in [0, 1]:
-                    src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
+                    src = glob.glob('%s/output/*%s_f%d_%s*%s*E000.fit*' %
                                 (self.phosimDir, self.obsID,
                                     phosimFilterID[self.band],
-                                chipStr,  wfs.halfChip[ioffset]))
+                                chipStr, wfs.halfChip[ioffset]))
                     if '.gz' in src[0]:
                         runProgram('gunzip -f %s' % src[0])
+                    elif 'gz' in src[-1]:
+                        runProgram('gunzip -f %s' % src[-1])
                     chipFile = src[0].replace('.gz', '')
                     runProgram('mv -f %s %s/iter%d' %
                                (chipFile, self.imageDir, self.iIter))
@@ -756,6 +805,8 @@ detectormode 0\n')
                                     chipStr))
                     if '.gz' in src[0]:
                         runProgram('gunzip -f %s' % src[0])
+                    elif 'gz' in src[-1]:
+                        runProgram('gunzip -f %s' % src[-1])
                     chipFile = src[0].replace('.gz', '')
                     targetFile = os.path.split(chipFile.replace(
                         'E000', '%s_E000' % wfs.halfChip[ioffset]))[1]
@@ -841,7 +892,9 @@ straylight 0\n\
 detectormode 0\n')
 # airrefraction 0\n\
 # coatingmode 0\n\ #this clears filter coating too
-
+        fpert = open(self.pertCmdFile, 'r')
+        fid.write(fpert.read())
+        fpert.close()
         fid.close()
 
     def fieldXY2Chip(self, fieldX, fieldY, debugLevel):
@@ -904,7 +957,7 @@ def fieldAgainstRuler(ruler, field, chipPixel):
     pixel = (field - ruler[p]) / 10  # 10 for 10micron pixels
     pixel += chipPixel / 2
 
-    return np.floor(p / 3), p % 3, pixel
+    return np.floor(p / 3), p % 3, int(pixel)
 
 
 def getLUTforce(zangle, LUTfile):
@@ -1017,5 +1070,127 @@ def runWFS1side(argList):
                phosimDir, argstring=myargs)
     
 
-def writeM1M3zres(surf, zlist, resFile1, resFile3):
-    pass
+def writeM1M3zres(surf, x, y, Ri, R, R3i, R3, n, zlist, resFile1, resFile3,
+                      nodeID, surfaceGridN):
+    
+    zc = ZernikeFit(surf, x / R, y / R, n)
+    res = surf - ZernikeEval(zc, x / R, y / R)
+    np.savetxt(zlist, zc)
+    idx1 = nodeID == 1
+    idx3 = nodeID == 3
+
+    # so far x and y are in meter, res is in micron
+    # zemax wants everything in mm
+    gridSamp(x[idx1] * 1e3, y[idx1] * 1e3, res[idx1] * 1e-3,
+                 Ri * 1e3, R * 1e3, resFile1,
+                 surfaceGridN, surfaceGridN, 1)
+    gridSamp(x[idx3] * 1e3, y[idx3] * 1e3, res[idx3] * 1e-3,
+                 R3i * 1e3, R3 * 1e3, resFile3,
+                 surfaceGridN, surfaceGridN, 1)
+
+    
+def writeM2zres(surf, x, y, R, Ri, n, zlist, resFile2, surfaceGridN):
+    zc = ZernikeFit(surf, x / R, y / R, n)
+    res = surf - ZernikeEval(zc, x / R, y / R)
+    np.savetxt(zlist, zc)
+
+    # so far x and y are in meter, res is in micron
+    # zemax wants everything in mm
+    gridSamp(x * 1e3, y * 1e3, res * 1e-3, Ri * 1e3, R * 1e3, resFile2,
+                 surfaceGridN, surfaceGridN, 1)
+    
+def gridSamp(xf, yf, zf, innerR, outerR, resFile, nx, ny, plots):
+    
+    Ff = Rbf(xf, yf, zf)
+    #do not want to cover the edge? change 4->2 on both lines
+    NUM_X_PIXELS = nx + 4  #alway extend 2 points on each side
+    NUM_Y_PIXELS = ny + 4 
+
+    extFx = (NUM_X_PIXELS - 1) / (nx - 1) #this is spatial extension factor
+    extFy = (NUM_Y_PIXELS - 1) / (ny - 1)
+    extFr = np.sqrt(extFx * extFy)
+
+    delx =  outerR*2 *extFx / (NUM_X_PIXELS - 1)
+    dely =  outerR*2 *extFy / (NUM_Y_PIXELS - 1)
+
+    minx = -0.5*(NUM_X_PIXELS-1)*delx
+    miny = -0.5*(NUM_Y_PIXELS-1)*dely
+    epsilon = .0001 * min(delx, dely)
+    zp = np.zeros((NUM_X_PIXELS, NUM_Y_PIXELS))
+    
+    outid = open(resFile, 'w');
+    # Write four numbers for the header line
+    outid.write('%d %d %.9E %.9E\n' % (NUM_X_PIXELS, NUM_Y_PIXELS, delx, dely))
+
+    #  Write the rows and columns
+    for j in range(1, NUM_X_PIXELS + 1):
+        for i in range(1, NUM_Y_PIXELS + 1):
+            x =  minx + (i - 1) * delx
+            y =  miny + (j - 1) * dely
+            y = -y  # invert top to bottom, because Zemax reads (-x,-y) first
+        
+            # compute the sag */
+            r = np.sqrt(x*x+y*y)
+
+            if (r<innerR/extFr or r>outerR*extFr):
+                z=0
+                dx=0
+                dy=0
+                dxdy=0
+            else:
+                z=Ff(x,y)
+                tem1=Ff((x+epsilon),y)
+                tem2=Ff((x-epsilon),y)
+                dx = (tem1 - tem2)/(2.0*epsilon)
+                
+                # compute dz/dy */
+                tem1=Ff(x,(y+epsilon))
+                tem2=Ff(x,(y-epsilon))
+                dy = (tem1 - tem2)/(2.0*epsilon)
+                
+                # compute d2z/dxdy */
+                tem1=Ff((x+epsilon),(y+epsilon))
+                tem2=Ff((x-epsilon),(y+epsilon))
+                tem3 = (tem1 - tem2)/(2.0*epsilon)
+                tem1=Ff((x+epsilon),(y-epsilon))
+                tem2=Ff((x-epsilon),(y-epsilon))
+                tem4 = (tem1 - tem2)/(2.0*epsilon)
+                dxdy = (tem3 - tem4)/(2.0*epsilon)
+
+            zp[NUM_X_PIXELS+1-j-1, i-1]=z
+            outid.write('%.9E %.9E %.9E %.9E\n'% (z, dx, dy, dxdy))
+     
+    outid.close()
+
+    if plots:
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        # the input data to gridSamp.m is in mm (zemax default)
+        sc = ax[1].scatter(xf, yf, s=25, c=zf*1e6, marker='.', edgecolor='none')
+        ax[1].axis('equal')
+        ax[1].set_title('Surface map (nm)')
+        ax[1].set_xlim([-outerR, outerR])
+        ax[1].set_ylim([-outerR, outerR])
+        ax[1].set_xlabel('x (mm)')
+        
+        xx = np.arange(minx, -minx + delx, delx)
+        yy = np.arange(miny, -miny + dely, dely)
+        xp, yp = np.meshgrid(xx, yy)
+        xp = xp.reshape((NUM_X_PIXELS*NUM_Y_PIXELS,1))
+        yp = yp.reshape((NUM_X_PIXELS*NUM_Y_PIXELS,1))
+        zp = zp.reshape((NUM_X_PIXELS*NUM_Y_PIXELS,1))
+        sc = ax[0].scatter(xp, yp, s=25, c=zp*1e6, marker='.',
+                             edgecolor='none')
+        ax[0].axis('equal')
+        ax[0].set_title('After linear interpolation (nm)')
+        ax[0].set_xlim([-outerR, outerR])
+        ax[0].set_ylim([-outerR, outerR])
+        ax[0].set_xlabel('x (mm)')
+        ax[0].set_ylabel('y (mm)')
+
+        fig.subplots_adjust(right=0.8)
+        cbar_ax = fig.add_axes([0.85, 0.1, 0.03, 0.8])
+        fig.colorbar(sc, cax=cbar_ax)
+
+        plt.savefig(resFile.replace('.txt','.png'))
+        
+    

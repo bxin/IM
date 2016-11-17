@@ -45,9 +45,6 @@ class aosM1M3(object):
 
         self.bx, self.by, self.bz = ct.M1CRS2ZCRS(self.bx, self.by, self.bz)
 
-        self.bxnorm = self.bx / self.R
-        self.bynorm = self.by / self.R
-
         # data needed to determine gravitational print through
         aa = np.loadtxt('data/M1M3/M1M3_dxdydz_zenith.txt')
         self.zdx = aa[:, 0]

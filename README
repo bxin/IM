@@ -26,7 +26,6 @@ aosM1M3 -> M1M3:
 	G			influence matrix
 	
 aosM2 -> M2:
-	ID			actuator ID numbers
 	bx			grid x-coordinates for the bending modes
 	by			grid y-coordinates for the bending modes
 	bz			bending mode z-displacements

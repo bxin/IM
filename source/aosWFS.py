@@ -6,6 +6,7 @@
 import os
 import glob
 import multiprocessing
+import copy
 
 import numpy as np
 from astropy.io import fits
@@ -93,13 +94,13 @@ class aosWFS(object):
                     if ioffset == 0:
                         # intra image, C0, pulled 0.02 deg from right edge
                         # degree to micron then to pixel
-                        px = px0 - 0.020 * 180000 / 10
+                        px = int(px0 - 0.020 * 180000 / 10)
                     elif ioffset == 1:
                         # extra image, C1, pulled 0.02 deg away from left edge
-                        px = px0 + 0.020 * 180000 / 10 - chipImage.shape[1]
+                        px = int(px0 + 0.020 * 180000 / 10 - chipImage.shape[1])
                 elif state.inst[:6] == 'comcam':
                     px = px0
-                py = py0.copy()
+                py = copy.copy(py0)
 
                 # psf here is 4 x the size of cwfsStampSize, to get centroid
                 psf = chipImage[np.max((0, py - 2 * state.cwfsStampSize)):
@@ -116,10 +117,10 @@ class aosWFS(object):
                     offsetx -= px - 2 * state.cwfsStampSize
 
                 psf = chipImage[
-                    py - state.cwfsStampSize / 2 + offsety:
-                    py + state.cwfsStampSize / 2 + offsety,
-                    px - state.cwfsStampSize / 2 + offsetx:
-                    px + state.cwfsStampSize / 2 + offsetx]
+                    int(py - state.cwfsStampSize / 2 + offsety):
+                    int(py + state.cwfsStampSize / 2 + offsety),
+                    int(px - state.cwfsStampSize / 2 + offsetx):
+                    int(px + state.cwfsStampSize / 2 + offsetx)]
 
                 if state.inst[:4] == 'lsst':
                     # readout of corner raft are identical,

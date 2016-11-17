@@ -10,8 +10,8 @@ import aosCoTransform as ct
 class aosM2(object):
 
     def __init__(self, debugLevel):
-        self.R = 1.760
-
+        self.R = 1.710 #clear aperture
+        self.Ri = 0.9
         # bending modes
         aa = np.loadtxt('data/M2/M2_1um_grid.DAT')
         self.bx = aa[:, 0]
@@ -29,9 +29,6 @@ class aosM2(object):
             print('-b2--  %e' % self.bz[4332, 15])
 
         self.bx, self.by, self.bz = ct.M2CRS2ZCRS(self.bx, self.by, self.bz)
-
-        self.bxnorm = self.bx / self.R
-        self.bynorm = self.by / self.R
 
         # M2 gravitational and thermal deformations
         aa = np.loadtxt('data/M2/M2_GT_FEA.txt', skiprows=1)

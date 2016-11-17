@@ -26,6 +26,10 @@ M1M3TBulk     0.0902 C (+/-2sigma spans +/-0.8C)
 M2TzGrad    -0.0675 C (+/-2sigma spans 1C)
 M2TrGrad    -0.1416 C (+/-2sigma spans 1C)
 
+# znmax used in pert file to define surfaces
+znPert		28
+surfaceGridN	200
+
 #wavefront sensing star magnitude
 cwfs_mag	17
 #wavefront sensing image stamp size

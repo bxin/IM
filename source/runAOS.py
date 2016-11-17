@@ -169,7 +169,7 @@ assuming all data available',
                 # It will be inserted into OPD.inst, PSF.inst later
                 state.update(ctrl)
 
-            state.writePertFile(esti.ndofA)
+            state.writePertFile(esti.ndofA, M1M3=M1M3, M2=M2)
 
         if args.baserun > 0 and iIter == 0:
             state.getOPDAllfromBase(args.baserun, metr)

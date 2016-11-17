@@ -481,7 +481,7 @@ def atmSF(model, D, m, wlum, zen, r0inmRef):
         # if we don't do below, everything will be nan after ifft2
         # midp = r.shape[0]/2+1
         # 1e-2 is to avoid x.49999 be rounded to x
-        midp = np.rint(0.5 * (r.shape[0] - 1) + 1e-2)
+        midp = int(np.rint(0.5 * (r.shape[0] - 1) + 1e-2))
         sfa[midp, midp] = 0  # at this single point, sfa_k=Inf, 0*Inf=Nan;
 
     return sfa
