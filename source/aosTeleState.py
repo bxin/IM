@@ -346,6 +346,7 @@ class aosTeleState(object):
                 fid.write('izernike 2 %d %s\n' % (i, zz[i] * 1e-3))
             fid.write('surfacemap 0 %s 1\n' % os.path.abspath(self.resFile1))
             fid.write('surfacemap 2 %s 1\n' % os.path.abspath(self.resFile3))
+            fid.write('surfacelink 2 0')
             
         if hasattr(self, 'M2surf'):
             # M2surf already converted into ZCRS
@@ -612,7 +613,7 @@ perturbationmode 1\n')
                 instiq = self.inst
             elif pixelum == 0.2:
                 instiq = self.inst + 'iq'
-            myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
+            myargs = '%s -c %s -i %s -p %d -e %d > %s 2>&1' % (
                 self.PSF_inst, self.PSF_cmd, instiq, numproc, self.eimage,
                 self.PSF_log)
             if debugLevel >= 2:
@@ -1046,7 +1047,7 @@ def runOPD1w(argList):
         runProgram('head %s' % OPD_inst)
         runProgram('head %s' % OPD_cmd)
 
-    myargs = '%s -c %s -i %s -e %d > %s' % (
+    myargs = '%s -c %s -i %s -e %d > %s 2>&1' % (
         OPD_inst, OPD_cmd, inst, eimage,
         OPD_log)
     if debugLevel >= 2:
@@ -1092,7 +1093,7 @@ def runWFS1side(argList):
     numproc = argList[6]
     debugLevel = argList[7]
     
-    myargs = '%s -c %s -i %s -p %d -e %d > %s' % (
+    myargs = '%s -c %s -i %s -p %d -e %d > %s 2>&1' % (
         WFS_inst, WFS_cmd, inst, numproc, eimage,
         WFS_log)
     if debugLevel >= 2:
