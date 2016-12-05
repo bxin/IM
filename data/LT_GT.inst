@@ -21,6 +21,12 @@ zenithAngle  27.0912   deg
 camTB      	6.5650  C (temperature in (2,16), make these two sigma bounds for Gaussian)
 camRotation    -1.2323  radian (uniform between (-pi/2, pi/2))
 
+M1M3ForceError   0.05
+
+# znmax used in pert file to define surfaces
+znPert		28
+surfaceGridN	200
+
 # temperature
 
 M1M3TxGrad   -0.0894 C (+/-2sigma spans 0.4C)
