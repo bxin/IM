@@ -304,7 +304,11 @@ class aosTeleState(object):
             baseFile = self.pertCmdFile.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.pertCmdFile)
-            
+
+        if not os.path.isfile(self.M1M3zlist):
+            baseFile = self.M1M3zlist.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.M1M3zlist)
         if not os.path.isfile(self.resFile1):
             baseFile = self.resFile1.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
@@ -313,6 +317,10 @@ class aosTeleState(object):
             baseFile = self.resFile3.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.resFile3)
+        if not os.path.isfile(self.M2zlist):
+            baseFile = self.M2zlist.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.M2zlist)
         if not os.path.isfile(self.resFile2):
             baseFile = self.resFile2.replace(
                 'sim%d' % self.iSim, 'sim%d' % baserun)
@@ -333,29 +341,29 @@ class aosTeleState(object):
         fid = open(self.pertCmdFile, 'w')        
         if hasattr(self, 'M1M3surf'):
             # M1M3surf already converted into ZCRS
-            zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (self.pertDir, self.iSim)
             if self.iIter == 0: # it is not changing, for now
                 writeM1M3zres(self.M1M3surf, M1M3.bx, M1M3.by, M1M3.Ri,
                                   M1M3.R, M1M3.R3i, M1M3.R3, self.znPert, 
-                                  zlist, self.resFile1, self.resFile3, M1M3.nodeID,
+                                  self.M1M3zlist, self.resFile1,
+                                  self.resFile3, M1M3.nodeID,
                                   self.surfaceGridN)
-            zz = np.loadtxt(zlist)
+            zz = np.loadtxt(self.M1M3zlist)
             for i in range(self.znPert):
                 fid.write('izernike 0 %d %s\n' % (i, zz[i] * 1e-3))
             for i in range(self.znPert):
                 fid.write('izernike 2 %d %s\n' % (i, zz[i] * 1e-3))
             fid.write('surfacemap 0 %s 1\n' % os.path.abspath(self.resFile1))
             fid.write('surfacemap 2 %s 1\n' % os.path.abspath(self.resFile3))
-            fid.write('surfacelink 2 0')
+            fid.write('surfacelink 2 0\n')
             
         if hasattr(self, 'M2surf'):
             # M2surf already converted into ZCRS
-            zlist = '%s/iter0/sim%d_M2zlist.txt' % (self.pertDir, self.iSim)
             if self.iIter == 0: # it is not changing, for now
                 writeM2zres(self.M2surf, M2.bx, M2.by, M2.R, M2.Ri,
-                                  self.znPert, zlist, self.resFile2,
+                                  self.znPert, self.M2zlist,
+                                  self.resFile2,
                                   self.surfaceGridN)
-            zz = np.loadtxt(zlist)
+            zz = np.loadtxt(self.M2zlist)
             for i in range(self.znPert):
                 fid.write('izernike 1 %d %s\n' % (i, zz[i] * 1e-3))
             fid.write('surfacemap 1 %s 1\n' % os.path.abspath(self.resFile2))
@@ -462,9 +470,13 @@ class aosTeleState(object):
                     self.imageDir, self.iIter, self.iSim, self.iIter, irun))
 
         if hasattr(self, 'M1M3surf'):
+            self.M1M3zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (
+                self.pertDir, self.iSim)
             self.resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
             self.resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
         if hasattr(self, 'M2surf'):
+            self.M2zlist = '%s/iter0/sim%d_M2zlist.txt' % (
+                self.pertDir, self.iSim)
             self.resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
         if iIter > 0:
             self.zTrueFile_m1 = []
@@ -853,6 +865,13 @@ detectormode 0\n')
     def writeWFSinst(self, wfs, metr):
         for irun in range(wfs.nRun):
             fid = open(self.WFS_inst[irun], 'w')
+            fid.write('Opsim_filter %d\n\
+Opsim_obshistid %d\n\
+SIM_VISTIME 15.0\n\
+SIM_NSNAP 1\n\
+SIM_SEED %d\n\
+Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
+                             self.obsID + irun, self.obsID % 10000 + 4))
             fpert = open(self.pertFile, 'r')
             hasCamPiston = False #pertFile already includes move 10
             for line in fpert:
@@ -867,13 +886,7 @@ detectormode 0\n')
                 fid.write('move 10 %9.4f\n' % (-wfs.offset[irun] * 1e3))
     
             fpert.close()
-            fid.write('Opsim_filter %d\n\
-Opsim_obshistid %d\n\
-SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n\
-SIM_SEED %d\n\
-Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
-                             self.obsID + irun, self.obsID % 10000 + 4))
+            
             if self.inst[:4] == 'lsst':
                 fid.write('SIM_CAMCONFIG 2\n')
             elif self.inst[:6] == 'comcam':
