@@ -90,7 +90,8 @@ class aosTeleState(object):
                     self.zAngle = float(line.split()[1]) / 180 * np.pi
                 elif (line.startswith('camTB')):
                     self.camTB = float(line.split()[1])
-                elif (line.startswith('camRotation')):
+                elif (line.startswith('camRotation') and self.inst[:4] == 'lsst'):
+                    #ignore this if it is comcam
                     self.camRot = float(line.split()[1])
                 elif (line.startswith('M1M3ForceError')):
                     self.M1M3ForceError = float(line.split()[1])
