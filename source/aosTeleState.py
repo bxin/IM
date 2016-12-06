@@ -88,11 +88,16 @@ class aosTeleState(object):
                         np.sum([float(x)**2 for x in line.split()[1:]])) * 1e-3
                 elif (line.startswith('zenithAngle')):
                     self.zAngle = float(line.split()[1]) / 180 * np.pi
-                elif (line.startswith('camTB')):
+                elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
+                    #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
+                    self.budget = np.sqrt(self.budget**2
+                                              + float(line.split()[3])**2)
                 elif (line.startswith('camRotation') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camRot = float(line.split()[1])
+                    self.budget = np.sqrt(self.budget**2
+                                              + float(line.split()[3])**2)
                 elif (line.startswith('M1M3ForceError')):
                     self.M1M3ForceError = float(line.split()[1])
                 elif (line.startswith('M1M3TxGrad')):
@@ -223,9 +228,10 @@ class aosTeleState(object):
             self.M2surf -= M2.zdz * np.cos(pre_comp_elev) \
                 + M2.hdz * np.sin(pre_comp_elev)
 
-        if hasattr(self, 'T'):
+        if hasattr(self, 'M1M3TBulk'):
 
-            self.M1M3surf += self.T * M1M3.tbdz + self.M1M3TxGrad * M1M3.txdz \
+            self.M1M3surf += self.M1M3TBulk * M1M3.tbdz \
+              + self.M1M3TxGrad * M1M3.txdz \
                 + self.M1M3TyGrad * M1M3.tydz + self.M1M3TzGrad * M1M3.tzdz \
                 + self.M1M3TrGrad * M1M3.trdz
 
@@ -805,12 +811,12 @@ airrefraction 0\n\
 diffractionmode 1\n\
 straylight 0\n\
 detectormode 0\n')
-        fid.close()
+# clearperturbations\n\
+# coatingmode 0\n\ #this clears filter coating too
         fpert = open(self.pertCmdFile, 'r')
         fid.write(fpert.read())
         fpert.close()        
-# clearperturbations\n\
-# coatingmode 0\n\ #this clears filter coating too
+        fid.close()
 
     def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
