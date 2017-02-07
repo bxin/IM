@@ -468,9 +468,10 @@ class aosController(object):
         leg.get_frame().set_alpha(0.5)
 
         # 7: FWHMeff
-        for i in range(metr.nField):
-            ax[2, 0].plot(myxticks, allFWHMeff[i, :],
-                          marker='.', color='b', markersize=10)
+        if debugLevel>-1:
+            for i in range(metr.nField):
+                ax[2, 0].plot(myxticks, allFWHMeff[i, :],
+                            marker='.', color='b', markersize=10)
         ax[2, 0].plot(myxticks, allFWHMeff[-1, :],
                       label='GQ($FWHM_{eff}$)',
                       marker='.', color='r', markersize=10)
@@ -484,12 +485,15 @@ class aosController(object):
         ax[2, 0].grid()
         ax[2, 0].plot([xmin, xmax], state.budget *
                       np.ones((2, 1)), label='Error Budget', color='k')
-        if allFWHMeff.shape[1] > 1:
-            ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec' % (
-                allFWHMeff[-1, -2], allFWHMeff[-1, -1]))
+        if debugLevel == -1:
+            ax[2, 0].set_title('$FWHM_{eff}$')
         else:
-            ax[2, 0].set_title(
-                'Last $FWHM_{eff}$: %5.3f arcsec' % (allFWHMeff[-1, -1]))
+            if allFWHMeff.shape[1] > 1:
+                ax[2, 0].set_title('Last 2 $FWHM_{eff}$: %5.3f, %5.3f arcsec' % (
+                    allFWHMeff[-1, -2], allFWHMeff[-1, -1]))
+            else:
+                ax[2, 0].set_title(
+                    'Last $FWHM_{eff}$: %5.3f arcsec' % (allFWHMeff[-1, -1]))
         # , shadow=True, fancybox=True)
         leg = ax[2, 0].legend(loc="upper right")
         leg.get_frame().set_alpha(0.5)
@@ -516,9 +520,10 @@ class aosController(object):
         leg.get_frame().set_alpha(0.5)
 
         # 9: elli
-        for i in range(metr.nField):
-            ax[2, 2].plot(myxticks, allelli[i, :] * 100,
-                          marker='.', color='b', markersize=10)
+        if debugLevel>-1:
+            for i in range(metr.nField):
+                ax[2, 2].plot(myxticks, allelli[i, :] * 100,
+                            marker='.', color='b', markersize=10)
         ax[2, 2].plot(myxticks, allelli[-1, :] * 100,
                       label='GQ(ellipticity)',
                       marker='.', color='r', markersize=10)
@@ -528,12 +533,15 @@ class aosController(object):
         ax[2, 2].set_xlabel('iteration')
         ax[2, 2].set_ylabel('percent')
         ax[2, 2].grid()
-        if allelli.shape[1] > 1:
-            ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%' %
-                               (allelli[-1, -2] * 100, allelli[-1, -1] * 100))
+        if debugLevel == -1:
+            ax[2, 2].set_title('Ellipticity')
         else:
-            ax[2, 2].set_title('Last 2 e: %4.2f%%' % (allelli[-1, -1] * 100))
-        # , shadow=True, fancybox=True)
+            if allelli.shape[1] > 1:
+                ax[2, 2].set_title('Last 2 e: %4.2f%%, %4.2f%%' %
+                                (allelli[-1, -2] * 100, allelli[-1, -1] * 100))
+            else:
+                ax[2, 2].set_title('Last 2 e: %4.2f%%' % (allelli[-1, -1] * 100))
+            # , shadow=True, fancybox=True)
         leg = ax[2, 2].legend(loc="upper right")
         leg.get_frame().set_alpha(0.5)
 
