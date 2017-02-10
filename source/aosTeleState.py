@@ -539,7 +539,7 @@ class aosTeleState(object):
                                     self.phosimDir,
                                     self.zTrueFile[i], metr.nFieldp4,
                                     znwcs, obscuration, self.opdx, self.opdy,
-                                    srcFile, dstFile, debugLevel))
+                                    srcFile, dstFile, debugLevel, numproc))
                 if sys.platform == 'darwin':
                     runOPD1w(argList[i])
                 
@@ -612,7 +612,7 @@ SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID + irun))
 
     def writeOPDcmd(self, metr):
         fid = open(self.OPD_cmd, 'w')
-        fid.write('zenith_v 1000.0\n\
+        fid.write('backgroundmode 0\n\
 raydensity 0.0\n\
 perturbationmode 1\n')
         fpert = open(self.pertCmdFile, 'r')
@@ -797,7 +797,7 @@ SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
         self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         fid = open(self.PSF_cmd, 'w')
-        fid.write('zenith_v 1000.0\n\
+        fid.write('backgroundmode 0\n\
 raydensity 0.0\n\
 perturbationmode 1\n\
 trackingmode 0\n\
@@ -935,7 +935,7 @@ Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
 
     def writeWFScmd(self, wfs):
         fid = open(self.WFS_cmd, 'w')
-        fid.write('zenith_v 1000.0\n\
+        fid.write('backgroundmode 0\n\
 raydensity 0.0\n\
 perturbationmode 1\n\
 trackingmode 0\n\
@@ -1062,22 +1062,25 @@ def runOPD1w(argList):
     srcFile = argList[12]
     dstFile = argList[13]
     debugLevel = argList[14]
+    nthread = argList[15]
     
     if debugLevel >= 3:
         runProgram('head %s' % OPD_inst)
         runProgram('head %s' % OPD_cmd)
 
-    myargs = '%s -c %s -i %s -e %d > %s 2>&1' % (
-        OPD_inst, OPD_cmd, inst, eimage,
+    myargs = '%s -c %s -i %s -e %d -t %d > %s 2>&1' % (
+        OPD_inst, OPD_cmd, inst, eimage, nthread,
         OPD_log)
     if debugLevel >= 2:
         print('*******Runnnig PHOSIM with following parameters*******')
         print('Check the log file below for progress')
         print('%s' % myargs)
+        runProgram('date')
     runProgram('python %s/phosim.py' %
                    phosimDir, argstring=myargs)
-    if debugLevel >= 3:
+    if debugLevel >= 2:
         print('DONE RUNNING PHOSIM FOR OPD: %s' % OPD_inst)
+        runProgram('date')
     if os.path.isfile(zTrueFile):
         os.remove(zTrueFile)
     fz = open(zTrueFile, 'ab')
