@@ -51,10 +51,10 @@ class aosTeleState(object):
         self.wavelength = wavelength
         if wavelength == 0:
             self.effwave = aosTeleState.effwave[band]
-            self.nOPDrun = len(aosTeleState.GQwave[band])
+            self.nOPDw = len(aosTeleState.GQwave[band])
         else:
             self.effwave = wavelength
-            self.nOPDrun = 1
+            self.nOPDw = 1
         
         assert sum(aosTeleState.GQwt[self.band])-1 < 1e-3
         
@@ -442,39 +442,16 @@ class aosTeleState(object):
                 self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
 
                     
-        self.OPD_inst = []
-        for irun in range(self.nOPDrun):
-            if self.nOPDrun == 1:
-                self.OPD_inst.append('%s/iter%d/sim%d_iter%d_opd%d.inst' % (
+        self.OPD_inst = '%s/iter%d/sim%d_iter%d_opd%d.inst' % (
                     self.pertDir, self.iIter, self.iSim, self.iIter,
-                    metr.nFieldp4))
-            else:
-                self.OPD_inst.append(
-                    '%s/iter%d/sim%d_iter%d_opd%d_w%d.inst' % (
-                    self.pertDir, self.iIter, self.iSim, self.iIter,
-                    metr.nFieldp4, irun))
+                    metr.nFieldp4)
         self.OPD_cmd = '%s/iter%d/sim%d_iter%d_opd%d.cmd' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nFieldp4)
-
-        self.OPD_log = []
-        for irun in range(self.nOPDrun):
-            if self.nOPDrun == 1:
-                self.OPD_log.append('%s/iter%d/sim%d_iter%d_opd%d.log' % (
+        self.OPD_log = '%s/iter%d/sim%d_iter%d_opd%d.log' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter,
-                    metr.nFieldp4))
-            else:
-                self.OPD_log.append('%s/iter%d/sim%d_iter%d_opd%d_w%d.log' % (
-                        self.imageDir, self.iIter, self.iSim, self.iIter,
-                        metr.nFieldp4, irun))
-                
-        self.zTrueFile = []
-        for irun in range(self.nOPDrun):
-            if self.nOPDrun == 1:        
-                self.zTrueFile.append('%s/iter%d/sim%d_iter%d_opd.zer' % (
-                    self.imageDir, self.iIter, self.iSim, self.iIter))
-            else:
-                self.zTrueFile.append('%s/iter%d/sim%d_iter%d_opd_w%d.zer' % (
-                    self.imageDir, self.iIter, self.iSim, self.iIter, irun))
+                    metr.nFieldp4)
+        self.zTrueFile =  '%s/iter%d/sim%d_iter%d_opd.zer' % (
+                    self.imageDir, self.iIter, self.iSim, self.iIter)
 
         if hasattr(self, 'M1M3surf'):
             self.M1M3zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (
@@ -486,19 +463,9 @@ class aosTeleState(object):
                 self.pertDir, self.iSim)
             self.resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
         if iIter > 0:
-            self.zTrueFile_m1 = []
-            for irun in range(self.nOPDrun):
-                if self.nOPDrun == 1:
-                    self.zTrueFile_m1.append(
-                        '%s/iter%d/sim%d_iter%d_opd.zer' % (
+            self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
                         self.imageDir, self.iIter - 1, self.iSim,
-                            self.iIter - 1))
-                else:
-                    self.zTrueFile_m1.append(
-                        '%s/iter%d/sim%d_iter%d_opd_w%d.zer' % (
-                        self.imageDir, self.iIter - 1, self.iSim,
-                            self.iIter - 1, irun))
-                
+                            self.iIter - 1)                
             self.pertMatFile_m1 = '%s/iter%d/sim%d_iter%d_pert.mat' % (
                 self.pertDir, self.iIter - 1, self.iSim, self.iIter - 1)
             self.stateV = np.loadtxt(self.pertMatFile_m1)
@@ -523,54 +490,40 @@ class aosTeleState(object):
             self.writeOPDinst(metr)
             self.writeOPDcmd(metr)
             argList = []
-            for i in range(self.nOPDrun):
                     
-                srcFile = '%s/output/opd_%d.fits.gz' % (
-                    self.phosimDir, self.obsID + i)
-                if self.nOPDrun == 1:
-                    dstFile = '%s/iter%d/sim%d_iter%d_opd.fits.gz' % (
-                        self.imageDir, self.iIter, self.iSim, self.iIter)
-                else:
-                    dstFile = '%s/iter%d/sim%d_iter%d_opd_w%d.fits.gz' % (
-                        self.imageDir, self.iIter, self.iSim, self.iIter, i)
+            srcFile = '%s/output/opd_%d.fits.gz' % (
+                self.phosimDir, self.obsID)
+            dstFile = '%s/iter%d/sim%d_iter%d_opd.fits.gz' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
 
-                argList.append((self.OPD_inst[i], self.OPD_cmd, self.inst,
-                                    self.eimage, self.OPD_log[i],
-                                    self.phosimDir,
-                                    self.zTrueFile[i], metr.nFieldp4,
-                                    znwcs, obscuration, self.opdx, self.opdy,
-                                    srcFile, dstFile, debugLevel, numproc))
-                if sys.platform == 'darwin':
-                    runOPD1w(argList[i])
-                
-            if sys.platform != 'darwin':
-                # test, pdb cannot go into the subprocess
-                # runOPD1w(argList[0])
-                pool = multiprocessing.Pool(numproc)
-                pool.map(runOPD1w, argList)
-                pool.close()
-                pool.join()
-            
+            argList.append((self.OPD_inst, self.OPD_cmd, self.inst,
+                                self.eimage, self.OPD_log,
+                                self.phosimDir,
+                                self.zTrueFile, metr.nFieldp4,
+                                znwcs, obscuration, self.opdx, self.opdy,
+                                srcFile, dstFile, self.nOPDw, numproc,
+                                debugLevel))
+            runOPD(argList[i])
             
     def getOPDAllfromBase(self, baserun, metr):
-        for i in range(self.nOPDrun):
-            if not os.path.isfile(self.OPD_inst[i]):
-                baseFile = self.OPD_inst[i].replace(
-                    'sim%d' % self.iSim, 'sim%d' % baserun)
-                os.link(baseFile, self.OPD_inst[i])
+        if not os.path.isfile(self.OPD_inst):
+            baseFile = self.OPD_inst.replace(
+                 'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.OPD_inst)
 
-            if not os.path.isfile(self.OPD_log[i]):
-                baseFile = self.OPD_log[i].replace(
-                    'sim%d' % self.iSim, 'sim%d' % baserun)
-                os.link(baseFile, self.OPD_log[i])
+        if not os.path.isfile(self.OPD_log):
+            baseFile = self.OPD_log.replace(
+                 'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.OPD_log)
 
-            if not os.path.isfile(self.zTrueFile[i]):
-                baseFile = self.zTrueFile[i].replace(
-                    'sim%d' % self.iSim, 'sim%d' % baserun)
-                os.link(baseFile, self.zTrueFile[i])
+        if not os.path.isfile(self.zTrueFile):
+            baseFile = self.zTrueFile.replace(
+                'sim%d' % self.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.zTrueFile)
 
+        for i in range(self.nOPDw):
             for iField in range(metr.nFieldp4):
-                if self.nOPDrun == 1:
+                if self.nOPDw == 1:
                     opdFile = '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                         self.imageDir, self.iIter, self.iSim, self.iIter,
                         iField)
@@ -590,25 +543,27 @@ class aosTeleState(object):
 
 
     def writeOPDinst(self, metr):
-        for irun in range(self.nOPDrun):
-            fid = open(self.OPD_inst[irun], 'w')
-            fid.write('Opsim_filter %d\n\
+
+        fid = open(self.OPD_inst, 'w')
+        fid.write('Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID + irun))
-            fpert = open(self.pertFile, 'r')
-            fid.write(fpert.read())
+SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID))
+        fpert = open(self.pertFile, 'r')
+        fid.write(fpert.read())
+        for irun in range(self.nOPDw):
             for i in range(metr.nFieldp4):
-                if self.nOPDrun == 1:
+                if self.nOPDw == 1:
                     fid.write('opd %2d\t%9.6f\t%9.6f %5.1f\n' % (
                         i, metr.fieldX[i], metr.fieldY[i],
                         self.effwave * 1e3))
                 else:
                     fid.write('opd %2d\t%9.6f\t%9.6f %5.1f\n' % (
-                        i, metr.fieldX[i], metr.fieldY[i],
+                        irun * metr.nFieldp4 + i,
+                        metr.fieldX[i], metr.fieldY[i],
                         self.GQwave[self.band][irun] * 1e3))
-            fid.close()
-            fpert.close()
+        fid.close()
+        fpert.close()
 
     def writeOPDcmd(self, metr):
         fid = open(self.OPD_cmd, 'w')
@@ -1046,7 +1001,7 @@ def getLUTforce(zangle, LUTfile):
 
     return np.dot(w1, lut[1:, p1]) + np.dot(w2, lut[1:, p2])
 
-def runOPD1w(argList):
+def runOPD(argList):
     OPD_inst = argList[0]
     OPD_cmd = argList[1]
     inst = argList[2]
@@ -1061,8 +1016,9 @@ def runOPD1w(argList):
     opdy = argList[11]
     srcFile = argList[12]
     dstFile = argList[13]
-    debugLevel = argList[14]
+    nOPDw = argList[14]
     nthread = argList[15]
+    debugLevel = argList[16]
     
     if debugLevel >= 3:
         runProgram('head %s' % OPD_inst)
@@ -1084,9 +1040,9 @@ def runOPD1w(argList):
     if os.path.isfile(zTrueFile):
         os.remove(zTrueFile)
     fz = open(zTrueFile, 'ab')
-    for i in range(nFieldp4):
+    for i in range(nFieldp4 * nOPDw):
         src = srcFile.replace('.fits.gz', '_%d.fits.gz' % i)
-        dst = dstFile.replace('opd', 'opd%d' % i)
+        dst = dstFile.replace('opd', 'opd%d_w%d' % (i, i%nFieldp4))
         shutil.move(src, dst)
         runProgram('gunzip -f %s' % dst)
         opdFile = dst.replace('.gz', '')

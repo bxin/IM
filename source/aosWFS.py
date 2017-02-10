@@ -59,7 +59,7 @@ class aosWFS(object):
             -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
         self.covM = np.loadtxt('data/covM86.txt')  # in unit of nm^2
         if self.nWFS > 4:
-            nrepeat = np.ceil(self.nWFS / 4)
+            nrepeat = int(np.ceil(self.nWFS / 4))
             self.covM = np.tile(self.covM, (nrepeat, nrepeat))
             self.covM = self.covM[
                 :(self.znwcs3 * self.nWFS), :(self.znwcs3 * self.nWFS)]
@@ -254,8 +254,8 @@ class aosWFS(object):
 
     def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile)  # in micron
-        z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDrun))
-        for i in range(state.nOPDrun):
+        z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDw))
+        for i in range(state.nOPDw):
             z4cTrue[:, :, i] = np.loadtxt(state.zTrueFile[i])
 
         x = range(4, self.znwcs + 1)
@@ -279,7 +279,7 @@ class aosWFS(object):
             plt.subplot(nRow, nCol, pIdx[i])
             plt.plot(x, z4c[i, :self.znwcs3], label='CWFS',
                      marker='o', color='r', markersize=6)
-            for irun in range(state.nOPDrun):
+            for irun in range(state.nOPDw):
                 if irun==0:
                     mylabel = 'Truth'
                 else:

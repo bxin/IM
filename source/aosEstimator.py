@@ -137,8 +137,8 @@ class aosEstimator(object):
 
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
-            bb = np.zeros((self.znwcs, state.nOPDrun))
-            for irun in range(self.nOPDrun):
+            bb = np.zeros((self.znwcs, state.nOPDw))
+            for irun in range(self.nOPDw):
                 aa = np.loadtxt(state.zTrueFile_m1[irun])
                 bb[:, irun] = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
             self.yfinal = np.sum(aosTeleState.GQwt * bb)

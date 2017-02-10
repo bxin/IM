@@ -169,11 +169,11 @@ class aosMetric(object):
             # before we calc_pssn, we do ZernikeFit to remove PTT
             # pinv appears in ZernikeFit()
             if sys.platform == 'darwin':
-                self.PSSNw = np.zeros((self.nField, state.nOPDrun))
+                self.PSSNw = np.zeros((self.nField, state.nOPDw))
             argList = []
             icount = 0
             for i in range(self.nField):
-                for irun in range(state.nOPDrun):
+                for irun in range(state.nOPDw):
                     inputFile = []
                     if pixelum > 0:
                         inputFile.append(
@@ -188,7 +188,7 @@ class aosMetric(object):
                             state.iIter,
                             i))
                         
-                    if state.nOPDrun == 1:
+                    if state.nOPDw == 1:
                         inputFile.append(
                             '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
@@ -263,11 +263,11 @@ class aosMetric(object):
             # before we psf2eAtmW(), we do ZernikeFit to remove PTT
             # pinv appears in ZernikeFit()
             if sys.platform == 'darwin':
-                self.elliw = np.zeros((self.nField, state.nOPDrun))
+                self.elliw = np.zeros((self.nField, state.nOPDw))
             argList = []
             icount = 0
             for i in range(self.nField):
-                for irun in range(state.nOPDrun):
+                for irun in range(state.nOPDw):
                     inputFile = []
                     if pixelum > 0:
                         inputFile.append(
@@ -282,7 +282,7 @@ class aosMetric(object):
                             state.iIter,
                             i))
 
-                    if state.nOPDrun == 1:
+                    if state.nOPDw == 1:
                         inputFile.append(
                             '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
