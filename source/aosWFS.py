@@ -255,8 +255,9 @@ class aosWFS(object):
     def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile)  # in micron
         z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDw))
+        aa = np.loadtxt(state.zTrueFile)
         for i in range(state.nOPDw):
-            z4cTrue[:, :, i] = np.loadtxt(state.zTrueFile[i])
+            z4cTrue[:, :, i] = aa[i*metr.nFieldp4:(i+1)*metr.nFieldp4, :]
 
         x = range(4, self.znwcs + 1)
         plt.figure(figsize=(10, 8))

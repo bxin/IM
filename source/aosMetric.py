@@ -193,14 +193,15 @@ class aosMetric(object):
                             '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
                             state.iIter, i))
+                        wlum = state.wavelength
                     else:
                         inputFile.append(
                             '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
-                            state.iIter, i, irun))                        
+                            state.iIter, i, irun))
+                        wlum = aosTeleState.GQwave[state.band][irun]
                     argList.append((inputFile, state,
-                                        aosTeleState.GQwave[state.band][irun],
-                                    debugLevel, pixelum))
+                                        wlum, debugLevel, pixelum))
 
                     if sys.platform == 'darwin':
                         self.PSSNw[i, irun] = runPSSNandMore(argList[icount])
@@ -287,14 +288,15 @@ class aosMetric(object):
                             '%s/iter%d/sim%d_iter%d_opd%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
                             state.iIter, i))
+                        wlum = state.wavelength
                     else:
                         inputFile.append(
                             '%s/iter%d/sim%d_iter%d_opd%d_w%d.fits' % (
                             state.imageDir, state.iIter, state.iSim,
-                            state.iIter, i, irun))                    
+                            state.iIter, i, irun))
+                        wlum = aosTeleState.GQwave[state.band][irun]
                     argList.append((inputFile, state,
-                                    aosTeleState.GQwave[state.band][irun],
-                                        debugLevel, pixelum))
+                                    wlum, debugLevel, pixelum))
 
                     if sys.platform == 'darwin':
                         self.elliw[i, irun] = runEllipticity(argList[icount])
@@ -709,7 +711,7 @@ def runEllipticity(argList):
         psf = IHDU[0].data  # unit: um
         IHDU.close()
 
-        # only opd to help determine how big mtfa needs to be
+        # opd only needed to help determine how big mtfa needs to be
         IHDU = fits.open(inputFile[1])
         opd = IHDU[0].data  # unit: um
         IHDU.close()
@@ -755,7 +757,7 @@ def runPSSNandMore(argList):
         psf = IHDU[0].data  # unit: um
         IHDU.close()
 
-        # only opd to help determine pupil geometry
+        # opd only needed to help determine pupil geometry
         IHDU = fits.open(inputFile[1])
         opd = IHDU[0].data  # unit: um
         IHDU.close()

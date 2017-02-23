@@ -79,6 +79,17 @@ def main():
         state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel,
                         pixelum=pixelum)
 
+        if iIter < nIter - 1:
+            state.getOPDAll(args.opdoff, metr, args.numproc,
+                            znwcs, obscuration, args.debugLevel)
+
+            metr.getFFTPSF(args.fftpsfoff, state, pixelum,
+                           args.numproc, args.debugLevel)
+            if not args.fftpsfoff:
+                checkPSF(metr, state, 2)
+                checkPSF(metr, state, 1)
+
+        # use Phosim high-reso PSFs from above
         metr.getPSSNandMore(args.pssnoff, state, 
                             args.numproc,
                             args.debugLevel, pixelum=pixelum)
@@ -87,14 +98,6 @@ def main():
                             args.debugLevel, pixelum=pixelum)
 
         if iIter < nIter - 1:
-            state.getOPDAll(args.opdoff, metr, args.numproc,
-                            znwcs, obscuration, args.debugLevel)
-
-            metr.getFFTPSF(args.fftpsfoff, state, pixelum,
-                           args.numproc, args.debugLevel)
-
-            checkPSF(metr, state, 2)
-            checkPSF(metr, state, 1)
             # below, pixelum uses default value 0, opd maps will be used
             metr.getPSSNandMore(args.pssnoff, state, 
                                 args.numproc,
@@ -172,8 +175,8 @@ def checkPSF(metr, state, dim):
 
         elif dim == 1:
             x = range(state.psfStampSize)
-            z1 = psf[state.psfStampSize / 2 - 1, :]
-            z2 = fftpsf[state.psfStampSize / 2 - 1, :]
+            z1 = psf[int(state.psfStampSize / 2 - 1), :]
+            z2 = fftpsf[int(state.psfStampSize / 2 - 1), :]
             plt.plot(x, z1, label='psf', color='r', linewidth=0.5)
             plt.plot(x, z2, label='fftpsf', color='b', linewidth=0.5)
             ax.set_xticklabels([])

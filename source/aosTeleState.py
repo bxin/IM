@@ -503,7 +503,7 @@ class aosTeleState(object):
                                 znwcs, obscuration, self.opdx, self.opdy,
                                 srcFile, dstFile, self.nOPDw, numproc,
                                 debugLevel))
-            runOPD(argList[i])
+            runOPD(argList[0])
             
     def getOPDAllfromBase(self, baserun, metr):
         if not os.path.isfile(self.OPD_inst):
@@ -609,8 +609,8 @@ perturbationmode 1\n')
                     chipStr = 'F%02d' % i
                     px = 2000
                     py = 2000
-                src = glob.glob('%s/output/*%d_f%d_%s*E000.fit*' % (
-                    self.phosimDir, self.obsID, phosimFilterID[self.band],
+                src = glob.glob('%s/output/%s*%d_f%d_%s*E000.fit*' % (
+                    self.phosimDir, instiq, self.obsID, phosimFilterID[self.band],
                     chipStr))
                 if len(src) == 0:
                     raise RuntimeError(
@@ -1042,7 +1042,10 @@ def runOPD(argList):
     fz = open(zTrueFile, 'ab')
     for i in range(nFieldp4 * nOPDw):
         src = srcFile.replace('.fits.gz', '_%d.fits.gz' % i)
-        dst = dstFile.replace('opd', 'opd%d_w%d' % (i, i%nFieldp4))
+        if nOPDw == 1:
+            dst = dstFile.replace('opd', 'opd%d' % i)
+        else:
+            dst = dstFile.replace('opd', 'opd%d_w%d' % (i%nFieldp4, int(i/nFieldp4)))
         shutil.move(src, dst)
         runProgram('gunzip -f %s' % dst)
         opdFile = dst.replace('.gz', '')
