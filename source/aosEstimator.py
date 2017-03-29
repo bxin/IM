@@ -57,7 +57,7 @@ class aosEstimator(object):
                     if (line1[0].isdigit()):
                         arrayCount = arrayCount + 1
                     if (arrayType == 'icomp' and arrayCount == self.icomp):
-                        self.compIdx = np.fromstring(
+                        self.dofIdx = np.fromstring(
                             line1, dtype=bool, sep=' ')
                         arrayCount = 0
                         arrayType = ''
@@ -90,10 +90,10 @@ class aosEstimator(object):
         # A is just for the 4 corners
         self.A = self.senM[-wfs.nWFS:, :, :].reshape((-1, self.ndofA))
         self.zn3IdxAx4 = np.repeat(self.zn3Idx, wfs.nWFS)
-        self.Ause = self.A[np.ix_(self.zn3IdxAx4, self.compIdx)]
+        self.Ause = self.A[np.ix_(self.zn3IdxAx4, self.dofIdx)]
         if debugLevel >= 3:
             print('---checking estimator related:')
-            print(self.compIdx)
+            print(self.dofIdx)
             print(self.zn3Idx)
             print(self.zn3Max)
             print(self.Ause.shape)
@@ -158,14 +158,14 @@ class aosEstimator(object):
         self.y2c = aa[-wfs.nWFS:, 0:self.znMax - 3].reshape((-1, 1))
 
         self.xhat = np.zeros(self.ndofA)
-        self.xhat[self.compIdx] = self.Ainv.dot(
+        self.xhat[self.dofIdx] = self.Ainv.dot(
             self.yfinal[self.zn3IdxAx4] - self.y2c)
         if self.strategy == 'pinv' and self.normalizeA:
-            self.xhat[self.compIdx] = self.xhat[self.compIdx] / self.dofUnit
+            self.xhat[self.dofIdx] = self.xhat[self.dofIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c
         self.yresi += np.reshape(
-            self.Ause.dot(-self.xhat[self.compIdx]), (-1, 1))
+            self.Ause.dot(-self.xhat[self.dofIdx]), (-1, 1))
 
 
 def pinv_truncate(A, n):

@@ -53,10 +53,10 @@ class aosController(object):
 
         # establish control authority of the DOFs
         aa = M1M3.force[:, :esti.nB13Max]
-        aa = aa[:, esti.compIdx[10:10 + esti.nB13Max]]
+        aa = aa[:, esti.dofIdx[10:10 + esti.nB13Max]]
         mHM13 = np.std(aa, axis=0)
         aa = M2.force[:, :esti.nB2Max]
-        aa = aa[:, esti.compIdx[
+        aa = aa[:, esti.dofIdx[
             10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
         mHM2 = np.std(aa, axis=0)
         # For the rigid body DOF (r for rigid)
@@ -64,7 +64,7 @@ class aosController(object):
         rbStroke = np.array([5900, 6700, 6700, 432, 432,
                              8700, 7600, 7600, 864, 864])
         rbW = (rbStroke[0] / rbStroke)
-        mHr = rbW[esti.compIdx[:10]]
+        mHr = rbW[esti.dofIdx[:10]]
         self.Authority = np.concatenate(
             (mHr, self.rhoM13 * mHM13, self.rhoM2 * mHM2))
         # #range of motion for the DOFs.
@@ -90,9 +90,9 @@ class aosController(object):
             if self.xref == 'x0xcor':
                 idx1 = 10 + 3  # b3 of M1M3 bending
                 idx2 = 10 + esti.nB13Max + 5  # b5 of M2 bending
-                if esti.compIdx[idx1] and esti.compIdx[idx2]:
-                    idx1 = sum(esti.compIdx[:idx1]) - 1
-                    idx2 = sum(esti.compIdx[:idx2]) - 1
+                if esti.dofIdx[idx1] and esti.dofIdx[idx2]:
+                    idx1 = sum(esti.dofIdx[:idx1]) - 1
+                    idx2 = sum(esti.dofIdx[:idx2]) - 1
                     self.mH[idx1, idx2] = self.Authority[idx1] * \
                         self.Authority[idx2] * 100  # 10 times penalty
 
@@ -101,7 +101,7 @@ class aosController(object):
             self.mQ = np.zeros((esti.Ause.shape[1], esti.Ause.shape[1]))
             for iField in range(metr.nField):
                 aa = esti.senM[iField, :, :]
-                Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
+                Afield = aa[np.ix_(esti.zn3Idx, esti.dofIdx)]
                 mQf = Afield.T.dot(CCmat).dot(Afield)
                 self.mQ = self.mQ + metr.w[iField] * mQf
             self.mF = np.linalg.pinv(self.mQ + self.rho**2 * self.mH)
@@ -125,29 +125,29 @@ class aosController(object):
             x_y2c = esti.Ainv.dot(y2c)
             if esti.normalizeA:
                 x_y2c = x_y2c / esti.dofUnit
-            self.uk[esti.compIdx] = - self.gainUse * \
-                (esti.xhat[esti.compIdx] + x_y2c)
+            self.uk[esti.dofIdx] = - self.gainUse * \
+                (esti.xhat[esti.dofIdx] + x_y2c)
 
         elif (self.strategy == 'optiPSSN'):
             CCmat = np.diag(metr.pssnAlpha) * (2 * np.pi / state.effwave)**2
             Mx = np.zeros(esti.Ause.shape[1])
             for iField in range(metr.nField):
                 aa = esti.senM[iField, :, :]
-                Afield = aa[np.ix_(esti.zn3Idx, esti.compIdx)]
+                Afield = aa[np.ix_(esti.zn3Idx, esti.dofIdx)]
                 y2f = self.y2[iField, esti.zn3Idx]
-                yf = Afield.dot(esti.xhat[esti.compIdx]) + y2f
+                yf = Afield.dot(esti.xhat[esti.dofIdx]) + y2f
                 Mxf = Afield.T.dot(CCmat).dot(yf)
                 Mx = Mx + metr.w[iField] * Mxf
             if self.xref == 'x0' or self.xref == 'x0xcor':
-                self.uk[esti.compIdx] = - self.gainUse * self.mF.dot(Mx)
+                self.uk[esti.dofIdx] = - self.gainUse * self.mF.dot(Mx)
             elif self.xref == '0':
-                self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
-                    -self.rho**2 * self.mH.dot(state.stateV[esti.compIdx]) -
+                self.uk[esti.dofIdx] = self.gainUse * self.mF.dot(
+                    -self.rho**2 * self.mH.dot(state.stateV[esti.dofIdx]) -
                     Mx)
             elif self.xref == 'x00':
-                self.uk[esti.compIdx] = self.gainUse * self.mF.dot(
-                    self.rho**2 * self.mH.dot(state.stateV0[esti.compIdx] -
-                                              state.stateV[esti.compIdx]) -
+                self.uk[esti.dofIdx] = self.gainUse * self.mF.dot(
+                    self.rho**2 * self.mH.dot(state.stateV0[esti.dofIdx] -
+                                              state.stateV[esti.dofIdx]) -
                     Mx)
 
     def drawControlPanel(self, esti, state):
