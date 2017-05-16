@@ -148,7 +148,7 @@ class aosEstimator(object):
                 self.yfinal += np.random.multivariate_normal(
                     mu, wfs.covM).reshape(-1, 1)
         else:
-            aa = np.loadtxt(wfs.zFile_m1)
+            aa = np.loadtxt(wfs.zFile_m1[0])
             self.yfinal = aa[:, :self.zn3Max].reshape((-1, 1))
 
         self.yfinal -= wfs.intrinsicWFS

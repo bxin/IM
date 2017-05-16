@@ -12,6 +12,8 @@ import multiprocessing
 
 import numpy as np
 from astropy.io import fits
+from astropy.time import Time
+from astropy.time import TimeDelta
 import aosCoTransform as ct
 from scipy.interpolate import Rbf
 
@@ -82,10 +84,12 @@ class aosTeleState(object):
                         self.stateV[int(line.split()[1]) - 1] *= 1e3
                     elif line.split()[3] == 'deg':
                         self.stateV[int(line.split()[1]) - 1] *= 3600
+                elif (line.startswith('mjd')):
+                    self.time0 = Time(float(line.split()[1]), format='mjd')
                 elif (line.startswith('budget')):
                     # read in in mas, convert to arcsec
                     self.budget = np.sqrt(
-                        np.sum([float(x)**2 for x in line.split()[1:]])) * 1e-3
+                        np.sum([float(x)**2 for x in line.split()[1:]]))
                 elif (line.startswith('zenithAngle')):
                     self.zAngle = float(line.split()[1]) / 180 * np.pi
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
@@ -132,7 +136,8 @@ class aosTeleState(object):
                     self.cwfsStampSize = int(line.split()[1])
 
         fid.close()
-
+        
+        self.budget = self.budget * 1e-3
         self.fno = 1.2335
         k = self.fno * self.effwave / 0.2
         self.psfStampSize = int(self.opdSize +
@@ -389,6 +394,7 @@ class aosTeleState(object):
         
     def setIterNo(self, metr, iIter, wfs=None):
         self.iIter = iIter
+        self.timeIter = self.time0 + iIter*TimeDelta(39, format='sec')
         #leave last digit for wavelength
         self.obsID = 9000000 + self.iSim * 1000 + self.iIter * 10
         self.pertFile = '%s/iter%d/sim%d_iter%d_pert.txt' % (
@@ -407,10 +413,11 @@ class aosTeleState(object):
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         if wfs is not None:
-            wfs.zFile = '%s/iter%d/sim%d_iter%d.z4c' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter)
-            wfs.catFile = '%s/iter%d/wfs_catalog.txt' % (
-                self.pertDir, self.iIter)
+            wfs.zFile = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter,
+                iexp) for iexp in [0, 1]]
+            wfs.catFile = ['%s/iter%d/wfs_catalog_E00%d.txt' % (
+                self.pertDir, self.iIter, iexp) for iexp in [0, 1]]
             wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
                 self.pertDir, self.iIter, self.iIter)
 
@@ -473,8 +480,9 @@ class aosTeleState(object):
                 self.pertDir, self.iSim)
             self.stateV0 = np.loadtxt(self.pertMatFile_0)
             if wfs is not None:
-                wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d.z4c' % (
-                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
+                wfs.zFile_m1 = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
+                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1,
+                    iexp) for iexp in [0, 1]]
 
             # PSSN from last iteration needs to be known for shiftGear
             if not (hasattr(metr, 'GQFWHMeff')):
@@ -796,17 +804,18 @@ detectormode 0\n')
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             if wfs.nRun == 1: # phosim generates C0 & C1 already
                 for ioffset in [0, 1]:
-                    src = glob.glob('%s/output/*%s_f%d_%s*%s*E000.fit*' %
-                                (self.phosimDir, self.obsID,
-                                    phosimFilterID[self.band],
-                                chipStr, wfs.halfChip[ioffset]))
-                    if '.gz' in src[0]:
-                        runProgram('gunzip -f %s' % src[0])
-                    elif 'gz' in src[-1]:
-                        runProgram('gunzip -f %s' % src[-1])
-                    chipFile = src[0].replace('.gz', '')
-                    runProgram('mv -f %s %s/iter%d' %
-                               (chipFile, self.imageDir, self.iIter))
+                    for iexp in [0, 1]:
+                        src = glob.glob('%s/output/*%s_f%d_%s*%s*E00%d.fit*' %
+                                    (self.phosimDir, self.obsID,
+                                        phosimFilterID[self.band],
+                                    chipStr, wfs.halfChip[ioffset], iexp))
+                        if '.gz' in src[0]:
+                            runProgram('gunzip -f %s' % src[0])
+                        elif 'gz' in src[-1]:
+                            runProgram('gunzip -f %s' % src[-1])
+                        chipFile = src[0].replace('.gz', '')
+                        runProgram('mv -f %s %s/iter%d' %
+                                (chipFile, self.imageDir, self.iIter))
             else: # need to pick up two sets of fits.gz with diff phosim ID
                 for ioffset in [0, 1]:
                     src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
@@ -829,11 +838,13 @@ detectormode 0\n')
             fid = open(self.WFS_inst[irun], 'w')
             fid.write('Opsim_filter %d\n\
 Opsim_obshistid %d\n\
-SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n\
+mjd %.10f\n\
+SIM_VISTIME 33.0\n\
+SIM_NSNAP 2\n\
 SIM_SEED %d\n\
-Opsim_rawseeing 0.7283\n' % (phosimFilterID[self.band],
-                             self.obsID + irun, self.obsID % 10000 + 4))
+Opsim_rawseeing -1\n' % (phosimFilterID[self.band],
+                             self.obsID + irun, self.timeIter.mjd,
+                             self.obsID % 10000 + 4))
             fpert = open(self.pertFile, 'r')
             hasCamPiston = False #pertFile already includes move 10
             for line in fpert:
