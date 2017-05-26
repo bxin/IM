@@ -89,10 +89,8 @@ class aosWFS(object):
                                             state.obsID + ioffset,
                                         chipStr, self.halfChip[ioffset], iexp))                
                     chipFile = src[0]
-                    IHDU = fits.open(chipFile)
-                    chipImage = IHDU[0].data
-                    IHDU.close()
-    
+                    chipImage, header = fits.getdata(chipFile,header=True)
+                        
                     if state.inst[:4] == 'lsst':
                         if ioffset == 0:
                             # intra image, C0, pulled 0.02 deg from right edge
@@ -147,7 +145,18 @@ class aosWFS(object):
                         os.remove(stampFile)
                     hdu = fits.PrimaryHDU(psf)
                     hdu.writeto(stampFile)
-    
+
+                    if ((iField == metr.nFieldp4 - self.nWFS) and (ioffset == 0)):
+                        fid = open(state.atmFile[iexp], 'w')
+                        fid.write('Layer# \t seeing \t L0 \t\t wind_v \t wind_dir\n')
+                        for ilayer in range(7):
+                            fid.write('%d \t %.6f \t %.5f \t %.6f \t %.6f\n'%(
+                                ilayer,header['SEE%d'%ilayer],
+                                header['OSCL%d'%ilayer],
+                                header['WIND%d'%ilayer],
+                                header['WDIR%d'%ilayer]))
+                        fid.close()
+                    
                     if debugLevel >= 3:
                         print('px = %d, py = %d' % (px, py))
                         print('offsetx = %d, offsety = %d' % (offsetx, offsety))

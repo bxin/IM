@@ -459,6 +459,9 @@ class aosTeleState(object):
                     metr.nFieldp4)
         self.zTrueFile =  '%s/iter%d/sim%d_iter%d_opd.zer' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter)
+        self.atmFile = ['%s/iter%d/sim%d_iter%d_E00%d.atm' % (
+                    self.imageDir, self.iIter, self.iSim, self.iIter,
+            iexp) for iexp in [0, 1]]
 
         if hasattr(self, 'M1M3surf'):
             self.M1M3zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (

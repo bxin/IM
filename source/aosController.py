@@ -310,6 +310,8 @@ class aosController(object):
         allFWHMeff = np.zeros((metr.nField + 1, endIter - startIter + 1))
         alldm5 = np.zeros((metr.nField + 1, endIter - startIter + 1))
         allelli = np.zeros((metr.nField + 1, endIter - startIter + 1))
+        allseeing = np.zeros((endIter - startIter + 1))
+        allseeingvk = np.zeros((endIter - startIter + 1))
         for iIter in range(startIter, endIter + 1):
             filename = state.pertMatFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
@@ -323,6 +325,21 @@ class aosController(object):
             filename = metr.elliFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
             allelli[:, iIter - startIter] = np.loadtxt(filename)
+
+            filename = state.atmFile[0].replace(
+                'iter%d' % endIter, 'iter%d' % iIter)
+            seeingdata = np.loadtxt(filename, skiprows =1)
+            w = seeingdata[:,1]
+            # according to John, seeing = quadrature sum (each layer)
+            allseeing[iIter - startIter] = np.sqrt(np.sum(w**2))*\
+              2*np.sqrt(2*np.log(2)) #convert sigma into FWHM
+            # according to John, weight L0 using seeing^2
+            L0eff =  np.sum(seeingdata[:,2]*w**2) /np.sum(w**2)
+            r0_500 = 0.976*0.5e-6/(allseeing[iIter - startIter]/3600/180*np.pi)
+            r0 = r0_500*(state.wavelength/0.5)**1.2
+            allseeingvk[iIter - startIter] = 0.976*state.wavelength*1e-6\
+              /r0*np.sqrt(1-2.183*(r0/L0eff)**0.356)\
+              /np.pi*180*3600
 
         f, ax = plt.subplots(3, 3, figsize=(15, 10))
         myxticks = np.arange(startIter, endIter + 1)
@@ -475,6 +492,8 @@ class aosController(object):
         ax[2, 0].plot(myxticks, allFWHMeff[-1, :],
                       label='GQ($FWHM_{eff}$)',
                       marker='.', color='r', markersize=10)
+        ax[2, 0].plot(myxticks, allseeingvk,label='seeing',
+                          marker='.', color='g', markersize=10)
         xmin = np.min(myxticks) - 0.5
         xmax = np.max(myxticks) + 0.5
         ax[2, 0].set_xlim([xmin, xmax])
