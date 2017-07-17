@@ -99,7 +99,7 @@ class aosTeleState(object):
                         aa = os.path.join('data/', (aa + '.txt'))
                         bb = np.loadtxt(aa).reshape((-1, 1))
                         assert bb.shape[0]>endIter
-                        self.zAngle = bb[startIter:endIter+1]
+                        self.zAngle = bb[startIter:endIter+1, 0]/ 180 * np.pi
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
