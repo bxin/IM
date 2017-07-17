@@ -93,13 +93,19 @@ class aosTeleState(object):
                 elif (line.startswith('zenithAngle')):
                     aa = line.split()[1]
                     if aa.replace(".", "", 1).isdigit():
-                        nIter = endIter - startIter + 1
+                        # when startIter>0, we still need to set M1M3.printthz_iter0 correctly
+                        nIter = endIter + 1
                         self.zAngle =  np.ones(nIter)*float(aa)/ 180 * np.pi
                     else:
+                        # zAngle is extracted from OpSim ObsHistory.
+                        # This is
+                        # 90-block['altitude'].values[:100]/np.pi*180
                         aa = os.path.join('data/', (aa + '.txt'))
                         bb = np.loadtxt(aa).reshape((-1, 1))
                         assert bb.shape[0]>endIter
-                        self.zAngle = bb[startIter:endIter+1, 0]/ 180 * np.pi
+                        assert np.max(bb)<90
+                        assert np.min(bb)>0
+                        self.zAngle = bb[:endIter+1, 0]/ 180 * np.pi
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
@@ -237,27 +243,27 @@ class aosTeleState(object):
             pre_elev = 0
             pre_camR = 0
             pre_temp_camR = 0
-            self.getCamDistortionAll(0, pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortionAll(self.zAngle[0], pre_elev, pre_camR, pre_temp_camR)
 
-    def getCamDistortionAll(self, iIter, pre_elev, pre_camR, pre_temp_camR):
-        self.getCamDistortion(iIter, 'L1RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L2RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'FRB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L3RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'FPRB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L1S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L2S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L3S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L1S2zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L2S2zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(iIter, 'L3S2zer', pre_elev, pre_camR, pre_temp_camR)
+    def getCamDistortionAll(self, zAngle, pre_elev, pre_camR, pre_temp_camR):
+        self.getCamDistortion(zAngle, 'L1RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L2RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'FRB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L3RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'FPRB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L1S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L2S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L3S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L1S2zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L2S2zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(zAngle, 'L3S2zer', pre_elev, pre_camR, pre_temp_camR)
         
-    def getCamDistortion(self, iIter, distType, pre_elev, pre_camR, pre_temp_camR):
+    def getCamDistortion(self, zAngle, distType, pre_elev, pre_camR, pre_temp_camR):
         dataFile = os.path.join('data/camera', (distType + '.txt'))
         data = np.loadtxt(dataFile, skiprows=1)
-        distortion = data[0, 3:] * np.cos(self.zAngle[iIter]) +\
+        distortion = data[0, 3:] * np.cos(zAngle) +\
             (data[1, 3:] * np.cos(self.camRot) +
-             data[2, 3:] * np.sin(self.camRot)) * np.sin(self.zAngle[iIter])
+             data[2, 3:] * np.sin(self.camRot)) * np.sin(zAngle)
         # pre-compensation
         distortion -= data[0, 3:] * np.cos(pre_elev) +\
             (data[1, 3:] * np.cos(pre_camR) +
