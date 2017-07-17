@@ -45,7 +45,8 @@ class aosTeleState(object):
             'y': [1]}
         
     def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
-                 pertDir, imageDir, band, wavelength, nIter, debugLevel,
+                 pertDir, imageDir, band, wavelength,
+                 startIter, endIter, debugLevel,
                  M1M3=None, M2=None):
 
         self.band = band
@@ -92,11 +93,13 @@ class aosTeleState(object):
                 elif (line.startswith('zenithAngle')):
                     aa = line.split()[1]
                     if aa.replace(".", "", 1).isdigit():
+                        nIter = endIter - startIter + 1
                         self.zAngle =  np.ones(nIter)*float(aa)/ 180 * np.pi
                     else:
+                        aa = os.path.join('data/', (aa + '.txt'))
                         bb = np.loadtxt(aa).reshape((-1, 1))
-                        assert bb.shape[0]>=nIter
-                        self.zAngle = bb[:nIter]
+                        assert bb.shape[0]>endIter
+                        self.zAngle = bb[startIter:endIter+1]
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
