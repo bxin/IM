@@ -137,18 +137,22 @@ class aosEstimator(object):
 
     def estimate(self, state, wfs, ctrl, sensor):
         if sensor == 'ideal' or sensor == 'covM':
-            bb = np.zeros((self.znwcs, state.nOPDw))
-            for irun in range(self.nOPDw):
-                aa = np.loadtxt(state.zTrueFile_m1[irun])
-                bb[:, irun] = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
-            self.yfinal = np.sum(aosTeleState.GQwt * bb)
+            bb = np.zeros((wfs.znwcs, state.nOPDw))
+            if state.nOPDw == 1:
+                aa = np.loadtxt(state.zTrueFile_m1)
+                self.yfinal = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
+            else:
+                for irun in range(state.nOPDw):
+                    aa = np.loadtxt(state.zTrueFile_m1.replace('.zer','_w%d.zer'%irun))
+                    bb[:, irun] = aa[-wfs.nWFS:, 3:self.znMax].reshape((-1, 1))
+                self.yfinal = np.sum(aosTeleState.GQwt * bb)
             if sensor == 'covM':
                 mu = np.zeros(self.zn3Max * 4)
                 np.random.seed(state.obsID)
                 self.yfinal += np.random.multivariate_normal(
                     mu, wfs.covM).reshape(-1, 1)
         else:
-            aa = np.loadtxt(wfs.zFile_m1[0])
+            aa = np.loadtxt(wfs.zFile_m1[0]) #[0] for exp No. 0
             self.yfinal = aa[:, :self.zn3Max].reshape((-1, 1))
 
         self.yfinal -= wfs.intrinsicWFS

@@ -40,3 +40,12 @@ class aosM2(object):
         self.hdz = aa[:, 3]
         self.tzdz = aa[:, 4]
         self.trdz = aa[:, 5]
+
+    def getPrintthz(self, zAngle):
+        printthz = self.zdz * np.cos(zAngle) \
+          + self.hdz * np.sin(zAngle)
+        pre_comp_elev = 0
+        printthz -= self.zdz * np.cos(pre_comp_elev) \
+          + self.hdz * np.sin(pre_comp_elev)
+        return printthz
+    

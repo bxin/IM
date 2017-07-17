@@ -8,6 +8,8 @@ import numpy as np
 import aosCoTransform as ct
 from scipy.interpolate import Rbf
 
+from lsst.cwfs.tools import ZernikeAnnularFit
+from lsst.cwfs.tools import ZernikeAnnularEval
 
 class aosM1M3(object):
 
@@ -128,3 +130,30 @@ class aosM1M3(object):
         z0[idxM3] = z0[idxM3] + M3voffset
         # in Zemax, z axis points from M1M3 to M2. We want z0>0
         return -z0
+
+    def getPrintthz(self, zAngle):
+        # M1M3 gravitational and thermal
+        printthx = self.zdx * \
+            np.cos(zAngle) + self.hdx * np.sin(zAngle)
+        printthy = self.zdy * \
+            np.cos(zAngle) + self.hdy * np.sin(zAngle)
+        printthz = self.zdz * \
+            np.cos(zAngle) + self.hdz * np.sin(zAngle)
+
+        # convert dz to grid sag
+        # bx, by, bz, written out by senM35pointZMX.m, has been converted
+        # to ZCRS, b/c we needed to import those directly into Zemax
+        x, y, _ = ct.ZCRS2M1CRS(self.bx, self.by, self.bz)
+        # self.idealShape() uses mm everywhere
+        zpRef = self.idealShape((x + printthx) * 1000,
+                                (y + printthy) * 1000, self.nodeID) / 1000
+        zRef = self.idealShape(x * 1000, y * 1000, self.nodeID) / 1000
+        # convert printthz into surface sag
+        printthz = printthz - (zpRef - zRef)
+        zc = ZernikeAnnularFit(printthz, x / self.R,
+                               y / self.R, 3, self.Ri / self.R)
+        printthz = printthz - ZernikeAnnularEval(
+            zc, x / self.R, y / self.R, self.Ri / self.R)
+        return printthz
+    
+    

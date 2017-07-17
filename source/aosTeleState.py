@@ -4,7 +4,7 @@
 # @      Large Synoptic Survey Telescope
 
 import os
-import sys
+#import sys
 import shutil
 import glob
 import subprocess
@@ -18,7 +18,6 @@ import aosCoTransform as ct
 from scipy.interpolate import Rbf
 
 from lsst.cwfs.tools import ZernikeAnnularFit
-from lsst.cwfs.tools import ZernikeAnnularEval
 from lsst.cwfs.tools import ZernikeFit
 from lsst.cwfs.tools import ZernikeEval
 from lsst.cwfs.tools import extractArray
@@ -46,7 +45,7 @@ class aosTeleState(object):
             'y': [1]}
         
     def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
-                 pertDir, imageDir, band, wavelength, debugLevel,
+                 pertDir, imageDir, band, wavelength, nIter, debugLevel,
                  M1M3=None, M2=None):
 
         self.band = band
@@ -91,7 +90,13 @@ class aosTeleState(object):
                     self.budget = np.sqrt(
                         np.sum([float(x)**2 for x in line.split()[1:]]))
                 elif (line.startswith('zenithAngle')):
-                    self.zAngle = float(line.split()[1]) / 180 * np.pi
+                    aa = line.split()[1]
+                    if aa.replace(".", "", 1).isdigit():
+                        self.zAngle =  np.ones(nIter)*float(aa)/ 180 * np.pi
+                    else:
+                        bb = np.loadtxt(aa).reshape((-1, 1))
+                        assert bb.shape[0]>=nIter
+                        self.zAngle = bb[:nIter]
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
@@ -184,36 +189,16 @@ class aosTeleState(object):
             print(self.opdGrid1d[-2])
 
         if hasattr(self, 'zAngle'):
-            # M1M3 gravitational and thermal
-            printthx = M1M3.zdx * \
-                np.cos(self.zAngle) + M1M3.hdx * np.sin(self.zAngle)
-            printthy = M1M3.zdy * \
-                np.cos(self.zAngle) + M1M3.hdy * np.sin(self.zAngle)
-            printthz = M1M3.zdz * \
-                np.cos(self.zAngle) + M1M3.hdz * np.sin(self.zAngle)
-            u0 = M1M3.zf * np.cos(self.zAngle) + M1M3.hf * np.sin(self.zAngle)
+            M1M3.printthz_iter0 = M1M3.getPrintthz(self.zAngle[0])
 
-            # convert dz to grid sag
-            # bx, by, bz, written out by senM35pointZMX.m, has been converted
-            # to ZCRS, b/c we needed to import those directly into Zemax
-            x, y, _ = ct.ZCRS2M1CRS(M1M3.bx, M1M3.by, M1M3.bz)
-            # M1M3.idealShape() uses mm everywhere
-            zpRef = M1M3.idealShape((x + printthx) * 1000,
-                                    (y + printthy) * 1000, M1M3.nodeID) / 1000
-            zRef = M1M3.idealShape(x * 1000, y * 1000, M1M3.nodeID) / 1000
-            printthz = printthz - (zpRef - zRef)
-            zc = ZernikeAnnularFit(printthz, x / M1M3.R,
-                                   y / M1M3.R, 3, M1M3.Ri / M1M3.R)
-            printthz = printthz - ZernikeAnnularEval(
-                zc, x / M1M3.R, y / M1M3.R, M1M3.Ri / M1M3.R)
-
-            LUTforce = getLUTforce(self.zAngle / np.pi * 180, M1M3.LUTfile)
-            # add 5% force error
+            # add 5% force error. This is for iter0 only
+            u0 = M1M3.zf * np.cos(self.zAngle[0]) + M1M3.hf * np.sin(self.zAngle[0])
+            LUTforce = getLUTforce(self.zAngle[0] / np.pi * 180, M1M3.LUTfile)
             np.random.seed(self.iSim)
             # if the error is a percentage error
             myu = (1+2*(np.random.rand(M1M3.nActuator)-0.5)
                    *self.M1M3ForceError)*LUTforce
-            # if the error is a absolute error in Newton
+            # if the error is an absolute error in Newton
             # myu = 2 * (np.random.rand(M1M3.nActuator) - 0.5) \
             #         * self.M1M3ForceError + LUTforce
             # balance forces along z
@@ -223,15 +208,12 @@ class aosTeleState(object):
             myu[M1M3.nActuator - 1] = np.sum(LUTforce[M1M3.nzActuator:]) \
                 - np.sum(myu[M1M3.nzActuator:-1])
 
-            self.M1M3surf = (printthz + M1M3.G.dot(myu - u0)
+            self.M1M3surf = (M1M3.printthz_iter0 + M1M3.G.dot(myu - u0)
                              ) * 1e6  # now in um
 
             # M2
-            self.M2surf = M2.zdz * np.cos(self.zAngle) \
-                + M2.hdz * np.sin(self.zAngle)
-            pre_comp_elev = 0
-            self.M2surf -= M2.zdz * np.cos(pre_comp_elev) \
-                + M2.hdz * np.sin(pre_comp_elev)
+            M2.printthz_iter0 = M2.getPrintthz(self.zAngle[0])
+            self.M2surf = M2.printthz_iter0
 
         if hasattr(self, 'M1M3TBulk'):
 
@@ -243,33 +225,36 @@ class aosTeleState(object):
             self.M2surf += self.M2TzGrad * M2.tzdz + self.M2TrGrad * M2.trdz
 
         if hasattr(self, 'M1M3surf'):
-            _, _, self.M1M3surf = ct.M1CRS2ZCRS(x, y, self.M1M3surf)
+            _, _, self.M1M3surf = ct.M1CRS2ZCRS(0, 0, self.M1M3surf)
         if hasattr(self, 'M2surf'):
-            _, _, self.M2surf = ct.M2CRS2ZCRS(x, y, self.M2surf)
+            _, _, self.M2surf = ct.M2CRS2ZCRS(0, 0, self.M2surf)
 
         if hasattr(self, 'camRot'):
 
             pre_elev = 0
             pre_camR = 0
             pre_temp_camR = 0
-            self.getCamDistortion('L1RB', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L2RB', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('FRB', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L3RB', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('FPRB', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L1S1zer', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L2S1zer', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L3S1zer', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L1S2zer', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L2S2zer', pre_elev, pre_camR, pre_temp_camR)
-            self.getCamDistortion('L3S2zer', pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortionAll(0, pre_elev, pre_camR, pre_temp_camR)
 
-    def getCamDistortion(self, distType, pre_elev, pre_camR, pre_temp_camR):
+    def getCamDistortionAll(self, iIter, pre_elev, pre_camR, pre_temp_camR):
+        self.getCamDistortion(iIter, 'L1RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L2RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'FRB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L3RB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'FPRB', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L1S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L2S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L3S1zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L1S2zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L2S2zer', pre_elev, pre_camR, pre_temp_camR)
+        self.getCamDistortion(iIter, 'L3S2zer', pre_elev, pre_camR, pre_temp_camR)
+        
+    def getCamDistortion(self, iIter, distType, pre_elev, pre_camR, pre_temp_camR):
         dataFile = os.path.join('data/camera', (distType + '.txt'))
         data = np.loadtxt(dataFile, skiprows=1)
-        distortion = data[0, 3:] * np.cos(self.zAngle) +\
+        distortion = data[0, 3:] * np.cos(self.zAngle[iIter]) +\
             (data[1, 3:] * np.cos(self.camRot) +
-             data[2, 3:] * np.sin(self.camRot)) * np.sin(self.zAngle)
+             data[2, 3:] * np.sin(self.camRot)) * np.sin(self.zAngle[iIter])
         # pre-compensation
         distortion -= data[0, 3:] * np.cos(pre_elev) +\
             (data[1, 3:] * np.cos(pre_camR) +
@@ -295,12 +280,20 @@ class aosTeleState(object):
             distortion = distortion[[x - 1 for x in zidx]]
         setattr(self, distType, distortion)
 
-    def update(self, ctrl):
+    def update(self, ctrl, M1M3=None, M2=None):
         self.stateV += ctrl.uk
         if np.any(self.stateV > ctrl.range):
             ii = (self.stateV > ctrl.range).argmax()
             raise RuntimeError("ERROR: stateV[%d] = %e > its range = %e" % (
                 ii, self.stateV[ii], ctrl.range[ii]))
+
+        # elevation is changing, the print through maps need to change
+        if hasattr(self, 'M1M3surf'):
+            self.M1M3surf += M1M3.getPrintthz(self.zAngle[self.iIter]) -\
+              M1M3.printthz_iter0
+        if hasattr(self, 'M2surf'):              
+            self.M2surf += M2.getPrintthz(self.zAngle[self.iIter]) -\
+              M2.printthz_iter0
 
     def getPertFilefromBase(self, baserun):
         
@@ -353,12 +346,11 @@ class aosTeleState(object):
         fid = open(self.pertCmdFile, 'w')        
         if hasattr(self, 'M1M3surf'):
             # M1M3surf already converted into ZCRS
-            if self.iIter == 0: # it is not changing, for now
-                writeM1M3zres(self.M1M3surf, M1M3.bx, M1M3.by, M1M3.Ri,
-                                  M1M3.R, M1M3.R3i, M1M3.R3, self.znPert, 
-                                  self.M1M3zlist, self.resFile1,
-                                  self.resFile3, M1M3.nodeID,
-                                  self.surfaceGridN)
+            writeM1M3zres(self.M1M3surf, M1M3.bx, M1M3.by, M1M3.Ri,
+                              M1M3.R, M1M3.R3i, M1M3.R3, self.znPert, 
+                              self.M1M3zlist, self.resFile1,
+                              self.resFile3, M1M3.nodeID,
+                              self.surfaceGridN)
             zz = np.loadtxt(self.M1M3zlist)
             for i in range(self.znPert):
                 fid.write('izernike 0 %d %s\n' % (i, zz[i] * 1e-3))
@@ -370,11 +362,10 @@ class aosTeleState(object):
             
         if hasattr(self, 'M2surf'):
             # M2surf already converted into ZCRS
-            if self.iIter == 0: # it is not changing, for now
-                writeM2zres(self.M2surf, M2.bx, M2.by, M2.R, M2.Ri,
-                                  self.znPert, self.M2zlist,
-                                  self.resFile2,
-                                  self.surfaceGridN)
+            writeM2zres(self.M2surf, M2.bx, M2.by, M2.R, M2.Ri,
+                            self.znPert, self.M2zlist,
+                            self.resFile2,
+                            self.surfaceGridN)
             zz = np.loadtxt(self.M2zlist)
             for i in range(self.znPert):
                 fid.write('izernike 1 %d %s\n' % (i, zz[i] * 1e-3))
@@ -464,14 +455,17 @@ class aosTeleState(object):
             iexp) for iexp in [0, 1]]
 
         if hasattr(self, 'M1M3surf'):
-            self.M1M3zlist = '%s/iter0/sim%d_M1M3zlist.txt' % (
-                self.pertDir, self.iSim)
-            self.resFile1 = '%s/iter0/sim%d_M1res.txt' % (self.pertDir, self.iSim)
-            self.resFile3 = '%s/iter0/sim%d_M3res.txt' % (self.pertDir, self.iSim)
+            self.M1M3zlist = '%s/iter%d/sim%d_M1M3zlist.txt' % (
+                self.pertDir, self.iIter, self.iSim)
+            self.resFile1 = '%s/iter%d/sim%d_M1res.txt' % (
+                self.pertDir, self.iIter, self.iSim)
+            self.resFile3 = '%s/iter%d/sim%d_M3res.txt' % (
+                self.pertDir, self.iIter, self.iSim)
         if hasattr(self, 'M2surf'):
-            self.M2zlist = '%s/iter0/sim%d_M2zlist.txt' % (
-                self.pertDir, self.iSim)
-            self.resFile2 = '%s/iter0/sim%d_M2res.txt' % (self.pertDir, self.iSim)
+            self.M2zlist = '%s/iter%d/sim%d_M2zlist.txt' % (
+                self.pertDir, self.iIter, self.iSim)
+            self.resFile2 = '%s/iter%d/sim%d_M2res.txt' % (
+                self.pertDir, self.iIter, self.iSim)
         if iIter > 0:
             self.zTrueFile_m1 = '%s/iter%d/sim%d_iter%d_opd.zer' % (
                         self.imageDir, self.iIter - 1, self.iSim,

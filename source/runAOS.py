@@ -141,6 +141,7 @@ assuming all data available',
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
                          pertDir, imageDir, band, wavelength,
+                         args.enditer - args.startiter + 1,
                          args.debugLevel, M1M3=M1M3, M2=M2)
     # *****************************************
     # control algorithm
@@ -167,7 +168,7 @@ assuming all data available',
 
                 # need to remake the pert file here.
                 # It will be inserted into OPD.inst, PSF.inst later
-                state.update(ctrl)
+                state.update(ctrl, M1M3, M2)
             if args.baserun > 0 and iIter == 0:
                 state.getPertFilefromBase(args.baserun)
             else:
