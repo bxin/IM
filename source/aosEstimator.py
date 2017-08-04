@@ -102,25 +102,33 @@ class aosEstimator(object):
                 print(self.normalizeA)
 
         self.Anorm = self.Ause
+        self.xhat = np.zeros(self.ndofA)
         if (debugLevel >= 3):
             print('---checking Anorm (actually Ause):')
             print(self.Anorm[:5, :5])
             print(self.Ause[:5, :5])
         if self.strategy == 'pinv':
             self.Ainv = pinv_truncate(self.Anorm, self.nSingularInf)
-        elif self.strategy == 'opti':
+        elif self.strategy == 'opti' or self.strategy == 'kalman':
             # empirical estimates (by Doug M.), not used when self.fmotion<0
             aa = [0.5, 2, 2, 0.1, 0.1, 0.5, 2, 2, 0.1, 0.1]
             dX = np.concatenate(
                 (aa, 0.01 * np.ones(20), 0.005 * np.ones(20)))**2
             X = np.diag(dX)
-            self.Ainv = X.dot(self.Anorm.T).dot(
-                np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
+            if self.strategy == 'opti':
+                self.Ainv = X.dot(self.Anorm.T).dot(
+                    np.linalg.pinv(self.Anorm.dot(X).dot(self.Anorm.T) + wfs.covM))
+            elif self.strategy == 'kalman':
+                self.P = np.zeros((self.ndofA, self.ndofA))
+                self.Q = X
+                self.R = wfs.covM*100
+                
         elif self.strategy == 'crude_opti':
             self.Ainv = self.Anorm.T.dot(np.linalg.pinv(
                 self.Anorm.dot(self.Anorm.T) +
                 self.reguMu * np.identity(self.Anorm.shape[0])))
 
+            
     def normA(self, ctrl):
         self.dofUnit = 1 / ctrl.Authority
         dofUnitMat = np.repeat(self.dofUnit.reshape(
@@ -161,11 +169,41 @@ class aosEstimator(object):
         aa = np.loadtxt(ctrl.y2File)
         self.y2c = aa[-wfs.nWFS:, 0:self.znMax - 3].reshape((-1, 1))
 
-        self.xhat = np.zeros(self.ndofA)
-        self.xhat[self.dofIdx] = self.Ainv.dot(
-            self.yfinal[self.zn3IdxAx4] - self.y2c)
-        if self.strategy == 'pinv' and self.normalizeA:
-            self.xhat[self.dofIdx] = self.xhat[self.dofIdx] / self.dofUnit
+        z_k = self.yfinal[self.zn3IdxAx4] - self.y2c
+        if self.strategy == 'kalman':
+            # the input to each iteration (in addition to Q and R) :
+            #         self.xhat[:, state.iIter - 1]
+            #         self.P[:, :, state.iIter - 1]
+
+            if state.iIter>1: #for iIter1, iter0 initialized by estimator
+                Kalman_xhat_km1_File = '%s/iter%d/sim%d_iter%d_Kalman_xhat.txt' % (
+                    self.pertDir, self.iIter-1, self.iSim, self.iIter-1)
+                Kalman_P_km1_File = '%s/iter%d/sim%d_iter%d_Kalman_P.txt' % (
+                    self.pertDir, self.iIter-1, self.iSim, self.iIter-1)
+                self.xhat = np.loadtxt(Kalman_xhat_km1_File)
+                self.P = np.loadtxt(Kalman_P_km1_File)
+            # time update
+            xhatminus_k = self.xhat
+            Pminus_k = self.P + self.Q
+            # measurement update
+            K_k = Pminus_k.dot(self.Anorm.T).dot(
+                pinv_truncate(
+                    self.Anorm.dot(Pminus_k).dot(self.Anorm.T) + self.R, 5))
+            self.xhat[self.dofIdx] = self.xhat[self.dofIdx] + \
+              K_k.dot(z_k - np.reshape(self.Anorm.dot(xhatminus_k),(-1,1)))
+            self.P[np.ix_(self.dofIdx, self.dofIdx)] = \
+              (1-K_k.dot(self.Anorm)).dot(Pminus_k)
+              
+            Kalman_xhat_k_File = '%s/iter%d/sim%d_iter%d_Kalman_xhat.txt' % (
+                state.pertDir, state.iIter, state.iSim, state.iIter)
+            Kalman_P_k_File = '%s/iter%d/sim%d_iter%d_Kalman_P.txt' % (
+                state.pertDir, state.iIter, state.iSim, state.iIter)
+            np.savetxt(Kalman_xhat_k_File, self.xhat)
+            np.savetxt(Kalman_P_k_File, self.P)
+        else:
+            self.xhat[self.dofIdx] = self.Ainv.dot(z_k)
+            if self.strategy == 'pinv' and self.normalizeA:
+                self.xhat[self.dofIdx] = self.xhat[self.dofIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()
         self.yresi -= self.y2c
         self.yresi += np.reshape(

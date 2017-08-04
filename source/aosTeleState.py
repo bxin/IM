@@ -46,7 +46,7 @@ class aosTeleState(object):
         
     def __init__(self, inst, instruFile, iSim, ndofA, phosimDir,
                  pertDir, imageDir, band, wavelength,
-                 startIter, endIter, debugLevel,
+                 endIter, debugLevel,
                  M1M3=None, M2=None):
 
         self.band = band

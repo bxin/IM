@@ -141,7 +141,7 @@ assuming all data available',
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
                          pertDir, imageDir, band, wavelength,
-                         args.startiter, args.enditer,
+                         args.enditer,
                          args.debugLevel, M1M3=M1M3, M2=M2)
     # *****************************************
     # control algorithm

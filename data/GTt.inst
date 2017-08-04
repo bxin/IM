@@ -8,11 +8,15 @@ This instrument file is for single dof unit testing
 #dof	2	0	mm	M2 x-decenter
 
 mjd	59552.3
-budget   80 79 80 80 21 54 84 22
+budget   80 81 10 10 20 54 54 22
+#above: optical design 80;AOS 81;M1 G 10;M3 G 10;M2 G 20;
+# M1 T 54; M3 T 54; M2 T 22;
 
 zenithAngle  zAngleHistory1   deg
 camTB      	6.5650  C  29 (temperature in (2,16), make these two sigma bounds for Gaussian)
+#above: all camera thermal error
 camRotation    -1.2323  radian 62 (uniform between (-pi/2, pi/2))
+#above: all camera gravitational error
 
 M1M3ForceError   0.05
 
