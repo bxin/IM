@@ -86,10 +86,12 @@ class aosTeleState(object):
                         self.stateV[int(line.split()[1]) - 1] *= 3600
                 elif (line.startswith('mjd')):
                     self.time0 = Time(float(line.split()[1]), format='mjd')
-                elif (line.startswith('budget')):
+                elif (line.startswith('iqBudget')):
                     # read in in mas, convert to arcsec
-                    self.budget = np.sqrt(
+                    self.iqBudget = np.sqrt(
                         np.sum([float(x)**2 for x in line.split()[1:]]))
+                elif (line.startswith('eBudget')):
+                    self.eBudget = float(line.split()[1])
                 elif (line.startswith('zenithAngle')):
                     aa = line.split()[1]
                     if aa.replace(".", "", 1).isdigit():
@@ -109,12 +111,12 @@ class aosTeleState(object):
                 elif (line.startswith('camTB') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camTB = float(line.split()[1])
-                    self.budget = np.sqrt(self.budget**2
+                    self.iqBudget = np.sqrt(self.iqBudget**2
                                               + float(line.split()[3])**2)
                 elif (line.startswith('camRotation') and self.inst[:4] == 'lsst'):
                     #ignore this if it is comcam
                     self.camRot = float(line.split()[1])
-                    self.budget = np.sqrt(self.budget**2
+                    self.iqBudget = np.sqrt(self.iqBudget**2
                                               + float(line.split()[3])**2)
                 elif (line.startswith('M1M3ForceError')):
                     self.M1M3ForceError = float(line.split()[1])
@@ -151,7 +153,7 @@ class aosTeleState(object):
 
         fid.close()
         
-        self.budget = self.budget * 1e-3
+        self.iqBudget = self.iqBudget * 1e-3
         self.fno = 1.2335
         k = self.fno * self.effwave / 0.2
         self.psfStampSize = int(self.opdSize +

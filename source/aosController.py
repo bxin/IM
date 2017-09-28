@@ -502,7 +502,7 @@ class aosController(object):
         ax[2, 0].set_xlabel('iteration')
         ax[2, 0].set_ylabel('arcsec')
         ax[2, 0].grid()
-        ax[2, 0].plot([xmin, xmax], state.budget *
+        ax[2, 0].plot([xmin, xmax], state.iqBudget *
                       np.ones((2, 1)), label='Error Budget', color='k')
         if debugLevel == -1:
             ax[2, 0].set_title('$FWHM_{eff}$')
@@ -551,6 +551,8 @@ class aosController(object):
         ax[2, 2].set_xticklabels(myxticklabels)
         ax[2, 2].set_xlabel('iteration')
         ax[2, 2].set_ylabel('percent')
+        ax[2, 2].plot([xmin, xmax], state.eBudget * 100 #in percent
+                      * np.ones((2, 1)), label='SRD Spec (Median)', color='k')
         ax[2, 2].grid()
         if debugLevel == -1:
             ax[2, 2].set_title('Ellipticity')

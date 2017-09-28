@@ -10,7 +10,7 @@ dof     8       -11       um      Cam y-decenter
 dof     9       3       arcsec      Cam x-tilt
 dof    10       -3       arcsec      Cam y-tilt
 
-budget	80 79
+iqBudget	80 79
 
 #wavefront sensing star magnitude
 cwfs_mag	17

@@ -8,9 +8,10 @@ This instrument file is for single dof unit testing
 #dof	2	0	mm	M2 x-decenter
 
 mjd	59552.3
-budget   80 81 10 10 20 54 54 22
+iqBudget   80 81 10 10 20 54 54 22
 #above: optical design 80;AOS 81;M1 G 10;M3 G 10;M2 G 20;
 # M1 T 54; M3 T 54; M2 T 22;
+eBudget	   0.04
 
 zenithAngle  zAngleHistory1   deg
 camTB      	6.5650  C  29 (temperature in (2,16), make these two sigma bounds for Gaussian)

@@ -201,7 +201,7 @@ class aosEstimator(object):
             np.savetxt(Kalman_xhat_k_File, self.xhat)
             np.savetxt(Kalman_P_k_File, self.P)
         else:
-            self.xhat[self.dofIdx] = self.Ainv.dot(z_k)
+            self.xhat[self.dofIdx] = np.reshape(self.Ainv.dot(z_k), [-1])
             if self.strategy == 'pinv' and self.normalizeA:
                 self.xhat[self.dofIdx] = self.xhat[self.dofIdx] / self.dofUnit
         self.yresi = self.yfinal.copy()

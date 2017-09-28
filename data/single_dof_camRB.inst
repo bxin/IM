@@ -6,7 +6,7 @@ This instrument file is for single dof unit testing
 
 dof	6	0.10	mm  Cam piston
 
-budget	80 79
+iqBudget	80 79
 
 #wavefront sensing star magnitude
 cwfs_mag	17

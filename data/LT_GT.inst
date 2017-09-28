@@ -15,7 +15,8 @@ dof     8       0.3783  um     Cam y-decenter (1sigma = 17.0um)
 dof     9       -4.3390e-4  deg   Cam x-tilt (1sigma = 75.6e-5 deg)
 dof    10       5.5855e-4   deg   Cam y-tilt (1sigma = 75.6e-5 deg)
 
-budget   80 79 10 10 20 54 54 22 
+iqBudget   80 79 10 10 20 54 54 22 
+eBudget	   0.04
 
 zenithAngle  27.0912   deg 
 camTB      	6.5650  C 29 (temperature in (2,16), make these two sigma bounds for Gaussian)
