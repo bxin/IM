@@ -8,6 +8,7 @@
 import argparse
 # import numpy as np
 import datetime
+import os
 
 from aosWFS import aosWFS
 from aosEstimator import aosEstimator
@@ -107,18 +108,19 @@ assuming all data available',
         band = args.wavestr
         wavelength = 0 #effwave[args.wavestr]
 
+    aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
     # *****************************************
     # simulate the perturbations
     # *****************************************
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
-    phosimDir = '../phosimSE/'
+    phosimDir = '%s/../../phosimSE/'%aosSrcDir
     # znPert = 28  # znmax used in pert file to define surfaces
 
     # *****************************************
     # run wavefront sensing algorithm
     # *****************************************
-    cwfsDir = '../../wavefront/cwfs/'
+    cwfsDir = '%s/../../../wavefront/cwfs/'%aosSrcDir
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
@@ -136,8 +138,8 @@ assuming all data available',
                         args.izn3, args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
-    pertDir = 'pert/sim%d' % args.iSim
-    imageDir = 'image/sim%d' % args.iSim
+    pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
+    imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
                          pertDir, imageDir, band, wavelength,

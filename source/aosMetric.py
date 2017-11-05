@@ -84,7 +84,8 @@ class aosMetric(object):
             print(self.w.shape)
             print(self.w)
 
-        aa = np.loadtxt('data/pssn_alpha.txt')
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]            
+        aa = np.loadtxt('%s/../data/pssn_alpha.txt'%aosSrcDir)
         self.pssnAlpha = aa[:, 0]
         # self.pssnRange = aa[: 1]
 

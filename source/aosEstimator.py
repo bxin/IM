@@ -24,9 +24,11 @@ class aosEstimator(object):
                 if (line.startswith('estimator_strategy')):
                     self.strategy = line.split()[1]
                 elif (line.startswith('n_bending_M1M3')):
-                    self.nB13Max = int(line.split()[1])
+                    self.nB13Start = int(line.split()[1]) - 1 #index starts w 0
+                    self.nB13Max = int(line.split()[2])
                 elif (line.startswith('n_bending_M2')):
-                    self.nB2Max = int(line.split()[1])
+                    self.nB2Start = int(line.split()[1]) - 1 #index starts w 0
+                    self.nB2Max = int(line.split()[2])
                 elif (line.startswith('znmax')):
                     self.znMax = int(line.split()[1])
                 elif (line.startswith('normalize_A')):
@@ -79,10 +81,13 @@ class aosEstimator(object):
         if debugLevel >= 1:
             print('Using senM file: %s' % self.senMFile)
         self.senM = np.loadtxt(self.senMFile)
-        self.senM = self.senM.reshape((-1, self.zn3Max, self.ndofA))
+        self.senM = self.senM.reshape((-1, self.zn3Max, self.senM.shape[1]))
         self.senM = self.senM[:, :, np.concatenate(
-            (range(10 + self.nB13Max),
-             range(10 + self.nB13Max, 10 + self.nB13Max + self.nB2Max)))]
+            (range(self.nB13Start + self.nB13Max),
+                 range(self.nB2Start, self.nB2Start + self.nB2Max)))]
+        #we will always use the truncated A matrix from this point
+        # so we update nB2Start, to avoid future confusion
+        self.nB2Start = self.nB13Start + self.nB13Max
         if (debugLevel >= 3):
             print(self.strategy)
             print(self.senM.shape)
@@ -101,7 +106,7 @@ class aosEstimator(object):
             if self.strategy == 'pinv':
                 print(self.normalizeA)
 
-        self.Anorm = self.Ause
+        self.Anorm = self.Ause.copy()
         self.xhat = np.zeros(self.ndofA)
         if (debugLevel >= 3):
             print('---checking Anorm (actually Ause):')

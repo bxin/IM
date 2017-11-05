@@ -4,6 +4,7 @@
 # @       Large Synoptic Survey Telescope
 
 import sys
+import os
 import numpy as np
 import aosCoTransform as ct
 from scipy.interpolate import Rbf
@@ -27,15 +28,16 @@ class aosM1M3(object):
         self.alpha1[2] = 1.38e-24
         self.alpha3 = np.zeros((8, 1))
         self.alpha3[2] = -4.5e-22
-        self.alpha3[3] = -8.2e-30
+        self.alpha3[3] = -8.15e-30
 
         # bending modes
-        aa = np.loadtxt('data/M1M3/M1M3_1um_156_grid.DAT')
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_grid.DAT'%aosSrcDir)
         self.nodeID = aa[:, 0]
         self.bx = aa[:, 1]
         self.by = aa[:, 2]
         self.bz = aa[:, 3:]
-        aa = np.loadtxt('data/M1M3/M1M3_1um_156_force.DAT')
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_force.DAT'%aosSrcDir)
         self.force = aa[:, :]
 
         if debugLevel >= 3:
@@ -48,23 +50,23 @@ class aosM1M3(object):
         self.bx, self.by, self.bz = ct.M1CRS2ZCRS(self.bx, self.by, self.bz)
 
         # data needed to determine gravitational print through
-        aa = np.loadtxt('data/M1M3/M1M3_dxdydz_zenith.txt')
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_dxdydz_zenith.txt'%aosSrcDir)
         self.zdx = aa[:, 0]
         self.zdy = aa[:, 1]
         self.zdz = aa[:, 2]
-        aa = np.loadtxt('data/M1M3/M1M3_dxdydz_horizon.txt')
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_dxdydz_horizon.txt'%aosSrcDir)
         self.hdx = aa[:, 0]
         self.hdy = aa[:, 1]
         self.hdz = aa[:, 2]
-        self.zf = np.loadtxt('data/M1M3/M1M3_force_zenith.txt')
-        self.hf = np.loadtxt('data/M1M3/M1M3_force_horizon.txt')
-        self.G = np.loadtxt('data/M1M3/M1M3_influence_256.txt')
-        self.LUTfile = 'data/M1M3/M1M3_LUT.txt'
+        self.zf = np.loadtxt('%s/../data/M1M3/M1M3_force_zenith.txt'%aosSrcDir)
+        self.hf = np.loadtxt('%s/../data/M1M3/M1M3_force_horizon.txt'%aosSrcDir)
+        self.G = np.loadtxt('%s/../data/M1M3/M1M3_influence_256.txt'%aosSrcDir)
+        self.LUTfile = '%s/../data/M1M3/M1M3_LUT.txt'%aosSrcDir
         self.nzActuator = 156
         self.nActuator = 256
 
         # data needed to determine thermal deformation
-        aa = np.loadtxt('data/M1M3/M1M3_thermal_FEA.txt', skiprows=1)
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_thermal_FEA.txt'%aosSrcDir, skiprows=1)
         x, y, _ = ct.ZCRS2M1CRS(self.bx, self.by, self.bz)
         # these are normalized coordinates
         # n.b. these may not have been normalized correctly, b/c max(tx)=1.0

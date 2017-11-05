@@ -14,7 +14,8 @@ class aosController(object):
     def __init__(self, instruFile, paramFile, esti, metr, wfs, M1M3, M2,
                  effwave, gain, debugLevel):
 
-        self.filename = os.path.join('data/', (paramFile + '.ctrl'))
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        self.filename = os.path.join('%s/../data/'%aosSrcDir, (paramFile + '.ctrl'))
         fid = open(self.filename)
         iscomment = False
         for line in fid:
@@ -43,7 +44,7 @@ class aosController(object):
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        src = glob.glob('data/%s/y2*txt' % (aa))
+        src = glob.glob('%s/../data/%s/y2*txt' % (aosSrcDir,aa))
         self.y2File = src[0]
         if debugLevel >= 1:
             print('control strategy: %s' % self.strategy)
@@ -53,11 +54,10 @@ class aosController(object):
 
         # establish control authority of the DOFs
         aa = M1M3.force[:, :esti.nB13Max]
-        aa = aa[:, esti.dofIdx[10:10 + esti.nB13Max]]
+        aa = aa[:, esti.dofIdx[esti.nB13Start:esti.nB13Start + esti.nB13Max]]
         mHM13 = np.std(aa, axis=0)
         aa = M2.force[:, :esti.nB2Max]
-        aa = aa[:, esti.dofIdx[
-            10 + esti.nB13Max:10 + esti.nB13Max + esti.nB2Max]]
+        aa = aa[:, esti.dofIdx[esti.nB2Start:esti.nB2Start + esti.nB2Max]]
         mHM2 = np.std(aa, axis=0)
         # For the rigid body DOF (r for rigid)
         # weight based on the total stroke
@@ -88,8 +88,8 @@ class aosController(object):
             # use rms^2 as diagnal
             self.mH = np.diag(self.Authority**2)
             if self.xref == 'x0xcor':
-                idx1 = 10 + 3  # b3 of M1M3 bending
-                idx2 = 10 + esti.nB13Max + 5  # b5 of M2 bending
+                idx1 = esti.nB13Start + 3  # b3 of M1M3 bending
+                idx2 = esti.nB2Start + 5  # b5 of M2 bending
                 if esti.dofIdx[idx1] and esti.dofIdx[idx2]:
                     idx1 = sum(esti.dofIdx[:idx1]) - 1
                     idx2 = sum(esti.dofIdx[:idx2]) - 1
@@ -233,7 +233,7 @@ class aosController(object):
         myxticklabels = ['%d' % (myxticks[i])
                          for i in np.arange(len(myxticks))]
         axm2.plot(myxticks, self.uk[[(
-            i - 1 + 10 + esti.nB13Max) for i in myxticks]], 'ro', ms=8)
+            i - 1 + esti.nB13Start + esti.nB13Max) for i in myxticks]], 'ro', ms=8)
         axm2.set_xticks(myxticks)
         axm2.set_xticklabels(myxticklabels)
         axm2.grid()
@@ -407,7 +407,7 @@ class aosController(object):
         leg.get_frame().set_alpha(0.5)
 
         # 4: M1M3 bending
-        rms = np.std(allPert[10:esti.nB13Max + 10, :], axis=1)
+        rms = np.std(allPert[esti.nB13Start:esti.nB13Max + esti.nB13Start, :], axis=1)
         idx = np.argsort(rms)
         for i in range(1, 4 + 1):
             ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :],
@@ -434,15 +434,15 @@ class aosController(object):
         leg.get_frame().set_alpha(0.5)
 
         # 5: M2 bending
-        rms = np.std(allPert[10 + esti.nB13Max:esti.ndofA, :], axis=1)
+        rms = np.std(allPert[esti.nB2Start:esti.ndofA, :], axis=1)
         idx = np.argsort(rms)
         for i in range(1, 4 + 1):
-            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max, :],
+            ax[1, 1].plot(myxticks, allPert[idx[-i] + esti.nB2Start, :],
                           label='M2 b%d' %
                           (idx[-i] + 1), marker='.', color=colors[i - 1],
                           markersize=10)
         for i in range(4, esti.nB2Max + 1):
-            ax[1, 1].plot(myxticks, allPert[idx[-i] + 10 + esti.nB13Max,
+            ax[1, 1].plot(myxticks, allPert[idx[-i] + esti.nB2Start,
                                             :], marker='.', color=colors[-1],
                           markersize=10)
         ax[1, 1].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
@@ -451,7 +451,7 @@ class aosController(object):
         ax[1, 1].set_xlabel('iteration')
         ax[1, 1].set_ylabel('$\mu$m')
         allF = M2.force[:, :esti.nB2Max].dot(
-            allPert[10 + esti.nB13Max:esti.ndofA, :])
+            allPert[esti.nB2Start:esti.ndofA, :])
         stdForce = np.std(allF, axis=0)
         maxForce = np.max(allF, axis=0)
         ax[1, 1].set_title('Max %d/$\pm$%dN; RMS %dN' % (

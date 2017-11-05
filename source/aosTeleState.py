@@ -67,7 +67,8 @@ class aosTeleState(object):
         if aa[-2:].isdigit():
             aa = aa[:-2]
         self.inst = aa
-        self.instruFile = os.path.join('data/', (instruFile + '.inst'))
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        self.instruFile = os.path.join('%s/../data/'%aosSrcDir, (instruFile + '.inst'))
         fid = open(self.instruFile)
         iscomment = False
         for line in fid:
@@ -102,7 +103,7 @@ class aosTeleState(object):
                         # zAngle is extracted from OpSim ObsHistory.
                         # This is
                         # 90-block['altitude'].values[:100]/np.pi*180
-                        aa = os.path.join('data/', (aa + '.txt'))
+                        aa = os.path.join('%s/../data/'%aosSrcDir, (aa + '.txt'))
                         bb = np.loadtxt(aa).reshape((-1, 1))
                         assert bb.shape[0]>endIter
                         assert np.max(bb)<90
@@ -261,7 +262,8 @@ class aosTeleState(object):
         self.getCamDistortion(zAngle, 'L3S2zer', pre_elev, pre_camR, pre_temp_camR)
         
     def getCamDistortion(self, zAngle, distType, pre_elev, pre_camR, pre_temp_camR):
-        dataFile = os.path.join('data/camera', (distType + '.txt'))
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        dataFile = os.path.join('%s/../data/camera'%aosSrcDir, (distType + '.txt'))
         data = np.loadtxt(dataFile, skiprows=1)
         distortion = data[0, 3:] * np.cos(zAngle) +\
             (data[1, 3:] * np.cos(self.camRot) +
@@ -1204,7 +1206,7 @@ def gridSamp(xf, yf, zf, innerR, outerR, resFile, nx, ny, plots):
         # the input data to gridSamp.m is in mm (zemax default)
         sc = ax[1].scatter(xf, yf, s=25, c=zf*1e6, marker='.', edgecolor='none')
         ax[1].axis('equal')
-        ax[1].set_title('Surface map (nm)')
+        ax[1].set_title('Surface map on FEA grid (nm)')
         ax[1].set_xlim([-outerR, outerR])
         ax[1].set_ylim([-outerR, outerR])
         ax[1].set_xlabel('x (mm)')
@@ -1218,7 +1220,7 @@ def gridSamp(xf, yf, zf, innerR, outerR, resFile, nx, ny, plots):
         sc = ax[0].scatter(xp, yp, s=25, c=zp*1e6, marker='.',
                              edgecolor='none')
         ax[0].axis('equal')
-        ax[0].set_title('After linear interpolation (nm)')
+        ax[0].set_title('grid input to ZEMAX (nm)')
         ax[0].set_xlim([-outerR, outerR])
         ax[0].set_ylim([-outerR, outerR])
         ax[0].set_xlabel('x (mm)')
