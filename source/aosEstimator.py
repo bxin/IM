@@ -12,7 +12,8 @@ from aosTeleState import aosTeleState
 class aosEstimator(object):
 
     def __init__(self, instruFile, paramFile, wfs, icomp, izn3, debugLevel):
-        self.filename = os.path.join('data/', (paramFile + '.esti'))
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        self.filename = os.path.join('%s/../data/'%aosSrcDir, (paramFile + '.esti'))
         fid = open(self.filename)
         iscomment = False
         for line in fid:
@@ -73,7 +74,7 @@ class aosEstimator(object):
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        src = glob.glob('data/%s/senM*txt' % (aa))
+        src = glob.glob('%s/../data/%s/senM*txt' % (aosSrcDir, aa))
         self.senMFile = src[0]
         self.zn3Max = self.znMax - 3
         self.ndofA = self.nB13Max + self.nB2Max + 10

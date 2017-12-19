@@ -51,7 +51,8 @@ class aosWFS(object):
         aa = instruFile
         if aa[-2:].isdigit():
             aa = aa[:-2]
-        intrinsicFile = 'data/%s/intrinsic_zn.txt' % aa
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        intrinsicFile = '%s/../data/%s/intrinsic_zn.txt' % (aosSrcDir, aa)
         if np.abs(wavelength - 0.5)>1e-3:
             intrinsicFile = intrinsicFile.replace(
                 'zn.txt', 'zn_%s.txt' % band.upper())
@@ -59,7 +60,7 @@ class aosWFS(object):
         intrinsicAll = intrinsicAll * wavelength
         self.intrinsicWFS = intrinsicAll[
             -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
-        self.covM = np.loadtxt('data/covM86.txt')  # in unit of nm^2
+        self.covM = np.loadtxt('%s/../data/covM86.txt'% aosSrcDir)  # in unit of nm^2
         if self.nWFS > 4:
             nrepeat = int(np.ceil(self.nWFS / 4))
             self.covM = np.tile(self.covM, (nrepeat, nrepeat))

@@ -223,9 +223,9 @@ class aosTeleState(object):
             self.M1M3surf = (M1M3.printthz_iter0 + M1M3.G.dot(myu - u0)
                              ) * 1e6  # now in um
 
-            # M2
+            # M2 (input data file in micron, so here things are also in micron)
             M2.printthz_iter0 = M2.getPrintthz(self.zAngle[0])
-            self.M2surf = M2.printthz_iter0
+            self.M2surf = M2.printthz_iter0.copy()
 
         if hasattr(self, 'M1M3TBulk'):
 
@@ -246,6 +246,7 @@ class aosTeleState(object):
             pre_elev = 0
             pre_camR = 0
             pre_temp_camR = 0
+            # andy uses mm everywhere. Same here.
             self.getCamDistortionAll(self.zAngle[0], pre_elev, pre_camR, pre_temp_camR)
 
     def getCamDistortionAll(self, zAngle, pre_elev, pre_camR, pre_temp_camR):
@@ -302,8 +303,8 @@ class aosTeleState(object):
 
         # elevation is changing, the print through maps need to change
         if hasattr(self, 'M1M3surf'):
-            self.M1M3surf += M1M3.getPrintthz(self.zAngle[self.iIter]) -\
-              M1M3.printthz_iter0
+            self.M1M3surf += (M1M3.getPrintthz(self.zAngle[self.iIter]) -\
+              M1M3.printthz_iter0)*1e6 #turn meter into micron
         if hasattr(self, 'M2surf'):              
             self.M2surf += M2.getPrintthz(self.zAngle[self.iIter]) -\
               M2.printthz_iter0

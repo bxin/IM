@@ -38,10 +38,10 @@ class aosM2(object):
         # first two columns are normalized x and y,
         # should be the same as the x,y converted from the bending modes x and
         # y above
-        self.zdz = aa[:, 2]
-        self.hdz = aa[:, 3]
-        self.tzdz = aa[:, 4]
-        self.trdz = aa[:, 5]
+        self.zdz = aa[:, 2]  # in micron
+        self.hdz = aa[:, 3]  # in micron
+        self.tzdz = aa[:, 4]  # in micron
+        self.trdz = aa[:, 5]  # in micron
 
     def getPrintthz(self, zAngle):
         printthz = self.zdz * np.cos(zAngle) \

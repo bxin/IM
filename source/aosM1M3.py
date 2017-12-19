@@ -134,13 +134,13 @@ class aosM1M3(object):
         return -z0
 
     def getPrintthz(self, zAngle):
-        # M1M3 gravitational and thermal
+        # M1M3 gravitational and thermal. Output is in meter
         printthx = self.zdx * \
-            np.cos(zAngle) + self.hdx * np.sin(zAngle)
+            np.cos(zAngle) + self.hdx * np.sin(zAngle) # in meter
         printthy = self.zdy * \
-            np.cos(zAngle) + self.hdy * np.sin(zAngle)
+            np.cos(zAngle) + self.hdy * np.sin(zAngle) # in meter
         printthz = self.zdz * \
-            np.cos(zAngle) + self.hdz * np.sin(zAngle)
+            np.cos(zAngle) + self.hdz * np.sin(zAngle) # in meter
 
         # convert dz to grid sag
         # bx, by, bz, written out by senM35pointZMX.m, has been converted

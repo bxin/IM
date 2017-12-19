@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 class aosMetric(object):
 
     def __init__(self, instName, opdSize, znwcs3, debugLevel, pixelum=10):
+        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]            
         if instName[:4] == 'lsst':
             self.nArm = 6
             armLen = [0.379, 0.841, 1.237, 1.535, 1.708]
@@ -52,7 +53,7 @@ class aosMetric(object):
             self.fieldX[self.nField:] = [1.176, -1.176, -1.176, 1.176]
             self.fieldY[self.nField:] = [1.176, 1.176, -1.176, -1.176]
 
-            self.fwhmModelFileBase = 'data/fwhmModel/fwhm_vs_z_500nm'
+            self.fwhmModelFileBase = '%s/../data/fwhmModel/fwhm_vs_z_500nm' % aosSrcDir
 
         elif instName[:6] == 'comcam':
             nRow = 3
@@ -84,7 +85,6 @@ class aosMetric(object):
             print(self.w.shape)
             print(self.w)
 
-        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]            
         aa = np.loadtxt('%s/../data/pssn_alpha.txt'%aosSrcDir)
         self.pssnAlpha = aa[:, 0]
         # self.pssnRange = aa[: 1]
