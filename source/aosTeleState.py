@@ -201,7 +201,7 @@ class aosTeleState(object):
             print(self.opdGrid1d[-2])
 
         if hasattr(self, 'zAngle'):
-            M1M3.printthz_iter0 = M1M3.getPrintthz(self.zAngle[0])
+            self.M1M3surf = M1M3.getPrintthz(self.zAngle[0])
 
             # add 5% force error. This is for iter0 only
             u0 = M1M3.zf * np.cos(self.zAngle[0]) + M1M3.hf * np.sin(self.zAngle[0])
@@ -220,12 +220,11 @@ class aosTeleState(object):
             myu[M1M3.nActuator - 1] = np.sum(LUTforce[M1M3.nzActuator:]) \
                 - np.sum(myu[M1M3.nzActuator:-1])
 
-            self.M1M3surf = (M1M3.printthz_iter0 + M1M3.G.dot(myu - u0)
+            self.M1M3surf = (self.M1M3surf + M1M3.G.dot(myu - u0)
                              ) * 1e6  # now in um
-
+            
             # M2 (input data file in micron, so here things are also in micron)
-            M2.printthz_iter0 = M2.getPrintthz(self.zAngle[0])
-            self.M2surf = M2.printthz_iter0.copy()
+            self.M2surf = M2.getPrintthz(self.zAngle[0])
 
         if hasattr(self, 'M1M3TBulk'):
 
@@ -237,32 +236,34 @@ class aosTeleState(object):
             self.M2surf += self.M2TzGrad * M2.tzdz + self.M2TrGrad * M2.trdz
 
         if hasattr(self, 'M1M3surf'):
+            self.M1M3surf0 = self.M1M3surf.copy() #maintain M1M3surf0 in M1 CRS
             _, _, self.M1M3surf = ct.M1CRS2ZCRS(0, 0, self.M1M3surf)
         if hasattr(self, 'M2surf'):
+            self.M2surf0 = self.M2surf.copy() #maintain M2surf0 in M2 CRS
             _, _, self.M2surf = ct.M2CRS2ZCRS(0, 0, self.M2surf)
 
         if hasattr(self, 'camRot'):
 
             pre_elev = 0
             pre_camR = 0
-            pre_temp_camR = 0
+            pre_temp_cam = 0
             # andy uses mm everywhere. Same here.
-            self.getCamDistortionAll(self.zAngle[0], pre_elev, pre_camR, pre_temp_camR)
+            self.getCamDistortionAll(self.zAngle[0], pre_elev, pre_camR, pre_temp_cam)
 
-    def getCamDistortionAll(self, zAngle, pre_elev, pre_camR, pre_temp_camR):
-        self.getCamDistortion(zAngle, 'L1RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L2RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'FRB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L3RB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'FPRB', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L1S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L2S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L3S1zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L1S2zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L2S2zer', pre_elev, pre_camR, pre_temp_camR)
-        self.getCamDistortion(zAngle, 'L3S2zer', pre_elev, pre_camR, pre_temp_camR)
+    def getCamDistortionAll(self, zAngle, pre_elev, pre_camR, pre_temp_cam):
+        self.getCamDistortion(zAngle, 'L1RB', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L2RB', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'FRB', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L3RB', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'FPRB', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L1S1zer', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L2S1zer', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L3S1zer', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L1S2zer', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L2S2zer', pre_elev, pre_camR, pre_temp_cam)
+        self.getCamDistortion(zAngle, 'L3S2zer', pre_elev, pre_camR, pre_temp_cam)
         
-    def getCamDistortion(self, zAngle, distType, pre_elev, pre_camR, pre_temp_camR):
+    def getCamDistortion(self, zAngle, distType, pre_elev, pre_camR, pre_temp_cam):
         aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
         dataFile = os.path.join('%s/../data/camera'%aosSrcDir, (distType + '.txt'))
         data = np.loadtxt(dataFile, skiprows=1)
@@ -286,7 +287,7 @@ class aosTeleState(object):
             w2 = (self.camTB - data[p1, 2]) / (data[p2, 2] - data[p1, 2])
             distortion += w1 * data[p1, 3:] + w2 * data[p2, 3:]
 
-        distortion -= data[(data[3:, 2] == pre_temp_camR).argmax() + 3, 3:]
+        distortion -= data[(data[3:, 2] == pre_temp_cam).argmax() + 3, 3:]
         # Andy's Zernike order is different, fix it
         if distType[-3:] == 'zer':
             zidx = [1, 3, 2, 5, 4, 6, 8, 9, 7, 10, 13, 14, 12, 15, 11, 19,
@@ -303,12 +304,18 @@ class aosTeleState(object):
 
         # elevation is changing, the print through maps need to change
         if hasattr(self, 'M1M3surf'):
-            self.M1M3surf += (M1M3.getPrintthz(self.zAngle[self.iIter]) -\
-              M1M3.printthz_iter0)*1e6 #turn meter into micron
-        if hasattr(self, 'M2surf'):              
-            self.M2surf += M2.getPrintthz(self.zAngle[self.iIter]) -\
-              M2.printthz_iter0
-
+            self.M1M3surf = self.M1M3surf0.copy()
+            for i in range(self.iIter):
+                self.M1M3surf += (M1M3.getPrintthz(self.zAngle[i+1]) -\
+                M1M3.getPrintthz(self.zAngle[i]))*1e6 #turn meter into micron
+            _, _, self.M1M3surf = ct.M1CRS2ZCRS(0, 0, self.M1M3surf)
+        if hasattr(self, 'M2surf'):
+            self.M2surf = self.M2surf0.copy()
+            for i in range(self.iIter):
+                self.M2surf += M2.getPrintthz(self.zAngle[i+1]) -\
+                  M2.getPrintthz(self.zAngle[i])
+            _, _, self.M2surf = ct.M2CRS2ZCRS(0, 0, self.M2surf)
+            
     def getPertFilefromBase(self, baserun):
         
         if not os.path.isfile(self.pertFile):
