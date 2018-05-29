@@ -32,13 +32,16 @@ class aosM1M3(object):
 
         # bending modes
         aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_grid.DAT'%aosSrcDir)
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_grid.txt'%aosSrcDir)
         self.nodeID = aa[:, 0]
         self.bx = aa[:, 1]
         self.by = aa[:, 2]
         self.bz = aa[:, 3:]
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_force.DAT'%aosSrcDir)
-        self.force = aa[:, :]
+        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_force.txt'%aosSrcDir)
+        self.actID = aa[:, 0]
+        self.actx = aa[:, 1]
+        self.acty = aa[:, 2]
+        self.force = aa[:, 3:]
 
         if debugLevel >= 3:
             print('-b13--  %f' % self.bx[33])
@@ -85,6 +88,10 @@ class aosM1M3(object):
         self.tzdz = ip(x / self.R, y / self.R)
         ip = Rbf(tx, ty, aa[:, 6])
         self.trdz = ip(x / self.R, y / self.R)
+
+        # data needed to determine how force balance system will respond to a single broken actuator
+        # units are meter (you see a lot of 1e-6)
+        self.ULshape = np.loadtxt('%s/../data/M1M3/M1M3_1000N_UL_shape_156.txt'%aosSrcDir)
 
     def idealShape(self, x, y, annulus, dr1=0, dr3=0, dk1=0, dk3=0):
         """
@@ -158,4 +165,8 @@ class aosM1M3(object):
             zc, x / self.R, y / self.R, self.Ri / self.R)
         return printthz
     
-    
+    def getFBshape(self, actID, f):
+        #force balance system will add this addtional shape to M1M3
+        idx = self.actID == actID
+        s = self.ULshape[:, idx][:,0]* (f[idx]/1000)
+        return s

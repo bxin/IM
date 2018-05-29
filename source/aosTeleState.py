@@ -121,6 +121,10 @@ class aosTeleState(object):
                                               + float(line.split()[3])**2)
                 elif (line.startswith('M1M3ForceError')):
                     self.M1M3ForceError = float(line.split()[1])
+                elif (line.startswith('M1M3Actuator')):
+                    self.brokenM1M3ActID = int(line.split()[1])
+                    self.brokenM1M3ActIter = int(line.split()[2])
+                    self.brokenM1M3ActF = float(line.split()[3])
                 elif (line.startswith('M1M3TxGrad')):
                     self.M1M3TxGrad = float(line.split()[1])
                 elif (line.startswith('M1M3TyGrad')):
@@ -295,7 +299,7 @@ class aosTeleState(object):
             distortion = distortion[[x - 1 for x in zidx]]
         setattr(self, distType, distortion)
 
-    def update(self, ctrl, M1M3=None, M2=None):
+    def update(self, esti, ctrl, M1M3=None, M2=None):
         self.stateV += ctrl.uk
         if np.any(self.stateV > ctrl.range):
             ii = (self.stateV > ctrl.range).argmax()
@@ -315,7 +319,18 @@ class aosTeleState(object):
                 self.M2surf += M2.getPrintthz(self.zAngle[i+1]) -\
                   M2.getPrintthz(self.zAngle[i])
             _, _, self.M2surf = ct.M2CRS2ZCRS(0, 0, self.M2surf)
-            
+
+        if hasattr(self, 'brokenM1M3ActID'):
+            #what is the force that this actuator is expected to output
+            fWanted = M1M3.zf[:M1M3.nzActuator] * np.cos(self.zAngle[i+1]) +\
+              M1M3.hf[:M1M3.nzActuator] * np.sin(self.zAngle[i+1])
+            bendMag = np.tile(self.stateV[esti.nB13Start:esti.nB13Start+esti.nB13Max],(M1M3.nzActuator,1))
+            fWanted += np.sum(bendMag*(M1M3.force[:,:esti.nB13Max]),axis=1)
+            if self.brokenM1M3ActIter >= self.iIter:
+                if self.brokenM1M3ActF == 0:
+                    # (-1) below is b/c the UL shapes are for 1000N push, now gravity is pulling down
+                    self.M1M3surf -= M1M3.getFBshape(self.brokenM1M3ActID, fWanted)*1e6 #turn meter into micron
+                        
     def getPertFilefromBase(self, baserun):
         
         if not os.path.isfile(self.pertFile):

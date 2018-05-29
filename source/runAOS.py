@@ -170,7 +170,7 @@ assuming all data available',
 
                 # need to remake the pert file here.
                 # It will be inserted into OPD.inst, PSF.inst later
-                state.update(ctrl, M1M3, M2)
+                state.update(esti, ctrl, M1M3, M2)
             if args.baserun > 0 and iIter == 0:
                 state.getPertFilefromBase(args.baserun)
             else:

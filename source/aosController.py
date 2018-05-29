@@ -414,7 +414,7 @@ class aosController(object):
                           label='M1M3 b%d' %
                           (idx[-i] + 1), marker='.', color=colors[i - 1],
                           markersize=10)
-        for i in range(4, esti.nB13Max + 1):
+        for i in range(5, esti.nB13Max + 1):
             ax[1, 0].plot(myxticks, allPert[idx[-i] + 10, :],
                           marker='.', color=colors[-1], markersize=10)
         ax[1, 0].set_xlim(np.min(myxticks) - 0.5, np.max(myxticks) + 0.5)
@@ -441,7 +441,7 @@ class aosController(object):
                           label='M2 b%d' %
                           (idx[-i] + 1), marker='.', color=colors[i - 1],
                           markersize=10)
-        for i in range(4, esti.nB2Max + 1):
+        for i in range(5, esti.nB2Max + 1):
             ax[1, 1].plot(myxticks, allPert[idx[-i] + esti.nB2Start,
                                             :], marker='.', color=colors[-1],
                           markersize=10)
