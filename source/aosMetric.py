@@ -371,6 +371,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
         except NameError:
             m = max(array.shape)
         k = 1
+        imagedelta = fno * wlum
     else:
         m = max(pmask.shape)
         # pupil needs to be padded k times larger to get imagedelta
@@ -428,6 +429,11 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
 
         psfe = psfe / np.sum(psfe) * np.sum(psft)
 
+    pixmas = imagedelta * 20
+    aa = psfe/np.sum(psfe)
+    neff = 1/np.sum(aa**2)
+    fwhmeff = 0.664*pixmas * np.sqrt(neff)
+    
     otfe = psf2otf(psfe)  # OTF of error
     otftot = otfe * mtfa  # add atmosphere to error
     psftot = otf2psf(otftot)
@@ -437,7 +443,7 @@ def calc_pssn(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
     if debugLevel >= 3:
         print('pssn = %10.8e/%10.8e = %6.4f' % (pss, pssa, pssn))
 
-    return pssn
+    return pssn, fwhmeff
 
 
 def createMTFatm(D, m, k, wlum, zen, r0inmRef):
@@ -752,7 +758,7 @@ def runPSSNandMore(argList):
         Z[3:] = 0
         opd[idx] -= ZernikeAnnularEval(Z, opdx[idx], opdy[idx], 0)
 
-        pssn = calc_pssn(opd, wavelength, debugLevel=debugLevel)
+        pssn, fwhmeff = calc_pssn(opd, wavelength, debugLevel=debugLevel)
     else:
         IHDU = fits.open(inputFile[0])
         psf = IHDU[0].data  # unit: um
@@ -764,7 +770,7 @@ def runPSSNandMore(argList):
         IHDU.close()
         iad = (opd != 0)
 
-        pssn = calc_pssn(psf, wavelength, type='psf', pmask=iad,
+        pssn, fwhmeff = calc_pssn(psf, wavelength, type='psf', pmask=iad,
                          imagedelta=pixelum,
                          debugLevel=debugLevel)
 
@@ -803,3 +809,249 @@ def runFFTPSF(argList):
         os.remove(psfFile)
     hdu = fits.PrimaryHDU(psf)
     hdu.writeto(psfFile)
+
+def psf2delta(psf, pixelSize, delta, cutoffI, metric, watm):
+    '''
+    % metric = 'fwhm'
+    %           this routine calculates delta80, then convert to FWHM (same as psf2FWHM80())
+    % metric = 'fwhm99'
+    %           this routine calculates delta99, then convert to FWHM
+
+    % metric = '' or anything else
+    %           calculates deltaxx, as in xx% encircled energy.
+
+    % when watm=0, the conversion (from delta80 to FWHM) is based on single Gaussian
+    % when watm=1, the conversion (from delta80 to FWHM) is based on double Gaussian (as defined in SRD)
+    %               (before we convolve with Double Gaussian first)
+
+    %use the intensity centroid (xbar, ybar) as the center
+    %get deltaxx (xx% encircled energy)
+    % for example, xx=0.8, 0.95, 0.99
+    %for FWHM, use metric='fwhm', 
+    % what we do is to get delta80 (80% encircled energy)
+    % then multiply by 2/sqrt(log(5)/log(2))=1.3125
+
+    % when using metric='fwhm99'
+    % what we do is to get delta99 (99% encircled energy)
+    % then multiply by 2/sqrt(log(100)/log(2))=0.7759
+    '''
+    if watm:
+        # atm2D=load('aosSim/atmGau.txt');%pixel size = 2um
+        atm2D=load('aosSim/atm2Gau.txt') #pixel size = 2um
+        atmPixelSize=2
+        downf=atmPixelSize/pixelSize
+        psfcut=mod(size(psf,1),downf)
+        psf=extractArray(psf,size(psf,1)-psfcut)
+        psf=downResolution(psf,downf,size(psf,1)/downf,size(psf,2)/downf)
+        psf=conv2(atm2D,psf,'same')
+
+    if metric == 'fwhm':
+        delta=0.8
+    elif metric == 'fwhm99':
+        delta=0.99
+
+    psf=psf/np.max(psf) #normalize peak intensity to 1
+    m = psf.shape[0]
+    n = psf.shape[1]
+    x, y = np.meshgrid(np.arange(1, m + 1), np.arange(1, n + 1))
+
+    sumI=np.sum(psf)
+    xbar=np.sum(x*psf)/sumI
+    ybar=np.sum(y*psf)/sumI
+
+    psf = np.roll(psf, int(np.round(psf.shape[1]/2-ybar)), axis = 0)
+    psf = np.roll(psf, int(np.round(psf.shape[0]/2-xbar)), axis = 1)
+    xbarc=np.sum(x*psf)/sumI
+    ybarc=np.sum(y*psf)/sumI
+
+    r2=(x-xbarc)**2+(y-ybarc)**2
+    mn=m*n
+    aa = r2.reshape((mn,1))[:,0]
+    idx=np.argsort(aa)
+    r2sort = aa[idx]
+
+    if cutoffI>0:
+        maskR=np.sqrt(np.max(r2[psf>cutoffI]))
+        psf[r2>maskR**2]=0
+
+    psf[psf<cutoffI]=0 #Not needed when use maskR to mask off edges???
+    sumI=np.sum(psf)
+
+    sumIxx=delta*sumI
+
+    mysum=0
+    psf1d = psf.reshape((mn,1))[:,0]
+    for i in range(len(idx)):
+        mysum=mysum+psf1d[idx[i]]
+        if mysum>sumIxx:
+            break
+
+    FWHM=np.sqrt(r2sort[i]) #this is actually the xx% encircled energy
+
+    if watm:
+        FWHM=FWHM*downf
+
+    FWHM=FWHM*pixelSize
+    if metric == 'fwhm':
+        if watm:
+            #for G1+0.4*G2
+            # below is used to manually solve for delta80=a*sigma
+            # below, x is exp(-r^2/(2*alpha^2)), which results in integration
+            # from 0 to r to be 0.8
+            # we want to get 1-0.8=0.2 from below
+            #     x=0.072464801;fprintf('%20.10f\n',10/14*(x^.25*.4+x));
+            # delta80=2.2911*sigma
+            # FWHM=2.4670*sigma %  -->see createAtmTxt.m, 2*sqrt(-2*log(0.4673194304))=2.4670
+            # 1.0768 below = 2.4670/2.2911
+            FWHM=1.0768*FWHM #convert delta80 into FWHM, assuming it is double Gaussian
+        
+            #for delta90
+            # x=0.0108632438;fprintf('%20.10f\n',10/14*(x^.25*.4+x))
+            # FWHM=3.0074*sigma
+            #for delta95
+            # x=0.0008911;fprintf('%20.10f\n',10/14*(x^.25*.4+x))
+            # FWHM=3.7478*sigma
+            #for delta99
+            # x=0.0000015;fprintf('%20.10f\n',10/14*(x^.25*.4+x))
+            # FWHM=5.1788*sigma
+        else:
+            # for single Gaussian
+            FWHM=1.3125*FWHM
+
+    elif metric == 'fwhm99':
+        # for single Gaussian
+        FWHM=0.7759*FWHM
+
+    return FWHM, xbar, ybar
+
+def psf2FWHMrms(psf, maskR, cutoffI):
+    ''' this routine calculates FWHM based on RMS (AndyR's note)
+    %use maskR<0 for no mask
+    %use cutoffI<0 for no cutoff on intensity
+    %most commonly only one out of the two options above is used
+'''
+    m = psf.shape[0]
+    n = psf.shape[1]
+    x, y = np.meshgrid(np.arange(1, m + 1), np.arange(1, n + 1))
+
+    sumI=np.sum(psf)
+    xbar=np.sum(x*psf)/sumI
+    ybar=np.sum(y*psf)/sumI
+
+    psf = np.roll(psf, int(np.round(psf.shape[1]/2-ybar)), axis = 0)
+    psf = np.roll(psf, int(np.round(psf.shape[0]/2-xbar)), axis = 1)
+    xbarc=np.sum(x*psf)/sumI
+    ybarc=np.sum(y*psf)/sumI
+
+    r2=(x-xbarc)**2+(y-ybarc)**2    
+
+    if maskR>0:
+        psf[r2>maskR**2]=0
+
+    if cutoffI>0:
+        maskR=np.sqrt(np.max(r2[psf/np.max(psf)>cutoffI]))
+        psf[r2>maskR**2]=0
+        
+    psfn = psf/np.sum(psf)
+    FWHM=np.sqrt( np.sum(r2*psfn) )*1.665;
+
+    return FWHM, xbar, ybar, maskR
+
+def psf2FWHMring(array, wlum, type='opd', D=8.36, r0inmRef=0.1382, zen=0,
+              pmask=0, imagedelta=0, fno=1.2335, fwhm_thresh=0.01,
+                     power = 2, debugLevel=0):
+    '''
+    wavefront OPD in micron
+'''
+    wl = wlum*1.e-6
+    if array.ndim == 3:
+        array2D = array[0, :, :].squeeze()
+
+    if type == 'opd':
+        try:
+            m = max(array2D.shape)
+        except NameError:
+            m = max(array.shape)
+        k = 1
+        imagedelta = fno * wlum
+    else:
+        m = max(pmask.shape)
+        k = fno * wlum / imagedelta
+        m = int(np.round(m*k))
+        D = D*k
+
+    mtfa = createMTFatm(D, m, k, wlum, zen, r0inmRef)
+
+    if type == 'opd':
+        try:
+            iad = (array2D != 0)
+        except NameError:
+            iad = (array != 0)
+    elif type == 'psf':
+        mk = int(m + np.rint((m * (k - 1) + 1e-5) / 2) * 2)  # add even number
+        iad = pmask  # padArray(pmask, m)
+        
+    # coordinates of the PSF in mas
+    conv = 206265000. #=3600*180/pi*1000; const. for converting radian to mas
+    da = conv*wl/D  #in arcsec; if type==psf, D includes the padding, so this is still valid
+    ha = da*(m-1)/2
+    ha1d = np.linspace(-ha, ha, m)
+    xxr, yyr = np.meshgrid(ha1d, ha1d);
+
+    # Perfect telescope
+    opdt = np.zeros((m, m))
+    psft = opd2psf(opdt, iad, wlum, imagedelta, 1, fno, debugLevel)
+    otft = psf2otf(psft)  # OTF of perfect telescope
+    otfa = otft * mtfa  # add atmosphere to perfect telescope
+    psfa = otf2psf(otfa)
+
+    dm=np.max(psfa)
+    idxmax=(psfa==dm)
+    idx = np.abs(psfa-0.5*dm) < fwhm_thresh*dm
+    r = np.sqrt((xxr[idx]-xxr[idxmax])**2+(yyr[idx]-yyr[idxmax])**2)
+    fwhmatm = 2*np.mean(r)
+
+    # Error;
+    if type == 'opd':
+        if array.ndim == 2:
+            ninst = 1
+        else:
+            ninst = array.shape[0]
+        for i in range(ninst):
+            if array.ndim == 2:
+                array2D = array
+            else:
+                array2D = array[i, :, :].squeeze()
+            psfei = opd2psf(array2D, iad, wlum, 0, 0, 0, debugLevel)
+            if i == 0:
+                psfe = psfei
+            else:
+                psfe += psfei
+        psfe = psfe / ninst
+    else:
+        if array.shape[0] == mk:
+            psfe = array
+        elif array.shape[0] > mk:
+            psfe = extractArray(array, mk)
+        else:
+            print('calc_pssn: image provided too small, %d < %d x %6.4f' % (
+                array.shape[0], m, k))
+            print('IQ is over-estimated !!!')
+            psfe = padArray(array, mk)
+
+        psfe = psfe / np.sum(psfe) * np.sum(psft)
+
+    otfe = psf2otf(psfe)  # OTF of error
+    otftot = otfe * mtfa  # add atmosphere to error
+    psftot = otf2psf(otftot)
+
+    dm=np.max(psftot)
+    idxmax=(psftot==dm)
+    idx = np.abs(psftot-0.5*dm) < fwhm_thresh*dm
+    r = np.sqrt((xxr[idx]-xxr[idxmax])**2+(yyr[idx]-yyr[idxmax])**2)
+    fwhmtot = 2*np.mean(r)
+    
+    fwhm_mas = np.max((0,(fwhmtot**power-fwhmatm**power)**(1/power))) #cannot be negative
+
+    return fwhm_mas
+
