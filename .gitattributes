@@ -1,0 +1,2 @@
+data/polishing_M1M3SOML_SPOTS_fld1_psf.fits filter=lfs diff=lfs merge=lfs -text
+data/polishing_M1M3SOML_SPOTS_fld1_wfm.fits filter=lfs diff=lfs merge=lfs -text
