@@ -590,7 +590,11 @@ class aosTeleState(object):
     def writeOPDinst(self, metr):
 
         fid = open(self.OPD_inst, 'w')
-        fid.write('Opsim_filter %d\n\
+        fid.write('rightascension 0\n\
+declination 0\n\
+rotskypos 0\n\
+rottelpos 0\n\
+Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID))
@@ -776,7 +780,11 @@ perturbationmode 1\n')
         self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
             self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
         fid = open(self.PSF_inst, 'w')
-        fid.write('Opsim_filter %d\n\
+        fid.write('rightascension 0\n\
+declination 0\n\
+rotskypos 0\n\
+rottelpos 0\n\
+Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
@@ -873,7 +881,11 @@ detectormode 0\n')
     def writeWFSinst(self, wfs, metr):
         for irun in range(wfs.nRun):
             fid = open(self.WFS_inst[irun], 'w')
-            fid.write('Opsim_filter %d\n\
+            fid.write('rightascension 0\n\
+declination 0\n\
+rotskypos 0\n\
+rottelpos 0\n\
+Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 mjd %.10f\n\
 SIM_VISTIME 33.0\n\
