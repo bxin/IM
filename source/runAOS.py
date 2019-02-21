@@ -4,7 +4,8 @@
 # @      Large Synoptic Survey Telescope
 
 # main function
-
+import matplotlib
+matplotlib.use('Agg')
 import argparse
 # import numpy as np
 import datetime
@@ -48,8 +49,6 @@ regenrating pert files',
                         action='store_true')
     parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
                         action='store_true')
-    parser.add_argument('-psfoff', help='w/o regenerating psf images',
-                        action='store_true')
     parser.add_argument('-pssnoff', help='w/o calculating PSSN',
                         action='store_true')
     parser.add_argument('-ellioff', help='w/o calculating ellipticity',
@@ -89,12 +88,14 @@ assuming all data available',
                         1=operator, 2=expert, 3=everything, default=0')
     parser.add_argument('-baserun', dest='baserun', default=-1, type=int,
                         help='iter0 is same as this run, so skip iter0')
+    parser.add_argument('-isr', dest='runIsr', action='store_true', help='run DM isr code after phosim '
+                                                                'simulations; before algorithm '
+                                                                'runs.')
     args = parser.parse_args()
     if args.makesum:
         args.sensor = 'pass'
         args.ctrloff = True
         args.opdoff = True
-        args.psfoff = True
         args.pssnoff = True
         args.ellioff = True
 
@@ -114,20 +115,20 @@ assuming all data available',
     # *****************************************
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
-    phosimDir = '%s/../../phosimSE/'%aosSrcDir
+    phosimDir = '/home/dthomas/Code/phosim_syseng4'
     # znPert = 28  # znmax used in pert file to define surfaces
 
     # *****************************************
     # run wavefront sensing algorithm
     # *****************************************
-    cwfsDir = '%s/../../../wavefront/cwfs/'%aosSrcDir
+    cwfsDir = '/home/dthomas/Code/cwfs'
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
     else:
         effwave = wavelength
     wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, band, effwave, args.debugLevel)
+                 128, band, effwave, args.runIsr, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
@@ -178,7 +179,6 @@ assuming all data available',
 
         if args.baserun > 0 and iIter == 0:
             state.getOPDAllfromBase(args.baserun, metr)
-            state.getPSFAllfromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
             if (args.sensor == 'ideal' or args.sensor == 'covM' or
@@ -189,8 +189,6 @@ assuming all data available',
         else:
             state.getOPDAll(args.opdoff, metr, args.numproc,
                             wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
-
-            state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
 
             metr.getPSSNandMore(args.pssnoff, state,
                                 args.numproc, args.debugLevel)
@@ -205,7 +203,7 @@ assuming all data available',
                 if args.sensor == 'phosim':
                     # create donuts for last iter,
                     # so that picking up from there will be easy
-                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
+                    state.getWFSAll(wfs, metr, args.numproc, args.runIsr, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)

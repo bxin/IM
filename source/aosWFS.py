@@ -21,10 +21,10 @@ from lsst.cwfs.image import Image, readFile
 class aosWFS(object):
 
     def __init__(self, cwfsDir, instruFile, algoFile,
-                 imgSizeinPix, band, wavelength, debugLevel):
+                 imgSizeinPix, band, wavelength, runIsr, debugLevel):
         self.nWFS = 4
         self.nRun = 1
-        self.nExp = 2
+        self.nExp = 1
         if instruFile[:6] == 'comcam':
             self.nWFS = 9
             self.nRun = 2
@@ -68,6 +68,8 @@ class aosWFS(object):
                 :(self.znwcs3 * self.nWFS), :(self.znwcs3 * self.nWFS)]
         self.covM = self.covM * 1e-6  # in unit of um^2
 
+        self.isrString = '_isr' if runIsr else ''
+
         if debugLevel >= 3:
             print('znwcs3=%d' % self.znwcs3)
             print(self.intrinsicWFS.shape)
@@ -79,16 +81,22 @@ class aosWFS(object):
                 chipStr, px0, py0 = state.fieldXY2Chip(
                     metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
                 for ioffset in [0, 1]:
+                    print('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
+                          (state.imageDir, state.iIter,
+                           state.obsID,
+                           chipStr, self.halfChip[ioffset], iexp, self.isrString))
                     if self.nRun == 1:
-                        src = glob.glob('%s/iter%d/*%d*%s*%s*E00%d.fits' %
+                        src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
                                         (state.imageDir, state.iIter,
                                             state.obsID,
-                                        chipStr, self.halfChip[ioffset], iexp))
+                                        chipStr, self.halfChip[ioffset], iexp, self.isrString))
                     else:
-                        src = glob.glob('%s/iter%d/*%d*%s*%s*E00%d.fits' %
+                        src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
                                         (state.imageDir, state.iIter,
                                             state.obsID + ioffset,
-                                        chipStr, self.halfChip[ioffset], iexp))                
+                                        chipStr, self.halfChip[ioffset], iexp, self.isrString))
+
+
                     chipFile = src[0]
                     chipImage, header = fits.getdata(chipFile,header=True)
                         
@@ -119,10 +127,10 @@ class aosWFS(object):
                         offsetx -= px - 2 * state.cwfsStampSize
     
                     psf = chipImage[
-                        int(py - state.cwfsStampSize / 2 + offsety):
-                        int(py + state.cwfsStampSize / 2 + offsety),
-                        int(px - state.cwfsStampSize / 2 + offsetx):
-                        int(px + state.cwfsStampSize / 2 + offsetx)]
+                        int(py - state.cwfsStampSize // 2 + offsety):
+                        int(py + state.cwfsStampSize // 2 + offsety),
+                        int(px - state.cwfsStampSize // 2 + offsetx):
+                        int(px + state.cwfsStampSize // 2 + offsetx)]
     
                     if state.inst[:4] == 'lsst':
                         # readout of corner raft are identical,
@@ -139,9 +147,9 @@ class aosWFS(object):
                             psf = np.flipud(np.rot90(np.flipud(psf), 1))
     
                     # below, we have 0 b/c we may have many
-                    stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d.fits' % (
+                    stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d%s.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp)
+                        iField, self.wfsName[ioffset], iexp, self.isrString)
                     if os.path.isfile(stampFile):
                         os.remove(stampFile)
                     hdu = fits.PrimaryHDU(psf)
@@ -168,9 +176,9 @@ class aosWFS(object):
                 chipStr, px, py = state.fieldXY2Chip(
                     metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
                 for ioffset in [0, 1]:
-                    src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d.fits' % (
+                    src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp))
+                        iField, self.wfsName[ioffset], iexp, self.isrString))
                     IHDU = fits.open(src[0])
                     psf = IHDU[0].data
                     IHDU.close()
@@ -200,19 +208,19 @@ class aosWFS(object):
                     plt.axis('off')
     
             # plt.show()
-            pngFile = '%s/iter%d/sim%d_iter%d_wfs_E00%d.png' % (
-                state.imageDir, state.iIter, state.iSim, state.iIter, iexp)
+            pngFile = '%s/iter%d/sim%d_iter%d_wfs_E00%d%s.png' % (
+                state.imageDir, state.iIter, state.iSim, state.iIter, iexp, self.isrString)
             plt.savefig(pngFile, bbox_inches='tight')
     
             # write out catalog for good wfs stars
             fid = open(self.catFile[iexp], 'w')
             for i in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
-                intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d.fits' % (
+                intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i, 
-                    self.wfsName[0], iexp))[0]
-                extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d.fits' % (
+                    self.wfsName[0], iexp, self.isrString))[0]
+                extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i,
-                    self.wfsName[1], iexp))[0]
+                    self.wfsName[1], iexp, self.isrString))[0]
                 if state.inst[:4] == 'lsst':
                     if i == 31:
                         fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
@@ -254,9 +262,6 @@ class aosWFS(object):
                 argList.append((I1File, I1Field, I2File, I2Field,
                                 self.inst, self.algo, cwfsModel))
             fid.close()
-            # test, pdb cannot go into the subprocess
-            # aa = runcwfs(argList[0])
-            # aa = runcwfs(argList[4])
 
             pool = multiprocessing.Pool(numproc)
             zcarray = pool.map(runcwfs, argList)
@@ -268,7 +273,7 @@ class aosWFS(object):
 
     def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile[0])  # in micron
-        z4cE001 = np.loadtxt(self.zFile[1])
+        # z4cE001 = np.loadtxt(self.zFile[1])
         z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDw))
         aa = np.loadtxt(state.zTrueFile)
         for i in range(state.nOPDw):
@@ -295,8 +300,8 @@ class aosWFS(object):
             plt.subplot(nRow, nCol, pIdx[i])
             plt.plot(x, z4c[i, :self.znwcs3], label='CWFS_E000',
                      marker='*', color='r', markersize=6)
-            plt.plot(x, z4cE001[i, :self.znwcs3], label='CWFS_E001',
-                     marker='v', color='g', markersize=6)
+            # plt.plot(x, z4cE001[i, :self.znwcs3], label='CWFS_E001',
+            #          marker='v', color='g', markersize=6)
             for irun in range(state.nOPDw):
                 if irun==0:
                     mylabel = 'Truth'

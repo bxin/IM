@@ -42,7 +42,7 @@ cwfs_mag	17
 cwfs_stamp_size	128
 
 #use 0 for eimage only, without backgrounds
-eimage		0
+eimage		1
 
 #OPD grid size
 opd_size	256

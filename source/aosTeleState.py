@@ -4,11 +4,11 @@
 # @      Large Synoptic Survey Telescope
 
 import os
-#import sys
 import shutil
 import glob
 import subprocess
 import multiprocessing
+import re
 
 import numpy as np
 from astropy.io import fits
@@ -67,8 +67,8 @@ class aosTeleState(object):
         if aa[-2:].isdigit():
             aa = aa[:-2]
         self.inst = aa
-        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
-        self.instruFile = os.path.join('%s/../data/'%aosSrcDir, (instruFile + '.inst'))
+        self.aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
+        self.instruFile = os.path.join('%s/../data/'% self.aosSrcDir, (instruFile + '.inst'))
         fid = open(self.instruFile)
         iscomment = False
         for line in fid:
@@ -103,7 +103,7 @@ class aosTeleState(object):
                         # zAngle is extracted from OpSim ObsHistory.
                         # This is
                         # 90-block['altitude'].values[:100]/np.pi*180
-                        aa = os.path.join('%s/../data/'%aosSrcDir, (aa + '.txt'))
+                        aa = os.path.join('%s/../data/'% self.aosSrcDir, (aa + '.txt'))
                         bb = np.loadtxt(aa).reshape((-1, 1))
                         assert bb.shape[0]>endIter
                         assert np.max(bb)<90
@@ -268,8 +268,7 @@ class aosTeleState(object):
         self.getCamDistortion(zAngle, 'L3S2zer', pre_elev, pre_camR, pre_temp_cam)
         
     def getCamDistortion(self, zAngle, distType, pre_elev, pre_camR, pre_temp_cam):
-        aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
-        dataFile = os.path.join('%s/../data/camera'%aosSrcDir, (distType + '.txt'))
+        dataFile = os.path.join('%s/../data/camera'% self.aosSrcDir, (distType + '.txt'))
         data = np.loadtxt(dataFile, skiprows=1)
         distortion = data[0, 3:] * np.cos(zAngle) +\
             (data[1, 3:] * np.cos(self.camRot) +
@@ -443,9 +442,9 @@ class aosTeleState(object):
         if wfs is not None:
             wfs.zFile = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
                 self.imageDir, self.iIter, self.iSim, self.iIter,
-                iexp) for iexp in [0, 1]]
+                iexp) for iexp in [0]]
             wfs.catFile = ['%s/iter%d/wfs_catalog_E00%d.txt' % (
-                self.pertDir, self.iIter, iexp) for iexp in [0, 1]]
+                self.pertDir, self.iIter, iexp) for iexp in [0]]
             wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
                 self.pertDir, self.iIter, self.iIter)
 
@@ -489,7 +488,7 @@ class aosTeleState(object):
                     self.imageDir, self.iIter, self.iSim, self.iIter)
         self.atmFile = ['%s/iter%d/sim%d_iter%d_E00%d.atm' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter,
-            iexp) for iexp in [0, 1]]
+            iexp) for iexp in [0]]
 
         if hasattr(self, 'M1M3surf'):
             self.M1M3zlist = '%s/iter%d/sim%d_M1M3zlist.txt' % (
@@ -519,7 +518,7 @@ class aosTeleState(object):
             if wfs is not None:
                 wfs.zFile_m1 = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
                     self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1,
-                    iexp) for iexp in [0, 1]]
+                    iexp) for iexp in [0]]
 
             # PSSN from last iteration needs to be known for shiftGear
             if not (hasattr(metr, 'GQFWHMeff')):
@@ -624,209 +623,7 @@ perturbationmode 1\n')
         fpert.close()
         fid.close()
 
-    def getPSFAll(self, psfoff, metr, numproc, debugLevel, pixelum=10):
-
-        if not psfoff:
-            self.writePSFinst(metr)
-            self.writePSFcmd(metr)
-            self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
-
-            if pixelum == 10:
-                instiq = self.inst
-            elif pixelum == 0.2:
-                instiq = self.inst + 'iq'
-            myargs = '%s -c %s -i %s -p %d -e %d > %s 2>&1' % (
-                self.PSF_inst, self.PSF_cmd, instiq, numproc, self.eimage,
-                self.PSF_log)
-            if debugLevel >= 2:
-                print('********Runnnig PHOSIM with following \
-                parameters********')
-                print('Check the log file below for progress')
-                print('%s' % myargs)
-
-            runProgram('python %s/phosim.py' %
-                       self.phosimDir, argstring=myargs)
-            plt.figure(figsize=(10, 10))
-            for i in range(metr.nField):
-                if pixelum == 10:
-                    chipStr, px, py = self.fieldXY2Chip(
-                        metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-                    # no need to be too big, 10um pixel
-                    self.psfStampSize = 128
-                elif pixelum == 0.2:
-                    chipStr = 'F%02d' % i
-                    px = 2000
-                    py = 2000
-                src = glob.glob('%s/output/%s*%d_f%d_%s*E000.fit*' % (
-                    self.phosimDir, instiq, self.obsID, phosimFilterID[self.band],
-                    chipStr))
-                if len(src) == 0:
-                    raise RuntimeError(
-                        "cannot find Phosim output: osbID=%d, chipStr = %s" % (
-                            self.obsID, chipStr))
-                elif 'gz' in src[0]:
-                    # when .fits and .fits.gz both exist
-                    # which appears first seems random
-                    runProgram('gunzip -f %s' % src[0])
-                elif 'gz' in src[-1]:
-                    runProgram('gunzip -f %s' % src[-1])
-
-                fitsfile = src[0].replace('.gz', '')
-                IHDU = fits.open(fitsfile)
-                chipImage = IHDU[0].data
-                IHDU.close()
-                
-                # move it out of the way,
-                # otherwise WFS images will have same name
-                os.rename(fitsfile, fitsfile.replace('.fits','psf.fits'))
-
-                psf = chipImage[
-                    py - self.psfStampSize * 2:py + self.psfStampSize * 2,
-                    px - self.psfStampSize * 2:px + self.psfStampSize * 2]
-                offsety = np.argwhere(psf == psf.max())[0][0] - \
-                    self.psfStampSize * 2 + 1
-                offsetx = np.argwhere(psf == psf.max())[0][1] - \
-                    self.psfStampSize * 2 + 1
-                psf = chipImage[
-                    py - self.psfStampSize / 2 + offsety:
-                    py + self.psfStampSize / 2 + offsety,
-                    px - self.psfStampSize / 2 + offsetx:
-                    px + self.psfStampSize / 2 + offsetx]
-                if debugLevel >= 3:
-                    print('px = %d, py = %d' % (px, py))
-                    print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                    print('passed %d' % i)
-
-                if pixelum == 10:
-                    displaySize = 20
-                elif pixelum == 0.2:
-                    displaySize = 100
-
-                dst = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                    self.imageDir, self.iIter, self.iSim, self.iIter, i)
-                if os.path.isfile(dst):
-                    os.remove(dst)
-                hdu = fits.PrimaryHDU(psf)
-                hdu.writeto(dst)
-
-                if self.inst[:4] == 'lsst':
-                    if i == 0:
-                        pIdx = 1
-                    else:
-                        pIdx = i + metr.nArm
-                    nRow = metr.nRing + 1
-                    nCol = metr.nArm
-                elif self.inst[:6] == 'comcam':
-                    aa = [7, 4, 1, 8, 5, 2, 9, 6, 3]
-                    pIdx = aa[i]
-                    nRow = 3
-                    nCol = 3
-
-                plt.subplot(nRow, nCol, pIdx)
-                plt.imshow(extractArray(psf, displaySize),
-                           origin='lower', interpolation='none')
-                plt.title('%d' % i)
-                plt.axis('off')
-
-            # plt.show()
-            pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter)
-            plt.savefig(pngFile, bbox_inches='tight')
-            plt.close()
-
-    def getPSFAllfromBase(self, baserun, metr):
-        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
-        if not os.path.isfile(self.PSF_inst):
-            baseFile = self.PSF_inst.replace(
-                'sim%d' % self.iSim, 'sim%d' % baserun)
-            # PSF files are not crucial, it is ok if the baserun doesn't have
-            # it
-            if os.path.isfile(baseFile):
-                os.link(baseFile, self.PSF_inst)
-            else:
-                return
-
-        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
-        if not os.path.isfile(self.PSF_cmd):
-            baseFile = self.PSF_cmd.replace(
-                'sim%d' % self.iSim, 'sim%d' % baserun)
-            os.link(baseFile, self.PSF_cmd)
-
-        self.PSF_log = '%s/iter%d/sim%d_iter%d_psf%d.log' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter, metr.nField)
-        if not os.path.isfile(self.PSF_log):
-            baseFile = self.PSF_log.replace(
-                'sim%d' % self.iSim, 'sim%d' % baserun)
-            os.link(baseFile, self.PSF_log)
-
-        for i in range(metr.nField):
-            psfFile = '%s/iter%d/sim%d_iter%d_psf%d.fits' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter, i)
-            if not os.path.isfile(psfFile):
-                baseFile = psfFile.replace(
-                    'sim%d' % self.iSim, 'sim%d' % baserun)
-                os.link(baseFile, psfFile)
-
-        pngFile = '%s/iter%d/sim%d_iter%d_psf.png' % (
-            self.imageDir, self.iIter, self.iSim, self.iIter)
-        if not os.path.isfile(pngFile):
-            baseFile = pngFile.replace('sim%d' % self.iSim, 'sim%d' % baserun)
-            os.link(baseFile, pngFile)
-
-    def writePSFinst(self, metr):
-        self.PSF_inst = '%s/iter%d/sim%d_iter%d_psf%d.inst' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
-        fid = open(self.PSF_inst, 'w')
-        fid.write('rightascension 0\n\
-declination 0\n\
-rotskypos 0\n\
-rottelpos 0\n\
-Opsim_filter %d\n\
-Opsim_obshistid %d\n\
-SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n\
-SIM_SEED %d\n\
-SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
-                      self.obsID % 10000 + 31))
-        fpert = open(self.pertFile, 'r')
-
-        fid.write(fpert.read())
-        for i in range(metr.nField):
-            fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star none  none\n' % (
-                i, metr.fieldXp[i], metr.fieldYp[i], self.psfMag, self.sedfile))
-        fid.close()
-        fpert.close()
-
-    def writePSFcmd(self, metr):
-        self.PSF_cmd = '%s/iter%d/sim%d_iter%d_psf%d.cmd' % (
-            self.pertDir, self.iIter, self.iSim, self.iIter, metr.nField)
-        fid = open(self.PSF_cmd, 'w')
-        fid.write('backgroundmode 0\n\
-raydensity 0.0\n\
-perturbationmode 1\n\
-trackingmode 0\n\
-cleartracking\n\
-clearturbulence\n\
-clearopacity\n\
-atmosphericdispersion 0\n\
-lascatprob 0.0\n\
-contaminationmode 0\n\
-airrefraction 0\n\
-diffractionmode 1\n\
-straylight 0\n\
-detectormode 0\n')
-# clearperturbations\n\
-# coatingmode 0\n\ #this clears filter coating too
-        fpert = open(self.pertCmdFile, 'r')
-        fid.write(fpert.read())
-        fpert.close()        
-        fid.close()
-
-    def getWFSAll(self, wfs, metr, numproc, debugLevel):
+    def getWFSAll(self, wfs, metr, numproc, runIsr, debugLevel):
 
         self.writeWFSinst(wfs, metr)
         self.writeWFScmd(wfs)
@@ -835,9 +632,7 @@ detectormode 0\n')
             argList.append((self.WFS_inst[irun], self.WFS_cmd, self.inst,
                                 self.eimage, self.WFS_log[irun],
                                 self.phosimDir, numproc, debugLevel))
-        # test, pdb cannot go into the subprocess
-        # runWFS1side(argList[0])
-        
+
         pool = multiprocessing.Pool(numproc)
         pool.map(runWFS1side, argList)
         pool.close()
@@ -848,35 +643,31 @@ detectormode 0\n')
             chipStr, px, py = self.fieldXY2Chip(
                 metr.fieldXp[i], metr.fieldYp[i], debugLevel)
             if wfs.nRun == 1: # phosim generates C0 & C1 already
-                for ioffset in [0, 1]:
-                    for iexp in [0, 1]:
-                        src = glob.glob('%s/output/*%s_f%d_%s*%s*E00%d.fit*' %
+                src = glob.glob('%s/output/*%s_f%d_%s*.fit*' %
                                     (self.phosimDir, self.obsID,
                                         phosimFilterID[self.band],
-                                    chipStr, wfs.halfChip[ioffset], iexp))
-                        if '.gz' in src[0]:
-                            runProgram('gunzip -f %s' % src[0])
-                        elif 'gz' in src[-1]:
-                            runProgram('gunzip -f %s' % src[-1])
-                        chipFile = src[0].replace('.gz', '')
-                        runProgram('mv -f %s %s/iter%d' %
-                                (chipFile, self.imageDir, self.iIter))
+                                    chipStr))
+                for s in src:
+                     runProgram('gunzip -f %s' % s)
+                     chipFile = s.replace('.gz', '')
+                     runProgram('mv -f %s %s/iter%d' %
+                         (chipFile, self.imageDir, self.iIter))
             else: # need to pick up two sets of fits.gz with diff phosim ID
                 for ioffset in [0, 1]:
                     src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
                                     (self.phosimDir, self.obsID + ioffset,
                                         phosimFilterID[self.band],
                                     chipStr))
-                    if '.gz' in src[0]:
-                        runProgram('gunzip -f %s' % src[0])
-                    elif 'gz' in src[-1]:
-                        runProgram('gunzip -f %s' % src[-1])
-                    chipFile = src[0].replace('.gz', '')
-                    targetFile = os.path.split(chipFile.replace(
-                        'E000', '%s_E000' % wfs.halfChip[ioffset]))[1]
-                    runProgram('mv -f %s %s/iter%d/%s' %
+                    for s in src:
+                        runProgram('gunzip -f %s' % s)
+                        chipFile = s.replace('.gz', '')
+                        targetFile = os.path.split(chipFile.replace(
+                            'E000', '%s_E000' % wfs.halfChip[ioffset]))[1]
+                        runProgram('mv -f %s %s/iter%d/%s' %
                             (chipFile, self.imageDir, self.iIter,
                                 targetFile))
+        if runIsr:
+            self.runIsr()
 
     def writeWFSinst(self, wfs, metr):
         for irun in range(wfs.nRun):
@@ -888,8 +679,8 @@ rottelpos 0\n\
 Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 mjd %.10f\n\
-SIM_VISTIME 33.0\n\
-SIM_NSNAP 2\n\
+SIM_VISTIME 15.0\n\
+SIM_NSNAP 1\n\
 SIM_SEED %d\n\
 Opsim_rawseeing -1\n' % (phosimFilterID[self.band],
                              self.obsID + irun, self.timeIter.mjd,
@@ -983,14 +774,85 @@ detectormode 0\n')
 
         return 'R%d%d_S%d%d' % (rx, ry, cx, cy), px, py
 
+    def runIsr(self):
+        """
+        this method takes the amplifier images from phosim, runs isr, and writes the new
+        post-isr e-images with '_isr' appended to the filename.
+        """
+        outputDir = os.path.join(self.imageDir, 'iter{}'.format(str(self.iIter)))
+        flatsDir = os.path.join(self.aosSrcDir, '..', 'data', 'flats')
+        repackagedDir = os.path.join(self.aosSrcDir, '..', 'data', 'repackaged')
+        butlerDir = os.path.join(self.aosSrcDir, '..', 'data', 'butler')
+        postISRDir = os.path.join(butlerDir, 'rerun', 'run1')
 
-def runProgram(command, binDir=None, argstring=None):
+        if not os.path.exists(flatsDir):
+            cwd = os.getcwd()  # will reset working directory after isr
+            os.mkdir(flatsDir)
+            os.chdir(flatsDir)
+            runProgram('makeGainImages.py --detector_list R00_S22 R40_S02 R04_S20 R44_S00',
+                       verbose=True)
+            os.chdir(cwd)
+
+        os.mkdir(repackagedDir)
+        runProgram('phosim_repackager.py {} --out_dir {}'.format(outputDir, repackagedDir),
+                   verbose=True)
+
+        os.mkdir(butlerDir)
+        runProgram('echo lsst.obs.lsst.phosim.PhosimMapper > {}/_mapper'.format(butlerDir),
+                   verbose=True)
+
+        runProgram('ingestCalibs.py {} {}/* --validity 9999 --output {} --mode copy'.format(
+                butlerDir, flatsDir, butlerDir), verbose=True)
+        runProgram('ingestImages.py {} {}/*.fits --clobber-config'.format(
+            butlerDir,repackagedDir), verbose=True)
+        runProgram('runIsr.py {} --id --rerun run1 --config isr.doBias=False isr.doDark=False '\
+                   'isr.doFlat=True isr.doFringe=False --clobber-config'.format(butlerDir),
+                   verbose=True)
+
+        # We don't want to import LSST stack dependencies unless we have to.
+        # Once we have imported for the first time then it is fast.
+        from lsst.daf.persistence import Butler
+
+        butler = Butler(postISRDir)
+
+        pattern = re.compile('lsst_e_(\d+)_f\d_(R\d{2})_(S\d{2})_(C\d)_E(\d{3}).fits')
+
+        for fname in os.listdir(outputDir):
+            match = pattern.match(fname)
+            if match:
+                visit, raft, sensor, chip, snap = match.groups()
+
+                dataId = {'raftName': raft, 'visit': int(visit), 'detectorName': sensor,
+                          'snap': int(snap)}
+                data = butler.get('postISRCCD', dataId)
+                img = data.getImage().getArray().transpose()
+
+                if 'C0' in fname:
+                    img = img[:,:2000]
+                else:
+                    img = img[:,2000:]
+
+                fitsIn = os.path.join(outputDir, fname)
+                fitsOut = os.path.join(outputDir, '{}_isr.fits'.format(fname[:-5]))
+
+                fitsPrimary = fits.open(fitsIn)[0]
+                fitsPrimary.data = img
+                fitsPrimary.writeto(fitsOut, overwrite=True)
+
+        # clean up
+        shutil.rmtree(butlerDir)
+        shutil.rmtree(repackagedDir)
+
+def runProgram(command, binDir=None, argstring=None, verbose=False):
     myCommand = command
     if binDir is not None:
         myCommand = os.path.join(binDir, command)
     if argstring is not None:
         myCommand += (' ' + argstring)
-    if subprocess.call(myCommand, shell=True) != 0:
+    result = subprocess.run(myCommand, shell=True, stdin=subprocess.PIPE)
+    if verbose:
+        print('runProgram: ', result.stdout)
+    if result.returncode != 0:
         raise RuntimeError("Error running %s" % myCommand)
 
 
@@ -1270,5 +1132,3 @@ def gridSamp(xf, yf, zf, innerR, outerR, resFile, nx, ny, plots):
         fig.colorbar(sc, cax=cbar_ax)
 
         plt.savefig(resFile.replace('.txt','.png'))
-        
-    
