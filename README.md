@@ -1,3 +1,16 @@
+# IM - Integrated Model for LSST AOS
+This is *legacy prototype code*. We will clean it up at some point, probably in stages, but that is not a high priority right now. Please reach out to me if you are interested in running this (at some point README will be more detailed). David sources the file below to setup environment:
+
+```
+CODE_DIR=/home/dthomas/Code
+export LSST_DIR=$CODE_DIR/../lsst16
+source $LSST_DIR/loadLSST.bash
+setup obs_lsst -t sims_w_2019_08
+setup -k -r $CODE_DIR/phosim_utils
+PYTHONPATH=$PYTHONPATH:/home/dthomas/Code/cwfs/python
+```
+
+----------------------------------------------------------------
 main configuration files are the following in data/
 *.ctrl, *.esti, *.inst
 Right now, i have
