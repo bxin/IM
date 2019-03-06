@@ -751,7 +751,8 @@ lascatprob 0.0\n\
 contaminationmode 0\n\
 diffractionmode 1\n\
 straylight 0\n\
-detectormode 0\n')
+detectormode 0\n\
+centroidfile 1\n')
 # airrefraction 0\n\
 # coatingmode 0\n\ #this clears filter coating too
         fpert = open(self.pertCmdFile, 'r')
@@ -781,12 +782,12 @@ detectormode 0\n')
         """
         outputDir = os.path.join(self.imageDir, 'iter{}'.format(str(self.iIter)))
         flatsDir = os.path.join(self.aosSrcDir, '..', 'data', 'flats')
-        repackagedDir = os.path.join(self.aosSrcDir, '..', 'data', 'repackaged')
-        butlerDir = os.path.join(self.aosSrcDir, '..', 'data', 'butler')
+        repackagedDir = os.path.join(outputDir, 'repackaged')
+        butlerDir = os.path.join(outputDir, 'butler')
         postISRDir = os.path.join(butlerDir, 'rerun', 'run1')
 
         if not os.path.exists(flatsDir):
-            cwd = os.getcwd()  # will reset working directory after isr
+            cwd = os.getcwd()
             os.mkdir(flatsDir)
             os.chdir(flatsDir)
             runProgram('makeGainImages.py --detector_list R00_S22 R40_S02 R04_S20 R44_S00',
@@ -838,10 +839,6 @@ detectormode 0\n')
                 fitsPrimary = fits.open(fitsIn)[0]
                 fitsPrimary.data = img
                 fitsPrimary.writeto(fitsOut, overwrite=True)
-
-        # clean up
-        shutil.rmtree(butlerDir)
-        shutil.rmtree(repackagedDir)
 
 def runProgram(command, binDir=None, argstring=None, verbose=False):
     myCommand = command
