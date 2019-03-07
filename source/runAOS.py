@@ -115,13 +115,13 @@ assuming all data available',
     # *****************************************
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
-    phosimDir = '/home/dthomas/Code/phosim_syseng4'
+    phosimDir = '{}/../../phosim_syseng4'.format(aosSrcDir)
     # znPert = 28  # znmax used in pert file to define surfaces
 
     # *****************************************
     # run wavefront sensing algorithm
     # *****************************************
-    cwfsDir = '/home/dthomas/Code/cwfs'
+    cwfsDir = '{}/../../cwfs'.format(aosSrcDir)
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
