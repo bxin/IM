@@ -596,7 +596,9 @@ rottelpos 0\n\
 Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID))
+SIM_NSNAP 1\n\
+altitude 90\n\
+azimuth 0\n' % (phosimFilterID[self.band], self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for irun in range(self.nOPDw):
@@ -682,7 +684,9 @@ mjd %.10f\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-Opsim_rawseeing -1\n' % (phosimFilterID[self.band],
+Opsim_rawseeing -1\n\
+altitude 90\n\
+azimuth 0\n' % (phosimFilterID[self.band],
                              self.obsID + irun, self.timeIter.mjd,
                              self.obsID % 10000 + 4))
             fpert = open(self.pertFile, 'r')
