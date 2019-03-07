@@ -21,7 +21,7 @@ from lsst.cwfs.image import Image, readFile
 class aosWFS(object):
 
     def __init__(self, cwfsDir, instruFile, algoFile,
-                 imgSizeinPix, band, wavelength, runIsr, debugLevel):
+                 imgSizeinPix, band, wavelength, debugLevel):
         self.nWFS = 4
         self.nRun = 1
         self.nExp = 1
@@ -68,14 +68,13 @@ class aosWFS(object):
                 :(self.znwcs3 * self.nWFS), :(self.znwcs3 * self.nWFS)]
         self.covM = self.covM * 1e-6  # in unit of um^2
 
-        self.isrString = '_isr' if runIsr else ''
-
         if debugLevel >= 3:
             print('znwcs3=%d' % self.znwcs3)
             print(self.intrinsicWFS.shape)
             print(self.intrinsicWFS[:5])
 
     def preprocess(self, state, metr, debugLevel):
+        isrString = '_isr' if state.eimage else ''
         for iexp in range(0, self.nExp):
             for iField in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
                 chipStr, px0, py0 = state.fieldXY2Chip(
@@ -84,17 +83,17 @@ class aosWFS(object):
                     print('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
                           (state.imageDir, state.iIter,
                            state.obsID,
-                           chipStr, self.halfChip[ioffset], iexp, self.isrString))
+                           chipStr, self.halfChip[ioffset], iexp, isrString))
                     if self.nRun == 1:
                         src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
                                         (state.imageDir, state.iIter,
                                             state.obsID,
-                                        chipStr, self.halfChip[ioffset], iexp, self.isrString))
+                                        chipStr, self.halfChip[ioffset], iexp, isrString))
                     else:
                         src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
                                         (state.imageDir, state.iIter,
                                             state.obsID + ioffset,
-                                        chipStr, self.halfChip[ioffset], iexp, self.isrString))
+                                        chipStr, self.halfChip[ioffset], iexp, isrString))
 
 
                     chipFile = src[0]
@@ -117,6 +116,12 @@ class aosWFS(object):
                                     py + 2 * state.cwfsStampSize,
                                     np.max((0, px - 2 * state.cwfsStampSize)):
                                     px + 2 * state.cwfsStampSize]
+
+                    stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d%s_before' % (
+                        state.imageDir, state.iIter, state.iSim, state.iIter,
+                        iField, self.wfsName[ioffset], iexp, isrString)
+                    np.save(stampFile, psf)
+
                     centroid = ndimage.measurements.center_of_mass(psf)
                     offsety = centroid[0] - 2 * state.cwfsStampSize + 1
                     offsetx = centroid[1] - 2 * state.cwfsStampSize + 1
@@ -149,7 +154,7 @@ class aosWFS(object):
                     # below, we have 0 b/c we may have many
                     stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d%s.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp, self.isrString)
+                        iField, self.wfsName[ioffset], iexp, isrString)
                     if os.path.isfile(stampFile):
                         os.remove(stampFile)
                     hdu = fits.PrimaryHDU(psf)
@@ -178,7 +183,7 @@ class aosWFS(object):
                 for ioffset in [0, 1]:
                     src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                         state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp, self.isrString))
+                        iField, self.wfsName[ioffset], iexp, isrString))
                     IHDU = fits.open(src[0])
                     psf = IHDU[0].data
                     IHDU.close()
@@ -209,7 +214,7 @@ class aosWFS(object):
     
             # plt.show()
             pngFile = '%s/iter%d/sim%d_iter%d_wfs_E00%d%s.png' % (
-                state.imageDir, state.iIter, state.iSim, state.iIter, iexp, self.isrString)
+                state.imageDir, state.iIter, state.iSim, state.iIter, iexp, isrString)
             plt.savefig(pngFile, bbox_inches='tight')
     
             # write out catalog for good wfs stars
@@ -217,10 +222,10 @@ class aosWFS(object):
             for i in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
                 intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i, 
-                    self.wfsName[0], iexp, self.isrString))[0]
+                    self.wfsName[0], iexp, isrString))[0]
                 extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
                     state.imageDir, state.iIter, state.iSim, state.iIter, i,
-                    self.wfsName[1], iexp, self.isrString))[0]
+                    self.wfsName[1], iexp, isrString))[0]
                 if state.inst[:4] == 'lsst':
                     if i == 31:
                         fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (

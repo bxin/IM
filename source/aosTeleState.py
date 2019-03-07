@@ -623,7 +623,7 @@ perturbationmode 1\n')
         fpert.close()
         fid.close()
 
-    def getWFSAll(self, wfs, metr, numproc, runIsr, debugLevel):
+    def getWFSAll(self, wfs, metr, numproc, debugLevel):
 
         self.writeWFSinst(wfs, metr)
         self.writeWFScmd(wfs)
@@ -666,7 +666,7 @@ perturbationmode 1\n')
                         runProgram('mv -f %s %s/iter%d/%s' %
                             (chipFile, self.imageDir, self.iIter,
                                 targetFile))
-        if runIsr:
+        if self.eimage:
             self.runIsr()
 
     def writeWFSinst(self, wfs, metr):

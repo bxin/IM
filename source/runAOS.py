@@ -88,9 +88,6 @@ assuming all data available',
                         1=operator, 2=expert, 3=everything, default=0')
     parser.add_argument('-baserun', dest='baserun', default=-1, type=int,
                         help='iter0 is same as this run, so skip iter0')
-    parser.add_argument('-isr', dest='runIsr', action='store_true', help='run DM isr code after phosim '
-                                                                'simulations; before algorithm '
-                                                                'runs.')
     args = parser.parse_args()
     if args.makesum:
         args.sensor = 'pass'
@@ -128,7 +125,7 @@ assuming all data available',
     else:
         effwave = wavelength
     wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, band, effwave, args.runIsr, args.debugLevel)
+                 128, band, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
@@ -203,7 +200,7 @@ assuming all data available',
                 if args.sensor == 'phosim':
                     # create donuts for last iter,
                     # so that picking up from there will be easy
-                    state.getWFSAll(wfs, metr, args.numproc, args.runIsr, args.debugLevel)
+                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
