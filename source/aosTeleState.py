@@ -749,6 +749,8 @@ azimuth 0\n' % (phosimFilterID[self.band],
 raydensity 0.0\n\
 perturbationmode 1\n\
 trackingmode 0\n\
+atmosphericdispersion 0\n\
+clearopacity\n\
 cleartracking\n\
 clearclouds\n\
 lascatprob 0.0\n\
