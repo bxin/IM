@@ -440,11 +440,8 @@ class aosTeleState(object):
         metr.elliFile = '%s/iter%d/sim%d_iter%d_elli.txt' % (
             self.imageDir, self.iIter, self.iSim, self.iIter)
         if wfs is not None:
-            wfs.zFile = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
-                self.imageDir, self.iIter, self.iSim, self.iIter,
-                iexp) for iexp in [0]]
-            wfs.catFile = ['%s/iter%d/wfs_catalog_E00%d.txt' % (
-                self.pertDir, self.iIter, iexp) for iexp in [0]]
+            wfs.zFile = '%s/iter%d/sim%d_iter%d_E000.z4c' % (
+                self.imageDir, self.iIter, self.iSim, self.iIter)
             wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
                 self.pertDir, self.iIter, self.iIter)
 
@@ -498,9 +495,8 @@ class aosTeleState(object):
                 self.pertDir, self.iSim)
             self.stateV0 = np.loadtxt(self.pertMatFile_0)
             if wfs is not None:
-                wfs.zFile_m1 = ['%s/iter%d/sim%d_iter%d_E00%d.z4c' % (
-                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1,
-                    iexp) for iexp in [0]]
+                wfs.zFile_m1 = '%s/iter%d/sim%d_iter%d_E000.z4c' % (
+                    self.imageDir, self.iIter - 1, self.iSim, self.iIter - 1)
 
             # PSSN from last iteration needs to be known for shiftGear
             if not (hasattr(metr, 'GQFWHMeff')):
@@ -620,14 +616,13 @@ perturbationmode 1\n')
         pool.close()
         pool.join()
 
-        src = glob.glob('%s/output/*%s_f%d_*.fit*' %
+        runProgram('gunzip -r {}/output'.format(self.phosimDir))
+        src = glob.glob('%s/output/*%s_f%d_*' %
                             (self.phosimDir, self.obsID,
                             phosimFilterID[self.band]))
         for s in src:
-            runProgram('gunzip -f %s' % s)
-            chipFile = s.replace('.gz', '')
             runProgram('mv -f %s %s/iter%d' %
-                (chipFile, self.imageDir, self.iIter))
+                (s, self.imageDir, self.iIter))
         if self.eimage:
             self.runIsr()
 

@@ -4,13 +4,13 @@
 # @       Large Synoptic Survey Telescope
 
 import os
-import glob
 import multiprocessing
-import copy
+import re
+import aosTeleState
 
 import numpy as np
 from astropy.io import fits
-from scipy import ndimage
+from astropy.table import join, Table
 import matplotlib.pyplot as plt
 
 from lsst.cwfs.algorithm import Algorithm
@@ -20,30 +20,25 @@ from lsst.cwfs.image import Image, readFile
 
 class aosWFS(object):
 
-    def __init__(self, cwfsDir, instruFile, algoFile,
+    ZS = ['z{}'.format(i) for i in range(4, 23)]
+
+    def __init__(self, cwfsDir, imageDir, instruFile, algoFile, iSim,
                  imgSizeinPix, band, wavelength, debugLevel):
+        self.imageDir = imageDir
+        self.obsId = None
+        self.iSim = iSim
+        self.band = band
+        self.iIter = 0
         self.nWFS = 4
         self.nRun = 1
         self.nExp = 1
-        if instruFile[:6] == 'comcam':
-            self.nWFS = 9
-            self.nRun = 2
-            self.nExp = 1 #only 1 set of intra and 1 set of extra for each iter
         self.wfsName = ['intra', 'extra']
         self.offset = [-1.5, 1.5]  # default offset
-        if (instruFile[:6] == 'comcam' and len(instruFile) == 8) or \
-                (instruFile[:4] == 'lsst' and len(instruFile) == 6):
-            aa = float(instruFile[-2:]) / 10
-            self.offset = [-aa, aa]
-
         self.halfChip = ['C0', 'C1']  # C0 is always intra, C1 is extra
 
-        aosDir = os.getcwd()
         self.cwfsDir = cwfsDir
-        os.chdir(cwfsDir)
         self.inst = Instrument(instruFile, imgSizeinPix)
         self.algo = Algorithm(algoFile, self.inst, debugLevel)
-        os.chdir(aosDir)
         self.znwcs = self.algo.numTerms
         self.znwcs3 = self.znwcs - 3
         self.myZn = np.zeros((self.znwcs3 * self.nWFS, 2))
@@ -61,11 +56,6 @@ class aosWFS(object):
         self.intrinsicWFS = intrinsicAll[
             -self.nWFS:, 3:self.algo.numTerms].reshape((-1, 1))
         self.covM = np.loadtxt('%s/../data/covM86.txt'% aosSrcDir)  # in unit of nm^2
-        if self.nWFS > 4:
-            nrepeat = int(np.ceil(self.nWFS / 4))
-            self.covM = np.tile(self.covM, (nrepeat, nrepeat))
-            self.covM = self.covM[
-                :(self.znwcs3 * self.nWFS), :(self.znwcs3 * self.nWFS)]
         self.covM = self.covM * 1e-6  # in unit of um^2
 
         if debugLevel >= 3:
@@ -73,211 +63,253 @@ class aosWFS(object):
             print(self.intrinsicWFS.shape)
             print(self.intrinsicWFS[:5])
 
-    def preprocess(self, state, metr, debugLevel):
-        isrString = '_isr' if state.eimage else ''
-        for iexp in range(0, self.nExp):
-            for iField in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
-                chipStr, px0, py0 = state.fieldXY2Chip(
-                    metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
-                for ioffset in [0, 1]:
-                    print('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
-                          (state.imageDir, state.iIter,
-                           state.obsID,
-                           chipStr, self.halfChip[ioffset], iexp, isrString))
-                    if self.nRun == 1:
-                        src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
-                                        (state.imageDir, state.iIter,
-                                            state.obsID,
-                                        chipStr, self.halfChip[ioffset], iexp, isrString))
-                    else:
-                        src = glob.glob('%s/iter%d/lsst_e_%d*%s*%s*E00%d%s.fits' %
-                                        (state.imageDir, state.iIter,
-                                            state.obsID + ioffset,
-                                        chipStr, self.halfChip[ioffset], iexp, isrString))
+    def setIterNo(self, iIter):
+        self.obsId = 9000000 + self.iSim * 1000 + iIter * 10
+        self.iIter = iIter
+
+    def findCandidates(self, catalog):
+        centroids = self.getPhosimCentroid()
+        candidates = join(catalog.table, centroids, keys=['sourceId'], join_type='inner')
+        candidates.sort('sourceId')
+        return candidates
+
+    def selectPairs(self, candidates):
+        # wavefront sensors
+        chips = 'R00_S22 R40_S02 R04_S20 R44_S00'.split()
+
+        pairs = Table(names=['chip', 'intraSourceId', 'extraSourceId'],
+                            dtype=['S', 'i8', 'i8'])
+
+        # one sensor at a time
+        for chip in chips:
+            intraChip = chip + '_C0'
+            extraChip = chip + '_C1'
+            intraIdx = (candidates['chip'] == intraChip)
+            extraIdx = (candidates['chip'] == extraChip)
+            intraDonuts = candidates[intraIdx].copy(copy_data=True)
+            extraDonuts = candidates[extraIdx].copy(copy_data=True)
+
+            # ranking algorithm
+            intraDonuts.sort('mag')
+            extraDonuts.sort('mag')
+
+            # pair brightest donuts until run out
+            while len(intraDonuts) > 0 and len(extraDonuts) > 0:
+                sourceIdIntra = intraDonuts['sourceId'][0]
+                sourceIdExtra = extraDonuts['sourceId'][0]
+                pairs.add_row((chip, sourceIdIntra, sourceIdExtra))
+
+                intraDonuts.remove_row(0)
+                extraDonuts.remove_row(0)
+
+        return pairs
+
+    def prepareArgList(self, pairs, candidates, cwfsModel):
+        argList = []
+        for pair in pairs:
+            chip = pair['chip']
+            intraChip = chip + '_C0'
+            extraChip = chip + '_C1'
+            intraSourceId = pair['intraSourceId']
+            extraSourceId = pair['extraSourceId']
+
+            intraCandidate = candidates[candidates['sourceId'] == intraSourceId][0]
+            extraCandidate = candidates[candidates['sourceId'] == extraSourceId][0]
+
+            intraPixX = intraCandidate['pixX']
+            intraPixY = intraCandidate['pixY']
+            extraPixX = extraCandidate['pixX']
+            extraPixY = extraCandidate['pixY']
+
+            intraCrop = self.getCrop(intraChip, intraPixX, intraPixY, widthPix=128)
+            extraCrop = self.getCrop(extraChip, extraPixX, extraPixY, widthPix=128)
+
+            # Necessary to reconcile phosim fits files axes with focal plane layout.
+            intraCrop = self.rotateByChip(chip, intraCrop)
+            extraCrop = self.rotateByChip(chip, extraCrop)
+
+            # This assumes that the boresight is (0,0).
+            intraFieldX = intraCandidate['ra']
+            intraFieldY = intraCandidate['dec']
+            extraFieldX = extraCandidate['ra']
+            extraFieldY = extraCandidate['dec']
+
+            intraImage = Image(intraCrop, (intraFieldX, intraFieldY), 'intra')
+            extraImage = Image(extraCrop, (extraFieldX, extraFieldY), 'extra')
+
+            argList.append((self.algo, chip, intraSourceId, extraSourceId, intraImage, extraImage,
+                            self.inst,
+                            cwfsModel))
+        return argList
+
+    def processPairs(self, pairs, candidates, cwfsModel, numProc):
+        # This argList is necessary for multiprocessing.
+        argList = self.prepareArgList(pairs, candidates, cwfsModel)
+        pool = multiprocessing.Pool(numProc)
+        parallelOutput = pool.map(aosWFS.runcwfs, argList)
+        pool.close()
+        pool.join()
+
+        # Consolidate parallel output into a table.
+        zernikes = Table(names=['chip', 'intraSourceId', 'extraSourceId', 'caustic'] + aosWFS.ZS,
+                         dtype=['S', 'i4', 'i4', 'i4'] + ['f4'] * len(aosWFS.ZS))
+        for row in parallelOutput:
+            chip = row[0]
+            intraSourceId = row[1]
+            extraSourceId = row[2]
+            caustic = row[3]
+            z = row[4]
+            zernikes.add_row((chip, intraSourceId, extraSourceId, caustic, *z))
+
+        return argList, zernikes
+
+    def makeMasterZernikes(self, candidates, zernikes):
+        aggZernikes = zernikes[['chip'] + aosWFS.ZS].group_by('chip').groups.aggregate(np.mean)
+        caustics = zernikes['chip', 'caustic'].group_by('chip').groups.aggregate(np.sum)
+        masterZernikes = join(aggZernikes, caustics, keys=['chip'], join_type='inner')
+        return masterZernikes
+
+    def parallelCwfs(self, catalog, cwfsModel, numproc, debugLevel):
+        candidates = self.findCandidates(catalog)
+        pairs = self.selectPairs(candidates)
+        argList, zernikes = self.processPairs(pairs, candidates, cwfsModel, numproc)
+        masterZernikes = self.makeMasterZernikes(candidates, zernikes)
+
+        # Plan to update io so row ordering wont matter.
+        oldOut = np.array([
+            aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R44_S00'][0]),
+            aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R04_S20'][0]),
+            aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R00_S22'][0]),
+            aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R40_S02'][0]),
+        ])
+
+        if debugLevel > 0:
+            self.writeTable(candidates, 'candidates.csv')
+            self.writeTable(pairs, 'pairs.csv')
+            self.plotPairsAndZernikes(argList, zernikes)
+            self.writeTable(zernikes, 'zernikes.csv')
+            # self.plotMasterZernikes(masterZernikes, 'masterZernikes')
+
+        np.savetxt(self.zFile, oldOut)
+
+        # self.writeMasterZernikes(masterZernikes, master=True)
+
+    def writeTable(self, table, fname):
+        imgDir = self.getCurrentImagePath()
+        path = os.path.join(imgDir, fname)
+        table.write(path, format='csv')
+
+    @staticmethod
+    def rowToZernikes(row):
+        arr = [row[key] for key in aosWFS.ZS]
+        return np.array(arr)
+
+    # hoping to remove once we upgrade io
+    @staticmethod
+    def rowToZernikesAndCaustic(row):
+        arr = [row[key] for key in aosWFS.ZS + ['caustic']]
+        return np.array(arr)
+
+    def plotPairsAndZernikes(self, argList, zernikes):
+        nPairs = len(argList)
+        plt.figure(figsize=(8.5, nPairs * 2.5))
+        zChipTable = zernikes[['chip'] + self.ZS].group_by('chip').groups.aggregate(np.mean)
+        zAll = aosWFS.rowToZernikes(zernikes[self.ZS].groups.aggregate(np.mean))
+
+        for i,args in enumerate(argList):
+            _, chip, intraSourceId, extraSourceId, intraImage, extraImage, _, _  = args
+            plt.subplot(nPairs,3,i*3+1)
+            plt.title('{}, {}, Intra'.format(chip, intraSourceId), fontsize=8)
+            cb = plt.imshow(intraImage.image, origin='lower', cmap='hot')
+            plt.colorbar(cb)
+            plt.axis('off')
+
+            plt.subplot(nPairs,3,i*3+2)
+            plt.title('{}, {}, Extra'.format(chip, extraSourceId), fontsize=8)
+            cb = plt.imshow(extraImage.image, origin='lower', cmap='hot')
+            plt.colorbar(cb)
+            plt.axis('off')
+
+            plt.subplot(nPairs,3,i*3+3)
+            plt.title('Zernikes', fontsize=8)
+            zPair = aosWFS.rowToZernikes(zernikes[i])
+            zChip = aosWFS.rowToZernikes(zChipTable[zChipTable['chip'] == chip][0])
+            zDomain = range(4, 23)
+            plt.plot(zDomain, zPair, marker='s', linestyle='--', label='Pair', color='#4286f4',
+                     alpha=0.7)
+            plt.plot(zDomain, zChip, marker='o', linestyle='--', label=chip, color='#fc41a5',
+                     alpha=0.7)
+            plt.plot(zDomain, zAll, marker='x', linestyle='--', label='All', color='#3ef979',
+                     alpha=0.7)
+            plt.grid(b=True)
+            plt.legend()
+
+        path = os.path.join(self.getCurrentImagePath(), 'pairsAndZernikes.png')
+        plt.tight_layout()
+        plt.savefig(path)
 
 
-                    chipFile = src[0]
-                    chipImage, header = fits.getdata(chipFile,header=True)
-                        
-                    if state.inst[:4] == 'lsst':
-                        if ioffset == 0:
-                            # intra image, C0, pulled 0.02 deg from right edge
-                            # degree to micron then to pixel
-                            px = int(px0 - 0.020 * 180000 / 10)
-                        elif ioffset == 1:
-                            # extra image, C1, pulled 0.02 deg away from left edge
-                            px = int(px0 + 0.020 * 180000 / 10 - chipImage.shape[1])
-                    elif state.inst[:6] == 'comcam':
-                        px = px0
-                    py = copy.copy(py0)
-    
-                    # psf here is 4 x the size of cwfsStampSize, to get centroid
-                    psf = chipImage[np.max((0, py - 2 * state.cwfsStampSize)):
-                                    py + 2 * state.cwfsStampSize,
-                                    np.max((0, px - 2 * state.cwfsStampSize)):
-                                    px + 2 * state.cwfsStampSize]
+    @staticmethod
+    def runcwfs(args):
+        algo, chip, intraSourceId, extraSourceId, intraImage, extraImage, inst, model = args
+        algo.reset(intraImage, extraImage)
+        algo.runIt(inst, intraImage, extraImage, model)
+        return chip, intraSourceId, extraSourceId, algo.caustic, algo.zer4UpNm * 1e-3
 
-                    stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d%s_before' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp, isrString)
-                    np.save(stampFile, psf)
+    def getPhosimCentroid(self):
+        centroids = Table(names=['chip', 'sourceId', 'nphoton', 'pixX', 'pixY'],
+                          dtype=['S', 'i4', 'f4', 'i4', 'i4'])
 
-                    centroid = ndimage.measurements.center_of_mass(psf)
-                    offsety = centroid[0] - 2 * state.cwfsStampSize + 1
-                    offsetx = centroid[1] - 2 * state.cwfsStampSize + 1
-                    # if the psf above has been cut on px=0 or py=0 side
-                    if py - 2 * state.cwfsStampSize < 0:
-                        offsety -= py - 2 * state.cwfsStampSize
-                    if px - 2 * state.cwfsStampSize < 0:
-                        offsetx -= px - 2 * state.cwfsStampSize
-    
-                    psf = chipImage[
-                        int(py - state.cwfsStampSize // 2 + offsety):
-                        int(py + state.cwfsStampSize // 2 + offsety),
-                        int(px - state.cwfsStampSize // 2 + offsetx):
-                        int(px + state.cwfsStampSize // 2 + offsetx)]
-    
-                    if state.inst[:4] == 'lsst':
-                        # readout of corner raft are identical,
-                        # cwfs knows how to handle rotated images
-                        # note: rot90 rotates the array,
-                        # not the image (as you see in ds9, or Matlab with
-                        #                  "axis xy")
-                        # that is why we need to flipud and then flip back
-                        if iField == metr.nField:
-                            psf = np.flipud(np.rot90(np.flipud(psf), 2))
-                        elif iField == metr.nField + 1:
-                            psf = np.flipud(np.rot90(np.flipud(psf), 3))
-                        elif iField == metr.nField + 3:
-                            psf = np.flipud(np.rot90(np.flipud(psf), 1))
-    
-                    # below, we have 0 b/c we may have many
-                    stampFile = '%s/iter%d/sim%d_iter%d_wfs%d_%s_0_E00%d%s.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp, isrString)
-                    if os.path.isfile(stampFile):
-                        os.remove(stampFile)
-                    hdu = fits.PrimaryHDU(psf)
-                    hdu.writeto(stampFile)
+        # example centroid file: centroid_lsst_e_9018000_f1_R00_S22_C1_E000.txt
+        target = 'centroid_lsst_e_\d+_f\d_(R\d{2}_S\d{2}_C\d)_E000.txt'
+        pattern = re.compile(target)
 
-                    if ((iField == metr.nFieldp4 - self.nWFS) and (ioffset == 0)):
-                        fid = open(state.atmFile[iexp], 'w')
-                        fid.write('Layer# \t seeing \t L0 \t\t wind_v \t wind_dir\n')
-                        for ilayer in range(7):
-                            fid.write('%d \t %.6f \t %.5f \t %.6f \t %.6f\n'%(
-                                ilayer,header['SEE%d'%ilayer],
-                                header['OSCL%d'%ilayer],
-                                header['WIND%d'%ilayer],
-                                header['WDIR%d'%ilayer]))
-                        fid.close()
-                    
-                    if debugLevel >= 3:
-                        print('px = %d, py = %d' % (px, py))
-                        print('offsetx = %d, offsety = %d' % (offsetx, offsety))
-                        print('passed %d, %s' % (iField, self.wfsName[ioffset]))
-    
-            # make an image of the 8 donuts
-            for iField in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
-                chipStr, px, py = state.fieldXY2Chip(
-                    metr.fieldXp[iField], metr.fieldYp[iField], debugLevel)
-                for ioffset in [0, 1]:
-                    src = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
-                        state.imageDir, state.iIter, state.iSim, state.iIter,
-                        iField, self.wfsName[ioffset], iexp, isrString))
-                    IHDU = fits.open(src[0])
-                    psf = IHDU[0].data
-                    IHDU.close()
-                    if state.inst[:4] == 'lsst':
-                        nRow = 2
-                        nCol = 4
-                        if iField == metr.nField:
-                            pIdx = 3 + ioffset  # 3 and 4
-                        elif iField == metr.nField + 1:
-                            pIdx = 1 + ioffset  # 1 and 2
-                        elif iField == metr.nField + 2:
-                            pIdx = 5 + ioffset  # 5 and 6
-                        elif iField == metr.nField + 3:
-                            pIdx = 7 + ioffset  # 7 and 8
-                    elif state.inst[:6] == 'comcam':
-                        nRow = 3
-                        nCol = 6
-                        ic = np.floor(iField / nRow)
-                        ir = iField % nRow
-                        # does iField=0 give 13 and 14?
-                        pIdx = int((nRow - ir - 1) * nCol + ic * 2 + 1 + ioffset)
-                        # print('pIdx = %d, chipStr= %s'%(pIdx, chipStr))
-                    plt.subplot(nRow, nCol, pIdx)
-                    plt.imshow(psf, origin='lower', interpolation='none')
-                    plt.title('%s_%s' %
-                              (chipStr, self.wfsName[ioffset]), fontsize=10)
-                    plt.axis('off')
-    
-            # plt.show()
-            pngFile = '%s/iter%d/sim%d_iter%d_wfs_E00%d%s.png' % (
-                state.imageDir, state.iIter, state.iSim, state.iIter, iexp, isrString)
-            plt.savefig(pngFile, bbox_inches='tight')
-    
-            # write out catalog for good wfs stars
-            fid = open(self.catFile[iexp], 'w')
-            for i in range(metr.nFieldp4 - self.nWFS, metr.nFieldp4):
-                intraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i, 
-                    self.wfsName[0], iexp, isrString))[0]
-                extraFile = glob.glob('%s/iter%d/sim%d_iter%d_wfs%d_%s_*E00%d%s.fits' % (
-                    state.imageDir, state.iIter, state.iSim, state.iIter, i,
-                    self.wfsName[1], iexp, isrString))[0]
-                if state.inst[:4] == 'lsst':
-                    if i == 31:
-                        fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
-                            metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                            metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                            intraFile, extraFile))
-                    elif i == 32:
-                        fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
-                            metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                            metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                            intraFile, extraFile))
-                    elif i == 33:
-                        fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
-                            metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                            metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                            intraFile, extraFile))
-                    elif i == 34:
-                        fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
-                            metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                            metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                            intraFile, extraFile))
-                elif state.inst[:6] == 'comcam':
-                    fid.write('%9.6f %9.6f %9.6f %9.6f %s %s\n' % (
-                        metr.fieldXp[i], metr.fieldYp[i],
-                        metr.fieldXp[i], metr.fieldYp[i],
-                        intraFile, extraFile))
-            fid.close()
+        imgPath = self.getCurrentImagePath()
+        for fname in os.listdir(imgPath):
+            match = pattern.match(fname)
+            if match:
+                halfchip = match.group(1)
+                data = np.loadtxt(os.path.join(imgPath, fname), skiprows=1).reshape(-1, 4)
+                for row in data:
+                    centroids.add_row((halfchip, *row))
+        return centroids
 
-    def parallelCwfs(self, cwfsModel, numproc, debugLevel):
-        for iexp in range(0, self.nExp):
-            argList = []
-            fid = open(self.catFile[iexp])
-            for line in fid:
-                data = line.split()
-                I1Field = [float(data[0]), float(data[1])]
-                I2Field = [float(data[2]), float(data[3])]
-                I1File = data[4]
-                I2File = data[5]
-                argList.append((I1File, I1Field, I2File, I2Field,
-                                self.inst, self.algo, cwfsModel))
-            fid.close()
+    def getCurrentImagePath(self):
+        path = '{}/iter{}'.format(self.imageDir, self.iIter)
+        return path
 
-            pool = multiprocessing.Pool(numproc)
-            zcarray = pool.map(runcwfs, argList)
-            pool.close()
-            pool.join()
-            zcarray = np.array(zcarray)
+    def getImage(self, chip):
+        imagePath = self.getCurrentImagePath()
+        filt = aosTeleState.phosimFilterID[self.band]
+        fname = 'lsst_e_{}_f{}_{}_E000.fits'.format(self.obsId, filt, chip)
+        img = fits.open(os.path.join(imagePath, fname))[0].data
+        return img
 
-            np.savetxt(self.zFile[iexp], zcarray)
+    def getCrop(self, chip, pixX, pixY, widthPix=128):
+        img = self.getImage(chip)
+        # Eventually need to handle edge case.
+        x = slice(pixX - widthPix // 2, pixX + widthPix // 2)
+        y = slice(pixY - widthPix // 2, pixY + widthPix // 2)
+        crop = img[y, x]
+        return crop
+
+    @staticmethod
+    def rotateByChip(chip, image):
+        raft = chip.split('_')[0]
+
+        raftToRotations = {
+            'R00': 0,
+            'R40': 1,
+            'R44': 2,
+            'R04': 3
+        }
+
+        image = np.rot90(image, raftToRotations[raft]).transpose()
+        return image
+
 
     def checkZ4C(self, state, metr, debugLevel):
-        z4c = np.loadtxt(self.zFile[0])  # in micron
+        z4c = np.loadtxt(self.zFile)  # in micron
         # z4cE001 = np.loadtxt(self.zFile[1])
         z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDw))
         aa = np.loadtxt(state.zTrueFile)
@@ -330,29 +362,11 @@ class aosWFS(object):
         plt.savefig(self.zCompFile, bbox_inches='tight')
 
     def getZ4CfromBase(self, baserun, state):
-        for iexp in range(self.nExp):
-            if not os.path.isfile(self.zFile[iexp]):
-                baseFile = self.zFile[iexp].replace(
-                    'sim%d' % state.iSim, 'sim%d' % baserun)
-                os.link(baseFile, self.zFile[iexp])
+        if not os.path.isfile(self.zFile):
+            baseFile = self.zFile.replace(
+                'sim%d' % state.iSim, 'sim%d' % baserun)
+            os.link(baseFile, self.zFile)
         if not os.path.isfile(self.zCompFile):
             baseFile = self.zCompFile.replace(
                 'sim%d' % state.iSim, 'sim%d' % baserun)
             os.link(baseFile, self.zCompFile)
-
-
-def runcwfs(argList):
-    I1File = argList[0]
-    I1Field = argList[1]
-    I2File = argList[2]
-    I2Field = argList[3]
-    inst = argList[4]
-    algo = argList[5]
-    model = argList[6]
-
-    I1 = Image(readFile(I1File), I1Field, 'intra')
-    I2 = Image(readFile(I2File), I2Field, 'extra')
-    algo.reset(I1, I2)
-    algo.runIt(inst, I1, I2, model)
-
-    return np.append(algo.zer4UpNm * 1e-3, algo.caustic)

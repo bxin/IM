@@ -2,3 +2,4 @@ source/__pycache__/
 image/
 pert/
 data/flats
+.DS_Store

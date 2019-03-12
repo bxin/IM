@@ -114,7 +114,8 @@ assuming all data available',
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
     phosimDir = '{}/../../phosim_syseng4'.format(aosSrcDir)
-    # znPert = 28  # znmax used in pert file to define surfaces
+    pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
+    imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
 
     # *****************************************
     # run wavefront sensing algorithm
@@ -125,7 +126,7 @@ assuming all data available',
         effwave = aosTeleState.effwave[band]
     else:
         effwave = wavelength
-    wfs = aosWFS(cwfsDir, args.inst, algoFile,
+    wfs = aosWFS(cwfsDir, imageDir, args.inst, algoFile, args.iSim,
                  128, band, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
@@ -137,8 +138,6 @@ assuming all data available',
                         args.izn3, args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
-    pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
-    imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
                          pertDir, imageDir, band, wavelength,
@@ -175,6 +174,7 @@ assuming all data available',
             print('iteration No. %d' % iIter)
 
         state.setIterNo(metr, iIter, wfs=wfs)
+        wfs.setIterNo(iIter)
 
         if not args.ctrloff:
             if iIter > 0:  # args.startiter:
@@ -217,9 +217,8 @@ assuming all data available',
                     # create donuts for last iter,
                     # so that picking up from there will be easy
                     state.getWFSAll(wfs, catalog, args.numproc, args.debugLevel)
-                    wfs.preprocess(state, metr, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
-                    wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
+                    wfs.parallelCwfs(catalog, cwfsModel, args.numproc, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs' \
                         or args.sensor == 'check':
                     wfs.checkZ4C(state, metr, args.debugLevel)
