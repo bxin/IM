@@ -448,30 +448,12 @@ class aosTeleState(object):
             wfs.zCompFile = '%s/iter%d/checkZ4C_iter%d.png' % (
                 self.pertDir, self.iIter, self.iIter)
 
-            self.WFS_inst = []
-            for irun in range(wfs.nRun):
-                if wfs.nRun == 1:
-                    self.WFS_inst.append(
-                        '%s/iter%d/sim%d_iter%d_wfs%d.inst' % (
-                            self.pertDir, self.iIter, self.iSim, self.iIter,
-                            wfs.nWFS))
-                else:
-                    self.WFS_inst.append(
-                        '%s/iter%d/sim%d_iter%d_wfs%d_%s.inst' % (
-                            self.pertDir, self.iIter, self.iSim, self.iIter,
-                            wfs.nWFS, wfs.halfChip[irun]))
-            self.WFS_log = []
-            for irun in range(wfs.nRun):
-                if wfs.nRun == 1:
-                    self.WFS_log.append(
-                        '%s/iter%d/sim%d_iter%d_wfs%d.log' % (
+            self.WFS_inst = '%s/iter%d/sim%d_iter%d_wfs%d.inst' % (
+                     self.pertDir, self.iIter, self.iSim, self.iIter,
+                     wfs.nWFS)
+            self.WFS_log = '%s/iter%d/sim%d_iter%d_wfs%d.log' % (
                             self.imageDir, self.iIter, self.iSim, self.iIter,
-                            wfs.nWFS))
-                else:
-                    self.WFS_log.append(
-                        '%s/iter%d/sim%d_iter%d_wfs%d_%s.log' % (
-                            self.imageDir, self.iIter, self.iSim, self.iIter,
-                            wfs.nWFS, wfs.halfChip[irun]))
+                            wfs.nWFS)
             self.WFS_cmd = '%s/iter%d/sim%d_iter%d_wfs%d.cmd' % (
                 self.pertDir, self.iIter, self.iSim, self.iIter, wfs.nWFS)
 
@@ -625,142 +607,78 @@ perturbationmode 1\n')
         fpert.close()
         fid.close()
 
-    def getWFSAll(self, wfs, metr, numproc, debugLevel):
+    def getWFSAll(self, wfs, catalog, numproc, debugLevel):
 
-        self.writeWFSinst(wfs, metr)
+        self.writeWFSinst(wfs, catalog)
         self.writeWFScmd(wfs)
-        argList = []
-        for irun in range(wfs.nRun):
-            argList.append((self.WFS_inst[irun], self.WFS_cmd, self.inst,
-                                self.eimage, self.WFS_log[irun],
-                                self.phosimDir, numproc, debugLevel))
+        argList = [(self.WFS_inst, self.WFS_cmd, self.inst,
+                                self.eimage, self.WFS_log,
+                                self.phosimDir, numproc, debugLevel)]
 
         pool = multiprocessing.Pool(numproc)
         pool.map(runWFS1side, argList)
         pool.close()
         pool.join()
 
-        plt.figure(figsize=(10, 5))
-        for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
-            chipStr, px, py = self.fieldXY2Chip(
-                metr.fieldXp[i], metr.fieldYp[i], debugLevel)
-            if wfs.nRun == 1: # phosim generates C0 & C1 already
-                src = glob.glob('%s/output/*%s_f%d_%s*.fit*' %
-                                    (self.phosimDir, self.obsID,
-                                        phosimFilterID[self.band],
-                                    chipStr))
-                for s in src:
-                     runProgram('gunzip -f %s' % s)
-                     chipFile = s.replace('.gz', '')
-                     runProgram('mv -f %s %s/iter%d' %
-                         (chipFile, self.imageDir, self.iIter))
-            else: # need to pick up two sets of fits.gz with diff phosim ID
-                for ioffset in [0, 1]:
-                    src = glob.glob('%s/output/*%s_f%d_%s*E000.fit*' %
-                                    (self.phosimDir, self.obsID + ioffset,
-                                        phosimFilterID[self.band],
-                                    chipStr))
-                    for s in src:
-                        runProgram('gunzip -f %s' % s)
-                        chipFile = s.replace('.gz', '')
-                        targetFile = os.path.split(chipFile.replace(
-                            'E000', '%s_E000' % wfs.halfChip[ioffset]))[1]
-                        runProgram('mv -f %s %s/iter%d/%s' %
-                            (chipFile, self.imageDir, self.iIter,
-                                targetFile))
+        src = glob.glob('%s/output/*%s_f%d_*.fit*' %
+                            (self.phosimDir, self.obsID,
+                            phosimFilterID[self.band]))
+        for s in src:
+            runProgram('gunzip -f %s' % s)
+            chipFile = s.replace('.gz', '')
+            runProgram('mv -f %s %s/iter%d' %
+                (chipFile, self.imageDir, self.iIter))
         if self.eimage:
             self.runIsr()
 
-    def writeWFSinst(self, wfs, metr):
-        for irun in range(wfs.nRun):
-            fid = open(self.WFS_inst[irun], 'w')
-            fid.write('rightascension 0\n\
-declination 0\n\
-rotskypos 0\n\
-rottelpos 0\n\
-Opsim_filter %d\n\
-Opsim_obshistid %d\n\
-mjd %.10f\n\
-SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n\
-SIM_SEED %d\n\
-Opsim_rawseeing -1\n\
-altitude 90\n\
-azimuth 0\n' % (phosimFilterID[self.band],
-                             self.obsID + irun, self.timeIter.mjd,
-                             self.obsID % 10000 + 4))
-            fpert = open(self.pertFile, 'r')
-            hasCamPiston = False #pertFile already includes move 10
-            for line in fpert:
-                if wfs.nRun > 1 and line.split()[:2] == ['move', '10']:
-                    # move command follow Zemax coordinate system.
-                    fid.write('move 10 %9.4f\n' %
-                            (float(line.split()[2]) - wfs.offset[irun] * 1e3))
-                    hasCamPiston = True
-                else:
-                    fid.write(line)
-            if wfs.nRun > 1 and (not hasCamPiston):
-                fid.write('move 10 %9.4f\n' % (-wfs.offset[irun] * 1e3))
-    
-            fpert.close()
-            
-            if self.inst[:4] == 'lsst':
-                fid.write('SIM_CAMCONFIG 2\n')
-            elif self.inst[:6] == 'comcam':
-                fid.write('SIM_CAMCONFIG 1\n')
-    
-            ii = 0
-            for i in range(metr.nFieldp4 - wfs.nWFS, metr.nFieldp4):
-                if self.inst[:4] == 'lsst':
-                    if i % 2 == 1:  # field 31, 33, R44 and R00
-                        fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                            ii, metr.fieldXp[i] + 0.020, metr.fieldYp[i],
-                            self.cwfsMag, self.sedfile))
-                        ii += 1
-                        fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                            ii, metr.fieldXp[i] - 0.020, metr.fieldYp[i],
-                            self.cwfsMag, self.sedfile))
-                        ii += 1
-                    else:
-                        fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                            ii, metr.fieldXp[i], metr.fieldYp[i] + 0.020,
-                            self.cwfsMag, self.sedfile))
-                        ii += 1
-                        fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                            ii, metr.fieldXp[i], metr.fieldYp[i] - 0.020,
-                            self.cwfsMag, self.sedfile))
-                        ii += 1
-                elif self.inst[:6] == 'comcam':
-                    fid.write('object %2d\t%9.6f\t%9.6f %9.6f \
-../sky/%s 0.0 0.0 0.0 0.0 0.0 0.0 star 0.0  none  none\n' % (
-                        ii, metr.fieldXp[i], metr.fieldYp[i],
-                        self.cwfsMag, self.sedfile))
-                    ii += 1
-            fid.close()
-            fpert.close()
+    def writeWFSinst(self, wfs, catalog):
+        fid = open(self.WFS_inst, 'w')
+        preamble = """rightascension 0
+declination 0
+rotskypos 0
+rottelpos 0
+Opsim_filter {}
+Opsim_obshistid {}
+mjd {:.10f}
+SIM_VISTIME 15.0
+SIM_NSNAP 1
+SIM_SEED {}
+Opsim_rawseeing -1
+altitude 90
+azimuth 0
+SIM_CAMCONFIG 2
+""".format(phosimFilterID[self.band],
+                            self.obsID, self.timeIter.mjd,
+                            self.obsID % 10000 + 4)
+        fid.write(preamble)
+        fpert = open(self.pertFile, 'r')
+        hasCamPiston = False #pertFile already includes move 10
+        for line in fpert:
+                fid.write(line)
+        fpert.close()
+
+        body = catalog.getPhosimBody()
+        fid.write(body)
+        fid.close()
 
     def writeWFScmd(self, wfs):
         fid = open(self.WFS_cmd, 'w')
-        fid.write('backgroundmode 0\n\
-raydensity 0.0\n\
-perturbationmode 1\n\
-trackingmode 0\n\
-atmosphericdispersion 0\n\
-clearopacity\n\
-cleartracking\n\
-clearclouds\n\
-lascatprob 0.0\n\
-contaminationmode 0\n\
-diffractionmode 1\n\
-straylight 0\n\
-detectormode 0\n\
-centroidfile 1\n')
-# airrefraction 0\n\
-# coatingmode 0\n\ #this clears filter coating too
+        preamble = """backgroundmode 0
+raydensity 0.0
+perturbationmode 1
+trackingmode 0
+atmosphericdispersion 0
+clearopacity
+cleartracking
+clearclouds
+lascatprob 0.0
+contaminationmode 0
+diffractionmode 1
+straylight 0
+detectormode 0
+centroidfile 1
+"""
+        fid.write(preamble)
         fpert = open(self.pertCmdFile, 'r')
         fid.write(fpert.read())
         fpert.close()

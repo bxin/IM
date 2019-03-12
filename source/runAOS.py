@@ -18,6 +18,7 @@ from aosMetric import aosMetric
 from aosM1M3 import aosM1M3
 from aosM2 import aosM2
 from aosTeleState import aosTeleState
+from catalog import Catalog
 
 
 def main():
@@ -151,6 +152,21 @@ assuming all data available',
                          M1M3, M2,
                          effwave, args.gain, args.debugLevel)
 
+
+    catalog = Catalog()
+    d = 0.02
+    mag = state.cwfsMag
+    sed = state.sedfile
+    for i in range(metr.nField, metr.nFieldp4):
+        x = metr.fieldXp[i]
+        y = metr.fieldYp[i]
+        if i % 2 == 1: # field 31, 33; R44 and R00
+            catalog.addSource(x + d, y, mag, sed)
+            catalog.addSource(x - d, y, mag, sed)
+        else:
+            catalog.addSource(x, y + d, mag, sed)
+            catalog.addSource(x, y - d, mag, sed)
+
     # *****************************************
     # start the Loop
     # *****************************************
@@ -200,7 +216,7 @@ assuming all data available',
                 if args.sensor == 'phosim':
                     # create donuts for last iter,
                     # so that picking up from there will be easy
-                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
+                    state.getWFSAll(wfs, catalog, args.numproc, args.debugLevel)
                     wfs.preprocess(state, metr, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)

@@ -1,4 +1,3 @@
-import numpy as np
 from astropy.table import join, Table, vstack
 
 
@@ -18,6 +17,13 @@ class Catalog(object):
 
     def toFile(self, fname):
         self.table.write(fname, format='csv')
+
+    def getPhosimBody(self):
+        template = 'object {} {} {} {} ../sky/{} ' \
+               '0.0 0.0 0.0 0.0 0.0 0.0 star 0.0 none none\n'
+        lines = [template.format(sourceId, ra, dec, mag, sed) for sourceId, ra, dec, mag, sed in
+             self.table]
+        return ''.join(lines)
 
     @classmethod
     def fromFile(cls, fname):
