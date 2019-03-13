@@ -10,6 +10,8 @@ import argparse
 # import numpy as np
 import datetime
 import os
+import sys
+import subprocess
 
 from aosWFS import aosWFS
 from aosEstimator import aosEstimator
@@ -116,6 +118,8 @@ assuming all data available',
     phosimDir = '{}/../../phosim_syseng4'.format(aosSrcDir)
     pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
     imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
+
+    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'))
 
     # *****************************************
     # run wavefront sensing algorithm
@@ -227,7 +231,15 @@ assuming all data available',
                           args.startiter, args.enditer, args.debugLevel)
 
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
-    
+
+def logRunInfo(path):
+    date = subprocess.check_output(['date']).strip()
+    args = ' '.join(sys.argv)
+    version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+    log = 'date: {}\n args: {}\ngit: {}'.format(date, args, version)
+    with open(path) as fid:
+        fid.write(log)
+
 if __name__ == "__main__":
     timea = datetime.datetime.now().replace(microsecond=0)
     main()
