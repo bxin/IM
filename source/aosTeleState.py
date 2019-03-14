@@ -465,9 +465,8 @@ class aosTeleState(object):
                     metr.nFieldp4)
         self.zTrueFile =  '%s/iter%d/sim%d_iter%d_opd.zer' % (
                     self.imageDir, self.iIter, self.iSim, self.iIter)
-        self.atmFile = ['%s/iter%d/sim%d_iter%d_E00%d.atm' % (
-                    self.imageDir, self.iIter, self.iSim, self.iIter,
-            iexp) for iexp in [0]]
+        self.atmFile = '%s/iter%d/sim%d_iter%d_E000.atm' % (
+                    self.imageDir, self.iIter, self.iSim, self.iIter)
 
         if hasattr(self, 'M1M3surf'):
             self.M1M3zlist = '%s/iter%d/sim%d_M1M3zlist.txt' % (
@@ -616,15 +615,17 @@ perturbationmode 1\n')
         pool.close()
         pool.join()
 
-        runProgram('gunzip -r {}/output'.format(self.phosimDir))
+        runProgram('gunzip -frq {}/output'.format(self.phosimDir))
         src = glob.glob('%s/output/*%s_f%d_*' %
                             (self.phosimDir, self.obsID,
                             phosimFilterID[self.band]))
         for s in src:
             runProgram('mv -f %s %s/iter%d' %
                 (s, self.imageDir, self.iIter))
+
         if self.eimage:
             self.runIsr()
+
 
     def writeWFSinst(self, wfs, catalog):
         fid = open(self.WFS_inst, 'w')
@@ -758,6 +759,23 @@ centroidfile 1
                 fitsPrimary = fits.open(fitsIn)[0]
                 fitsPrimary.data = img
                 fitsPrimary.writeto(fitsOut, overwrite=True)
+
+
+    def makeAtmosphereFile(self, metr, wfs, debugLevel):
+        src = glob.glob('%s/iter%d/lsst_e_%d*R*E000.fits' %
+                        (self.imageDir, self.iIter, self.obsID))
+
+        chipFile = src[0]
+        chipImage, header = fits.getdata(chipFile, header=True)
+        fid = open(self.atmFile, 'w')
+        fid.write('Layer# \t seeing \t L0 \t\t wind_v \t wind_dir\n')
+        for ilayer in range(7):
+            fid.write('%d \t %.6f \t %.5f \t %.6f \t %.6f\n' % (
+                ilayer, header['SEE%d' % ilayer],
+                header['OSCL%d' % ilayer],
+                header['WIND%d' % ilayer],
+                header['WDIR%d' % ilayer]))
+        fid.close()
 
 def runProgram(command, binDir=None, argstring=None, verbose=False):
     myCommand = command

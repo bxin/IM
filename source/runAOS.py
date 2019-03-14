@@ -119,8 +119,6 @@ assuming all data available',
     pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
     imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
 
-    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'))
-
     # *****************************************
     # run wavefront sensing algorithm
     # *****************************************
@@ -154,7 +152,6 @@ assuming all data available',
     ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs,
                          M1M3, M2,
                          effwave, args.gain, args.debugLevel)
-
 
     catalog = Catalog()
     d = 0.02
@@ -221,6 +218,7 @@ assuming all data available',
                     # create donuts for last iter,
                     # so that picking up from there will be easy
                     state.getWFSAll(wfs, catalog, args.numproc, args.debugLevel)
+                    state.makeAtmosphereFile(metr, wfs, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
                     wfs.parallelCwfs(catalog, cwfsModel, args.numproc, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs' \
@@ -229,6 +227,8 @@ assuming all data available',
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
+    catalog.table.write('{}/catalog.csv'.format(pertDir), format='csv')
+    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'))
 
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
 
@@ -236,8 +236,8 @@ def logRunInfo(path):
     date = subprocess.check_output(['date']).strip()
     args = ' '.join(sys.argv)
     version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-    log = 'date: {}\n args: {}\ngit: {}'.format(date, args, version)
-    with open(path) as fid:
+    log = 'finished: {}\n args: {}\ngit: {}'.format(date, args, version)
+    with open(path, 'w') as fid:
         fid.write(log)
 
 if __name__ == "__main__":

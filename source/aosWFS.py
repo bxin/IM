@@ -12,6 +12,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import join, Table
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import seaborn.apionly as sns
 
 from lsst.cwfs.algorithm import Algorithm
 from lsst.cwfs.instrument import Instrument
@@ -84,8 +86,8 @@ class aosWFS(object):
         for chip in chips:
             intraChip = chip + '_C0'
             extraChip = chip + '_C1'
-            intraIdx = (candidates['chip'] == intraChip)
-            extraIdx = (candidates['chip'] == extraChip)
+            intraIdx = (candidates['halfchip'] == intraChip)
+            extraIdx = (candidates['halfchip'] == extraChip)
             intraDonuts = candidates[intraIdx].copy(copy_data=True)
             extraDonuts = candidates[extraIdx].copy(copy_data=True)
 
@@ -134,8 +136,8 @@ class aosWFS(object):
             extraFieldX = extraCandidate['ra']
             extraFieldY = extraCandidate['dec']
 
-            intraImage = Image(intraCrop, (intraFieldX, intraFieldY), 'intra')
-            extraImage = Image(extraCrop, (extraFieldX, extraFieldY), 'extra')
+            intraImage = Image(intraCrop, (extraFieldX, extraFieldY), 'intra')
+            extraImage = Image(extraCrop, (intraFieldX, intraFieldY), 'extra')
 
             argList.append((self.algo, chip, intraSourceId, extraSourceId, intraImage, extraImage,
                             self.inst,
@@ -186,13 +188,12 @@ class aosWFS(object):
         if debugLevel > 0:
             self.writeTable(candidates, 'candidates.csv')
             self.writeTable(pairs, 'pairs.csv')
-            self.plotPairsAndZernikes(argList, zernikes)
+            # self.plotPairing(candidates, pairs, 'pairing.png')
+            self.plotDonutsAndZernikes(argList, zernikes, 'donutsAndZernikes.png')
             self.writeTable(zernikes, 'zernikes.csv')
             # self.plotMasterZernikes(masterZernikes, 'masterZernikes')
 
         np.savetxt(self.zFile, oldOut)
-
-        # self.writeMasterZernikes(masterZernikes, master=True)
 
     def writeTable(self, table, fname):
         imgDir = self.getCurrentImagePath()
@@ -210,7 +211,69 @@ class aosWFS(object):
         arr = [row[key] for key in aosWFS.ZS + ['caustic']]
         return np.array(arr)
 
-    def plotPairsAndZernikes(self, argList, zernikes):
+    # def plotPairing(self, candidates, pairs, zernikes, fname):
+    #     chips = np.unique(pairs['chip'])
+    #     nChips = len(chips)
+    #     pltRows = 4
+    #     for chip in chips:
+    #         intraBoxes = []
+    #         extraBoxes = []
+    #
+    #         chipPairs = pairs[pairs['chip'] == chip]
+    #         nPairs = len(chipPairs)
+    #         palette = sns.palplot(sns.color_palette("husl", nPairs))
+    #         for i,row in enumerate(chipPairs):
+    #             intraSourceId = row['intraSourceId']
+    #             extraSourceId = row['extraSourceId']
+    #
+    #             intraCandidate = candidates[candidates['sourceId'] == intraSourceId][0]
+    #             extraCandidate = candidates[candidates['sourceId'] == extraSourceId][0]
+    #
+    #             intraPixX = intraCandidate['pixX']
+    #             intraPixY = intraCandidate['pixY']
+    #             extraPixX = extraCandidate['pixX']
+    #             extraPixY = extraCandidate['pixY']
+    #
+    #             width = 128
+    #             halfwidth = width // 2
+    #
+    #             # Also switch x,y to be consistent with image.
+    #             intraCorner = (intraPixY - halfwidth, intraPixX - halfwidth)
+    #             extraCorner = (extraPixY - halfwidth, extraPixX - halfwidth)
+    #
+    #             intraBoxes.append(Rectangle(intraCorner, width, width, fill=False,
+    #                                         color=palette[i]))
+    #             extraBoxes.append(Rectangle(extraCorner, width, width, fill=False,
+    #                                         color=palette[i]))
+    #
+    #         plt.subplot(nChips, pltRows, i+1)
+    #         plt.title()
+    #         halfchip = chip + '_C0'
+    #         img = self.getImage(halfchip)
+    #         plt.title(halfchip)
+    #         cb = plt.imshow(img, cmap='hot', origin='lower')
+    #         plt.colorbar(cb)
+    #         for box in intraBoxes:
+    #             plt.gca().add_patch(box)
+    #
+    #         plt.subplot(nChips, pltRows, i+2)
+    #         halfchip = chip + '_C1'
+    #         img = self.getImage(halfchip)
+    #
+    #         plt.title(halfchip)
+    #         plt.imshow()
+    #
+    #         plt.subplot(nChips, pltRows, i+3)
+    #         plt.imshow()
+    #
+    #         plt.subplot(nChips, pltRows, i+4)
+    #         plt.imshow()
+    #
+    #         self.getImage()
+    #         path = os.path.join(self.getCurrentImagePath(), fname)
+    #         plt.savefig(path)
+
+    def plotDonutsAndZernikes(self, argList, zernikes, fname):
         nPairs = len(argList)
         plt.figure(figsize=(8.5, nPairs * 2.5))
         zChipTable = zernikes[['chip'] + self.ZS].group_by('chip').groups.aggregate(np.mean)
@@ -244,10 +307,9 @@ class aosWFS(object):
             plt.grid(b=True)
             plt.legend()
 
-        path = os.path.join(self.getCurrentImagePath(), 'pairsAndZernikes.png')
+        path = os.path.join(self.getCurrentImagePath(), fname)
         plt.tight_layout()
         plt.savefig(path)
-
 
     @staticmethod
     def runcwfs(args):
@@ -257,7 +319,7 @@ class aosWFS(object):
         return chip, intraSourceId, extraSourceId, algo.caustic, algo.zer4UpNm * 1e-3
 
     def getPhosimCentroid(self):
-        centroids = Table(names=['chip', 'sourceId', 'nphoton', 'pixX', 'pixY'],
+        centroids = Table(names=['halfchip', 'sourceId', 'nphoton', 'pixX', 'pixY'],
                           dtype=['S', 'i4', 'f4', 'i4', 'i4'])
 
         # example centroid file: centroid_lsst_e_9018000_f1_R00_S22_C1_E000.txt
@@ -299,12 +361,12 @@ class aosWFS(object):
 
         raftToRotations = {
             'R00': 0,
-            'R40': 1,
+            'R04': 1,
             'R44': 2,
-            'R04': 3
+            'R40': 3
         }
 
-        image = np.rot90(image, raftToRotations[raft]).transpose()
+        image = np.rot90(image, raftToRotations[raft])
         return image
 
 

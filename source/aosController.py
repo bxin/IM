@@ -326,7 +326,7 @@ class aosController(object):
                 'iter%d' % endIter, 'iter%d' % iIter)
             allelli[:, iIter - startIter] = np.loadtxt(filename)
 
-            filename = state.atmFile[0].replace(
+            filename = state.atmFile.replace(
                 'iter%d' % endIter, 'iter%d' % iIter)
             seeingdata = np.loadtxt(filename, skiprows =1)
             w = seeingdata[:,1]
