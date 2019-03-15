@@ -714,10 +714,14 @@ centroidfile 1
                        verbose=True)
             os.chdir(cwd)
 
+        if os.path.exists(repackagedDir):
+            shutil.rmtree(repackagedDir)
         os.mkdir(repackagedDir)
         runProgram('phosim_repackager.py {} --out_dir {}'.format(outputDir, repackagedDir),
                    verbose=True)
 
+        if os.path.exists(butlerDir):
+            shutil.rmtree(butlerDir)
         os.mkdir(butlerDir)
         runProgram('echo lsst.obs.lsst.phosim.PhosimMapper > {}/_mapper'.format(butlerDir),
                    verbose=True)
@@ -759,6 +763,10 @@ centroidfile 1
                 fitsPrimary = fits.open(fitsIn)[0]
                 fitsPrimary.data = img
                 fitsPrimary.writeto(fitsOut, overwrite=True)
+        
+        # butlerDir is ~ 5GB
+        shutil.rmtree(butlerDir)
+        shutil.rmtree(repackagedDir)
 
 
     def makeAtmosphereFile(self, metr, wfs, debugLevel):

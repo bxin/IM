@@ -65,6 +65,10 @@ class aosWFS(object):
             print(self.intrinsicWFS.shape)
             print(self.intrinsicWFS[:5])
 
+    def setIsr(self, runIsr):
+        if runIsr is not None:
+            self.runIsr = runIsr
+
     def setIterNo(self, iIter):
         self.obsId = 9000000 + self.iSim * 1000 + iIter * 10
         self.iIter = iIter
@@ -295,6 +299,8 @@ class aosWFS(object):
 
             plt.subplot(nPairs,3,i*3+3)
             plt.title('Zernikes', fontsize=8)
+            plt.ylabel('um')
+            plt.xlabel('Z_i')
             zPair = aosWFS.rowToZernikes(zernikes[i])
             zChip = aosWFS.rowToZernikes(zChipTable[zChipTable['chip'] == chip][0])
             zDomain = range(4, 23)
@@ -343,7 +349,8 @@ class aosWFS(object):
     def getImage(self, chip):
         imagePath = self.getCurrentImagePath()
         filt = aosTeleState.phosimFilterID[self.band]
-        fname = 'lsst_e_{}_f{}_{}_E000.fits'.format(self.obsId, filt, chip)
+        isr = '_isr' if self.runIsr else ''
+        fname = 'lsst_e_{}_f{}_{}_E000{}.fits'.format(self.obsId, filt, chip, isr)
         img = fits.open(os.path.join(imagePath, fname))[0].data
         return img
 

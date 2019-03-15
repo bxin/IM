@@ -145,6 +145,7 @@ assuming all data available',
                          pertDir, imageDir, band, wavelength,
                          args.enditer,
                          args.debugLevel, M1M3=M1M3, M2=M2)
+    wfs.setIsr(state.eimage)
     # *****************************************
     # control algorithm
     # *****************************************
@@ -236,7 +237,7 @@ def logRunInfo(path):
     date = subprocess.check_output(['date']).strip()
     args = ' '.join(sys.argv)
     version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-    log = 'finished: {}\n args: {}\ngit: {}'.format(date, args, version)
+    log = 'finished: {}\nargs: {}\ngit: {}'.format(date, args, version)
     with open(path, 'w') as fid:
         fid.write(log)
 
