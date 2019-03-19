@@ -89,6 +89,9 @@ assuming all data available',
                         default=0, choices=(-1, 0, 1, 2, 3),
                         help='debug level, -1=quiet, 0=Zernikes, \
                         1=operator, 2=expert, 3=everything, default=0')
+    parser.add_argument('-o', dest='outputDir', default = '',
+                        help='output directory,\
+                        default=aosSrcDir/../')
     parser.add_argument('-baserun', dest='baserun', default=-1, type=int,
                         help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
@@ -117,7 +120,12 @@ assuming all data available',
     M2 = aosM2(args.debugLevel)
     phosimDir = '{}/../../phosim_syseng4'.format(aosSrcDir)
     pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
-    imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
+    if not args.outputDir:
+        pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
+        imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
+    else:
+        pertDir = '%s/pert/sim%d' %(args.outputDir, args.iSim)
+        imageDir = '%s/image/sim%d' %(args.outputDir, args.iSim)
 
     # *****************************************
     # run wavefront sensing algorithm
@@ -234,10 +242,10 @@ assuming all data available',
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
 
 def logRunInfo(path):
-    date = subprocess.check_output(['date']).strip()
+    date = subprocess.check_output(['date']).strip().decode('ascii')
     args = ' '.join(sys.argv)
-    version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-    log = 'finished: {}\nargs: {}\ngit: {}'.format(date, args, version)
+    version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('ascii')
+    log = 'finished: {}\nargs: {}\ngit: {}\n'.format(date, args, version)
     with open(path, 'w') as fid:
         fid.write(log)
 

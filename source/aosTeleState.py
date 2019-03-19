@@ -791,6 +791,7 @@ def runProgram(command, binDir=None, argstring=None, verbose=False):
         myCommand = os.path.join(binDir, command)
     if argstring is not None:
         myCommand += (' ' + argstring)
+    print(myCommand)
     result = subprocess.run(myCommand, shell=True, stdin=subprocess.PIPE)
     if verbose:
         print('runProgram: ', result.stdout)

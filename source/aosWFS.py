@@ -202,7 +202,7 @@ class aosWFS(object):
     def writeTable(self, table, fname):
         imgDir = self.getCurrentImagePath()
         path = os.path.join(imgDir, fname)
-        table.write(path, format='csv')
+        table.write(path, format='csv',overwrite=True)
 
     @staticmethod
     def rowToZernikes(row):
@@ -364,6 +364,11 @@ class aosWFS(object):
 
     @staticmethod
     def rotateByChip(chip, image):
+        """
+        Wavefront sensors are rotated. 
+        Pixel (0,0) is not at lower left corner in the CCS.
+        This puts the wavefront sensors into the CCS
+        """
         raft = chip.split('_')[0]
 
         raftToRotations = {
