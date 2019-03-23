@@ -136,8 +136,8 @@ assuming all data available',
         effwave = aosTeleState.effwave[band]
     else:
         effwave = wavelength
-    wfs = aosWFS(cwfsDir, imageDir, args.inst, algoFile, args.iSim,
-                 128, band, effwave, args.debugLevel)
+    wfs = aosWFS(cwfsDir, imageDir, args.inst, algoFile, args.iSim, 192
+                 , band, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
 

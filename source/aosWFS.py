@@ -35,10 +35,10 @@ class aosWFS(object):
         self.nRun = 1
         self.nExp = 1
         self.wfsName = ['intra', 'extra']
-        self.offset = [-1.5, 1.5]  # default offset
         self.halfChip = ['C0', 'C1']  # C0 is always intra, C1 is extra
 
         self.cwfsDir = cwfsDir
+        self.imgSizeinPix = imgSizeinPix
         self.inst = Instrument(instruFile, imgSizeinPix)
         self.algo = Algorithm(algoFile, self.inst, debugLevel)
         self.znwcs = self.algo.numTerms
@@ -127,8 +127,8 @@ class aosWFS(object):
             extraPixX = extraCandidate['pixX']
             extraPixY = extraCandidate['pixY']
 
-            intraCrop = self.getCrop(intraChip, intraPixX, intraPixY, widthPix=128)
-            extraCrop = self.getCrop(extraChip, extraPixX, extraPixY, widthPix=128)
+            intraCrop = self.getCrop(intraChip, intraPixX, intraPixY, widthPix=self.imgSizeinPix)
+            extraCrop = self.getCrop(extraChip, extraPixX, extraPixY, widthPix=self.imgSizeinPix)
 
             # Necessary to reconcile phosim fits files axes with focal plane layout.
             intraCrop = self.rotateByChip(chip, intraCrop)
