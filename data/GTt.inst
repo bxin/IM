@@ -37,9 +37,9 @@ znPert		28
 surfaceGridN	200
 
 #wavefront sensing star magnitude
-cwfs_mag	17
+cwfs_mag	15
 #wavefront sensing image stamp size
-cwfs_stamp_size	128
+cwfs_stamp_size	192
 
 #use 0 for eimage only, without backgrounds
 eimage		1
