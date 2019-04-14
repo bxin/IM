@@ -131,6 +131,7 @@ assuming all data available',
     # run wavefront sensing algorithm
     # *****************************************
     cwfsDir = '{}/../../cwfs'.format(aosSrcDir)
+    imDir = '..'
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
@@ -237,15 +238,23 @@ assuming all data available',
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
     catalog.table.write('{}/catalog.csv'.format(pertDir), format='csv')
-    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'))
+    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'), cwfsDir, imDir, phosimDir)
 
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
 
-def logRunInfo(path):
-    date = subprocess.check_output(['date']).strip().decode('ascii')
+def logRunInfo(path, cwfsDir, imDir, phosimDir):
+    date = subprocess.check_output('date').strip().decode('ascii')
     args = ' '.join(sys.argv)
-    version = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('ascii')
-    log = 'finished: {}\nargs: {}\ngit: {}\n'.format(date, args, version)
+    cmd = 'git -C {} log --pretty=format:"%h" -n 1'
+    cwfsVersion = subprocess.check_output(cmd.format(cwfsDir), shell=True).decode('ascii')
+    imVersion = subprocess.check_output(cmd.format(imDir), shell=True).decode('ascii')
+    phosimVersion = subprocess.check_output(cmd.format(phosimDir), shell=True).decode(
+        'ascii')
+    log = """finished: {}
+args: {}
+cwfs: {}
+im: {}
+phosim: {}""".format(date, args, cwfsVersion, imVersion, phosimVersion)
     with open(path, 'w') as fid:
         fid.write(log)
 
