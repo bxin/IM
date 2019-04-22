@@ -12,6 +12,7 @@ import datetime
 import os
 import sys
 import subprocess
+import pytz
 
 from aosWFS import aosWFS
 from aosEstimator import aosEstimator
@@ -24,6 +25,7 @@ from catalog import Catalog
 
 
 def main():
+    date0 = datetime.datetime.now(pytz.timezone('America/Los_Angeles')).replace(microsecond=0)
     parser = argparse.ArgumentParser(
         description='-----LSST Integrated Model------')
 
@@ -131,7 +133,7 @@ assuming all data available',
     # run wavefront sensing algorithm
     # *****************************************
     cwfsDir = '{}/../../cwfs'.format(aosSrcDir)
-    imDir = '..'
+    imDir = '{}/../../IM'.format(aosSrcDir)
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
@@ -237,29 +239,30 @@ assuming all data available',
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
-    catalog.table.write('{}/catalog.csv'.format(pertDir), format='csv')
-    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'), cwfsDir, imDir, phosimDir)
+    catalog.table.write('{}/catalog.csv'.format(pertDir), format='csv', overwrite=True)
+    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'), cwfsDir, imDir, phosimDir, date0, args.startiter, args.enditer)
 
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
 
-def logRunInfo(path, cwfsDir, imDir, phosimDir):
-    date = subprocess.check_output('date').strip().decode('ascii')
+def logRunInfo(path, cwfsDir, imDir, phosimDir, date0, startiter, enditer):
+    date = datetime.datetime.now(pytz.timezone('America/Los_Angeles')).replace(microsecond=0)
     args = ' '.join(sys.argv)
     cmd = 'git -C {} log --pretty=format:"%h" -n 1'
     cwfsVersion = subprocess.check_output(cmd.format(cwfsDir), shell=True).decode('ascii')
     imVersion = subprocess.check_output(cmd.format(imDir), shell=True).decode('ascii')
     phosimVersion = subprocess.check_output(cmd.format(phosimDir), shell=True).decode(
         'ascii')
-    log = """finished: {}
+    log = """started: {}
+finished: {}
+iterations from {} to {}
+average time per iteration: {}
 args: {}
-cwfs: {}
-im: {}
-phosim: {}""".format(date, args, cwfsVersion, imVersion, phosimVersion)
+cwfs commit: {}
+im commit: {}
+phosim commit: {}
+""".format(date0, date, startiter, enditer, (date-date0)/(enditer-startiter+1), args, cwfsVersion, imVersion, phosimVersion)
     with open(path, 'w') as fid:
         fid.write(log)
 
 if __name__ == "__main__":
-    timea = datetime.datetime.now().replace(microsecond=0)
     main()
-    timeb = datetime.datetime.now().replace(microsecond=0)
-    print('This is how long this took: %s' % (timeb - timea))
