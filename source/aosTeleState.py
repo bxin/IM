@@ -633,13 +633,13 @@ perturbationmode 1\n')
 declination 0
 rotskypos 0
 rottelpos 0
-Opsim_filter {}
-Opsim_obshistid {}
+filter {}
+obshistid {}
 mjd {:.10f}
-SIM_VISTIME 15.0
-SIM_NSNAP 1
-SIM_SEED {}
-Opsim_rawseeing -1
+vistime 15.0
+nsnap 1
+seed {}
+seeing -1
 altitude 90
 azimuth 0
 SIM_CAMCONFIG 2
@@ -648,7 +648,6 @@ SIM_CAMCONFIG 2
                             self.obsID % 10000 + 4)
         fid.write(preamble)
         fpert = open(self.pertFile, 'r')
-        hasCamPiston = False #pertFile already includes move 10
         for line in fpert:
                 fid.write(line)
         fpert.close()
