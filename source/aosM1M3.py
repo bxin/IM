@@ -32,12 +32,14 @@ class aosM1M3(object):
 
         # bending modes
         aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_grid.txt'%aosSrcDir)
+        aa = np.load('{}/../data/M1M3/M1M3_1um_156_grid.npy'.format(aosSrcDir))
+
         self.nodeID = aa[:, 0]
         self.bx = aa[:, 1]
         self.by = aa[:, 2]
         self.bz = aa[:, 3:]
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_1um_156_force.txt'%aosSrcDir)
+        aa = np.load('{}/../data/M1M3/M1M3_1um_156_force.npy'.format(aosSrcDir))
+
         self.actID = aa[:, 0]
         self.actx = aa[:, 1]
         self.acty = aa[:, 2]
@@ -53,23 +55,24 @@ class aosM1M3(object):
         self.bx, self.by, self.bz = ct.M1CRS2ZCRS(self.bx, self.by, self.bz)
 
         # data needed to determine gravitational print through
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_dxdydz_zenith.txt'%aosSrcDir)
+        aa = np.load('{}/../data/M1M3/M1M3_dxdydz_zenith.npy'.format(aosSrcDir))
         self.zdx = aa[:, 0]
         self.zdy = aa[:, 1]
         self.zdz = aa[:, 2]
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_dxdydz_horizon.txt'%aosSrcDir)
+        aa = np.load('{}/../data/M1M3/M1M3_dxdydz_horizon.npy'.format(aosSrcDir))
         self.hdx = aa[:, 0]
         self.hdy = aa[:, 1]
         self.hdz = aa[:, 2]
-        self.zf = np.loadtxt('%s/../data/M1M3/M1M3_force_zenith.txt'%aosSrcDir)
-        self.hf = np.loadtxt('%s/../data/M1M3/M1M3_force_horizon.txt'%aosSrcDir)
-        self.G = np.loadtxt('%s/../data/M1M3/M1M3_influence_256.txt'%aosSrcDir)
-        self.LUTfile = '%s/../data/M1M3/M1M3_LUT.txt'%aosSrcDir
+        self.zf = np.load('{}/../data/M1M3/M1M3_force_zenith.npy'.format(aosSrcDir))
+        self.hf = np.load('{}/../data/M1M3/M1M3_force_horizon.npy'.format(aosSrcDir))
+        self.G = np.load('{}/../data/M1M3/M1M3_influence_256.npy'.format(aosSrcDir))
+
+        self.LUTfile = '{}/../data/M1M3/M1M3_LUT.txt'.format(aosSrcDir)
         self.nzActuator = 156
         self.nActuator = 256
 
         # data needed to determine thermal deformation
-        aa = np.loadtxt('%s/../data/M1M3/M1M3_thermal_FEA.txt'%aosSrcDir, skiprows=1)
+        aa = np.load('{}/../data/M1M3/M1M3_thermal_FEA.npy'.format(aosSrcDir))
         x, y, _ = ct.ZCRS2M1CRS(self.bx, self.by, self.bz)
         # these are normalized coordinates
         # n.b. these may not have been normalized correctly, b/c max(tx)=1.0
@@ -78,20 +81,26 @@ class aosM1M3(object):
         tx = aa[:, 0]
         ty = aa[:, 1]
         # below are in M1M3 coordinate system, and in micron
-        ip = Rbf(tx, ty, aa[:, 2])
-        self.tbdz = ip(x / self.R, y / self.R)
-        ip = Rbf(tx, ty, aa[:, 3])
-        self.txdz = ip(x / self.R, y / self.R)
-        ip = Rbf(tx, ty, aa[:, 4])
-        self.tydz = ip(x / self.R, y / self.R)
-        ip = Rbf(tx, ty, aa[:, 5])
-        self.tzdz = ip(x / self.R, y / self.R)
-        ip = Rbf(tx, ty, aa[:, 6])
-        self.trdz = ip(x / self.R, y / self.R)
+        # ip = Rbf(tx, ty, aa[:, 2])
+        # self.tbdz = ip(x / self.R, y / self.R)
+        self.tbdz = np.load('{}/../data/M1M3/tbdz.npy'.format(aosSrcDir))
+        # ip = Rbf(tx, ty, aa[:, 3])
+        # self.txdz = ip(x / self.R, y / self.R)
+        self.txdz = np.load('{}/../data/M1M3/txdz.npy'.format(aosSrcDir))
+        # ip = Rbf(tx, ty, aa[:, 4])
+        # self.tydz = ip(x / self.R, y / self.R)
+        self.tydz = np.load('{}/../data/M1M3/tydz.npy'.format(aosSrcDir))
+        # ip = Rbf(tx, ty, aa[:, 5])
+        # self.tzdz = ip(x / self.R, y / self.R)
+        self.tzdz = np.load('{}/../data/M1M3/tzdz.npy'.format(aosSrcDir))
+        # ip = Rbf(tx, ty, aa[:, 6])
+        # self.trdz = ip(x / self.R, y / self.R)
+        self.trdz = np.load('{}/../data/M1M3/trdz.npy'.format(aosSrcDir))
 
         # data needed to determine how force balance system will respond to a single broken actuator
         # units are meter (you see a lot of 1e-6)
-        self.ULshape = np.loadtxt('%s/../data/M1M3/M1M3_1000N_UL_shape_156.txt'%aosSrcDir)
+        self.ULshape = np.load('{}/../data/M1M3/M1M3_1000N_UL_shape_156.npy'.format(aosSrcDir))
+
 
     def idealShape(self, x, y, annulus, dr1=0, dr3=0, dk1=0, dk3=0):
         """
