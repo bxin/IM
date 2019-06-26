@@ -1,11 +1,15 @@
 import numpy as np
 from astropy.table import Table
 
-class Catalog(object):
 
+class Catalog(object):
+    """
+    Object for representing catalogs.
+    Basically wraps an astropy table.
+    """
     def __init__(self, table=None):
         self.__sourceIdCounter = 0
-        if table:
+        if table is not None:
             self.table = table
         else:
             self.table = Table(names=('sourceId', 'ra', 'dec', 'mag', 'sed'),
@@ -38,7 +42,7 @@ class GridCatalog(Catalog):
     """
     def __init__(self, n=5, chips=['R00_S22', 'R04_S20', 'R40_S02', 'R44_S00'], mag=17,
                  sed='../sky/sed_500.txt'):
-        super().__init__(self)
+        super().__init__()
 
         # lazy imports
         from lsst.obs.lsst.phosim import PhosimMapper
