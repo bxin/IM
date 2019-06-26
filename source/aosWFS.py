@@ -192,7 +192,7 @@ class aosWFS(object):
         if debugLevel > 0:
             self.writeTable(candidates, 'candidates.csv')
             self.writeTable(pairs, 'pairs.csv')
-            # self.plotPairing(candidates, pairs, 'pairing.png')
+            self.plotPairing(candidates, pairs, 'pairing.png')
             self.plotDonutsAndZernikes(argList, zernikes, 'donutsAndZernikes.png')
             self.writeTable(zernikes, 'zernikes.csv')
             # self.plotMasterZernikes(masterZernikes, 'masterZernikes')
@@ -215,67 +215,86 @@ class aosWFS(object):
         arr = [row[key] for key in aosWFS.ZS + ['caustic']]
         return np.array(arr)
 
-    # def plotPairing(self, candidates, pairs, zernikes, fname):
-    #     chips = np.unique(pairs['chip'])
-    #     nChips = len(chips)
-    #     pltRows = 4
-    #     for chip in chips:
-    #         intraBoxes = []
-    #         extraBoxes = []
-    #
-    #         chipPairs = pairs[pairs['chip'] == chip]
-    #         nPairs = len(chipPairs)
-    #         palette = sns.palplot(sns.color_palette("husl", nPairs))
-    #         for i,row in enumerate(chipPairs):
-    #             intraSourceId = row['intraSourceId']
-    #             extraSourceId = row['extraSourceId']
-    #
-    #             intraCandidate = candidates[candidates['sourceId'] == intraSourceId][0]
-    #             extraCandidate = candidates[candidates['sourceId'] == extraSourceId][0]
-    #
-    #             intraPixX = intraCandidate['pixX']
-    #             intraPixY = intraCandidate['pixY']
-    #             extraPixX = extraCandidate['pixX']
-    #             extraPixY = extraCandidate['pixY']
-    #
-    #             width = 128
-    #             halfwidth = width // 2
-    #
-    #             # Also switch x,y to be consistent with image.
-    #             intraCorner = (intraPixY - halfwidth, intraPixX - halfwidth)
-    #             extraCorner = (extraPixY - halfwidth, extraPixX - halfwidth)
-    #
-    #             intraBoxes.append(Rectangle(intraCorner, width, width, fill=False,
-    #                                         color=palette[i]))
-    #             extraBoxes.append(Rectangle(extraCorner, width, width, fill=False,
-    #                                         color=palette[i]))
-    #
-    #         plt.subplot(nChips, pltRows, i+1)
-    #         plt.title()
-    #         halfchip = chip + '_C0'
-    #         img = self.getImage(halfchip)
-    #         plt.title(halfchip)
-    #         cb = plt.imshow(img, cmap='hot', origin='lower')
-    #         plt.colorbar(cb)
-    #         for box in intraBoxes:
-    #             plt.gca().add_patch(box)
-    #
-    #         plt.subplot(nChips, pltRows, i+2)
-    #         halfchip = chip + '_C1'
-    #         img = self.getImage(halfchip)
-    #
-    #         plt.title(halfchip)
-    #         plt.imshow()
-    #
-    #         plt.subplot(nChips, pltRows, i+3)
-    #         plt.imshow()
-    #
-    #         plt.subplot(nChips, pltRows, i+4)
-    #         plt.imshow()
-    #
-    #         self.getImage()
-    #         path = os.path.join(self.getCurrentImagePath(), fname)
-    #         plt.savefig(path)
+    def plotPairing(self, candidates, pairs, fname):
+        fig, axes = plt.subplots(2, 2)
+        plotToChip = {
+            (0, 0): 'R04_S20',
+            (0, 1): 'R44_S00',
+            (1, 0): 'R00_S22',
+            (1, 1): 'R40_S02'
+        }
+        rotPerChip = {
+            'R04_S20': 1,
+            'R44_S00': 0,
+            'R40_S02': 3,
+            'R00_S22': 2
+        }
+        horizontalChips = set(['R04_S20', 'R40_S02'])
+
+        for i in range(2):
+            for j in range(2):
+                ax = axes[i, j]
+                chip = plotToChip[(i, j)]
+                intraHalfchip = chip + '_C0'
+                chip0 = self.getImage(intraHalfchip)
+                extraHalfchip = chip + '_C1'
+                chip1 = self.getImage(extraHalfchip)
+                nx, ny = chip0.shape
+                combined = np.zeros((nx, 2 * ny))
+                combined[:, :ny] = chip0
+                combined[:, ny:] = chip1
+                combined = combined[:, ::-1]
+                rotCombined = np.rot90(combined, rotPerChip[chip])
+                ax.set_title(chip)
+                ax.axis('off')
+                ax.imshow(rotCombined, cmap='hot', vmin=0, vmax=10)
+                if chip in horizontalChips:
+                    ax.axhline(2000, color='white')
+                else:
+                    ax.axvline(2000, color='white')
+
+                chipPairs = pairs[pairs['chip'] == chip]
+                palette = sns.color_palette("husl", len(chipPairs))
+                for k, row in enumerate(chipPairs):
+                    intraSourceId = row['intraSourceId']
+                    extraSourceId = row['extraSourceId']
+                    intraX, intraY = \
+                    candidates[candidates['sourceId'] == intraSourceId]['pixX', 'pixY'][0]
+                    extraX, extraY = \
+                    candidates[candidates['sourceId'] == extraSourceId]['pixX', 'pixY'][0]
+
+                    # account for the chip rotation in different corners
+                    if chip == 'R44_S00':
+                        loc = 'upper right'
+                        intraXprime = 4000 - intraX
+                        extraXprime = 2000 - extraX
+                        intraYprime = intraY
+                        extraYprime = extraY
+                    elif chip == 'R00_S22':
+                        loc = 'lower left'
+                        intraXprime = 4000 - (4000 - intraX)
+                        extraXprime = 4000 - (2000 - extraX)
+                        intraYprime = 4072 - intraY
+                        extraYprime = 4072 - extraY
+                    elif chip == 'R04_S20':
+                        loc = 'upper left'
+                        intraXprime = intraY
+                        extraXprime = extraY
+                        intraYprime = 4000 - (4000 - intraX)
+                        extraYprime = 4000 - (2000 - extraX)
+                    elif chip == 'R40_S02':
+                        loc = 'lower right'
+                        intraXprime = 4072 - intraY
+                        extraXprime = 4072 - extraY
+                        intraYprime = (4000 - intraX)
+                        extraYprime = (2000 - extraX)
+                    ax.plot([intraXprime, extraXprime], [intraYprime, extraYprime],
+                            color=palette[k], label='{}, {}'.format(i, j), alpha=0.5)
+                ax.legend(ncol=3, fontsize=6, loc=loc, framealpha=0.3, columnspacing=0.5,
+                          labelspacing=0.3, handlelength=0.2)
+        fig.set_size_inches((10, 10))
+        path = os.path.join(self.getCurrentImagePath(), fname)
+        fig.savefig(path, dpi=300)
 
     def plotDonutsAndZernikes(self, argList, zernikes, fname):
         nPairs = len(argList)
@@ -304,11 +323,11 @@ class aosWFS(object):
             zPair = aosWFS.rowToZernikes(zernikes[i])
             zChip = aosWFS.rowToZernikes(zChipTable[zChipTable['chip'] == chip][0])
             zDomain = range(4, 23)
-            plt.plot(zDomain, zPair, marker='s', linestyle='--', label='Pair', color='#4286f4',
+            plt.plot(zDomain, zPair, marker='s', linestyle='--', label='{},{}'.format(
+                intraSourceId, extraSourceId),
+                     color='#4286f4',
                      alpha=0.7)
             plt.plot(zDomain, zChip, marker='o', linestyle='--', label=chip, color='#fc41a5',
-                     alpha=0.7)
-            plt.plot(zDomain, zAll, marker='x', linestyle='--', label='All', color='#3ef979',
                      alpha=0.7)
             plt.grid(b=True)
             plt.legend()
