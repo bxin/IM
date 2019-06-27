@@ -177,9 +177,15 @@ class aosWFS(object):
 
     def parallelCwfs(self, catalog, cwfsModel, numproc, debugLevel):
         candidates = self.findCandidates(catalog)
+        self.writeTable(candidates, 'candidates.csv')
         pairs = self.selectPairs(candidates)
+        self.writeTable(pairs, 'pairs.csv')
+        self.plotPairing(candidates, pairs, 'pairing.png')
         argList, zernikes = self.processPairs(pairs, candidates, cwfsModel, numproc)
+        self.plotDonutsAndZernikes(argList, zernikes, 'donutsAndZernikes.png')
+        self.writeTable(zernikes, 'zernikes.csv')
         masterZernikes = self.makeMasterZernikes(candidates, zernikes)
+        self.writeTable(zernikes, 'masterZernikes.csv')
 
         # Plan to update io so row ordering wont matter.
         oldOut = np.array([
@@ -188,15 +194,6 @@ class aosWFS(object):
             aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R00_S22'][0]),
             aosWFS.rowToZernikesAndCaustic(masterZernikes[masterZernikes['chip'] == 'R40_S02'][0]),
         ])
-
-        if debugLevel > 0:
-            self.writeTable(candidates, 'candidates.csv')
-            self.writeTable(pairs, 'pairs.csv')
-            self.plotPairing(candidates, pairs, 'pairing.png')
-            self.plotDonutsAndZernikes(argList, zernikes, 'donutsAndZernikes.png')
-            self.writeTable(zernikes, 'zernikes.csv')
-            # self.plotMasterZernikes(masterZernikes, 'masterZernikes')
-
         np.savetxt(self.zFile, oldOut)
 
     def writeTable(self, table, fname):
