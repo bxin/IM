@@ -77,6 +77,22 @@ class aosWFS(object):
         centroids = self.getPhosimCentroid()
         candidates = join(catalog.table, centroids, keys=['sourceId'], join_type='inner')
         candidates.sort('sourceId')
+
+        # filter when too close to edge
+        xboundary = 2000
+        yboundary = 4072
+        buffer = 128
+        nphotonMin = 1000
+
+        goodX = np.logical_and(candidates['pixX'] > buffer, candidates['pixX'] < xboundary
+                                - buffer)
+        goodY = np.logical_and(candidates['pixY'] > buffer, candidates['pixY'] < yboundary
+                                - buffer)
+        candidates = candidates[np.logical_and(goodX, goodY)]
+
+        # filter when too difuse (scattering)
+        candidates = candidates[candidates['nphoton'] > nphotonMin]
+
         return candidates
 
     def selectPairs(self, candidates):
@@ -185,7 +201,7 @@ class aosWFS(object):
         self.plotDonutsAndZernikes(argList, zernikes, 'donutsAndZernikes.png')
         self.writeTable(zernikes, 'zernikes.csv')
         masterZernikes = self.makeMasterZernikes(candidates, zernikes)
-        self.writeTable(zernikes, 'masterZernikes.csv')
+        self.writeTable(masterZernikes, 'masterZernikes.csv')
 
         # Plan to update io so row ordering wont matter.
         oldOut = np.array([
@@ -244,7 +260,7 @@ class aosWFS(object):
                 rotCombined = np.rot90(combined, rotPerChip[chip])
                 ax.set_title(chip)
                 ax.axis('off')
-                ax.imshow(rotCombined, cmap='hot', vmin=0, vmax=10)
+                ax.imshow(rotCombined, cmap='hot', vmin=0, vmax=100)
                 if chip in horizontalChips:
                     ax.axhline(2000, color='white')
                 else:
