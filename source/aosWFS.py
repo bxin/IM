@@ -83,7 +83,6 @@ class aosWFS(object):
         yboundary = 4072
         buffer = 128
         nphotonMin = 1000
-
         goodX = np.logical_and(candidates['pixX'] > buffer, candidates['pixX'] < xboundary
                                 - buffer)
         goodY = np.logical_and(candidates['pixY'] > buffer, candidates['pixY'] < yboundary
@@ -92,6 +91,10 @@ class aosWFS(object):
 
         # filter when too difuse (scattering)
         candidates = candidates[candidates['nphoton'] > nphotonMin]
+
+        # filter when vignetting too large (field radius greater than 1.75 degrees)
+        r = np.sqrt(candidates['ra'] ** 2 + candidates['dec'] ** 2)
+        candidates = candidates[r < 1.75]
 
         return candidates
 
@@ -302,7 +305,8 @@ class aosWFS(object):
                         intraYprime = (4000 - intraX)
                         extraYprime = (2000 - extraX)
                     ax.plot([intraXprime, extraXprime], [intraYprime, extraYprime],
-                            color=palette[k], label='{}, {}'.format(i, j), alpha=0.5)
+                            color=palette[k], label='{}, {}'.format(intraSourceId, extraSourceId),
+                            alpha=0.5)
                 ax.legend(ncol=3, fontsize=6, loc=loc, framealpha=0.3, columnspacing=0.5,
                           labelspacing=0.3, handlelength=0.2)
         fig.set_size_inches((10, 10))
