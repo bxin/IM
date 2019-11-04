@@ -1,7 +1,3 @@
-03/06/2019 
-Now collaborating with David Thomas on these simulations. The fork of this repo is found at
-https://github.com/davidthomas5412/IM/
-
 main configuration files are the following in data/
 *.ctrl, *.esti, *.inst
 Right now, i have
