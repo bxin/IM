@@ -4,11 +4,15 @@
 # @      Large Synoptic Survey Telescope
 
 # main function
-
+import matplotlib
+matplotlib.use('Agg')
 import argparse
 # import numpy as np
 import datetime
 import os
+import sys
+import subprocess
+import pytz
 
 from aosWFS import aosWFS
 from aosEstimator import aosEstimator
@@ -17,9 +21,11 @@ from aosMetric import aosMetric
 from aosM1M3 import aosM1M3
 from aosM2 import aosM2
 from aosTeleState import aosTeleState
+from catalog import Catalog, GridCatalog
 
 
 def main():
+    date0 = datetime.datetime.now(pytz.timezone('America/Los_Angeles')).replace(microsecond=0)
     parser = argparse.ArgumentParser(
         description='-----LSST Integrated Model------')
 
@@ -47,8 +53,6 @@ def main():
 regenrating pert files',
                         action='store_true')
     parser.add_argument('-opdoff', help='w/o regenerating OPD maps',
-                        action='store_true')
-    parser.add_argument('-psfoff', help='w/o regenerating psf images',
                         action='store_true')
     parser.add_argument('-pssnoff', help='w/o calculating PSSN',
                         action='store_true')
@@ -87,6 +91,9 @@ assuming all data available',
                         default=0, choices=(-1, 0, 1, 2, 3),
                         help='debug level, -1=quiet, 0=Zernikes, \
                         1=operator, 2=expert, 3=everything, default=0')
+    parser.add_argument('-o', dest='outputDir', default = '',
+                        help='output directory,\
+                        default=aosSrcDir/../')
     parser.add_argument('-baserun', dest='baserun', default=-1, type=int,
                         help='iter0 is same as this run, so skip iter0')
     args = parser.parse_args()
@@ -94,7 +101,6 @@ assuming all data available',
         args.sensor = 'pass'
         args.ctrloff = True
         args.opdoff = True
-        args.psfoff = True
         args.pssnoff = True
         args.ellioff = True
 
@@ -114,20 +120,27 @@ assuming all data available',
     # *****************************************
     M1M3 = aosM1M3(args.debugLevel)
     M2 = aosM2(args.debugLevel)
-    phosimDir = '%s/../../phosimSE/'%aosSrcDir
-    # znPert = 28  # znmax used in pert file to define surfaces
+    phosimDir = '{}/../../phosim_syseng4'.format(aosSrcDir)
+    pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
+    if not args.outputDir:
+        pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
+        imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
+    else:
+        pertDir = '%s/pert/sim%d' %(args.outputDir, args.iSim)
+        imageDir = '%s/image/sim%d' %(args.outputDir, args.iSim)
 
     # *****************************************
     # run wavefront sensing algorithm
     # *****************************************
-    cwfsDir = '%s/../../../wavefront/cwfs/'%aosSrcDir
+    cwfsDir = '{}/../../cwfs'.format(aosSrcDir)
+    imDir = '{}/../../IM'.format(aosSrcDir)
     algoFile = 'exp'
     if wavelength == 0:
         effwave = aosTeleState.effwave[band]
     else:
         effwave = wavelength
-    wfs = aosWFS(cwfsDir, args.inst, algoFile,
-                 128, band, effwave, args.debugLevel)
+    wfs = aosWFS(cwfsDir, imageDir, args.inst, algoFile, args.iSim, 192
+                 , band, effwave, args.debugLevel)
 
     cwfsModel = 'offAxis'
 
@@ -138,13 +151,12 @@ assuming all data available',
                         args.izn3, args.debugLevel)
     # state is defined after esti, b/c, for example, ndof we use in state
     # depends on the estimator.
-    pertDir = '%s/../pert/sim%d' %(aosSrcDir, args.iSim)
-    imageDir = '%s/../image/sim%d' %(aosSrcDir, args.iSim)
     state = aosTeleState(args.inst, args.simuParam, args.iSim,
                          esti.ndofA, phosimDir,
                          pertDir, imageDir, band, wavelength,
                          args.enditer,
                          args.debugLevel, M1M3=M1M3, M2=M2)
+    wfs.setIsr(state.eimage)
     # *****************************************
     # control algorithm
     # *****************************************
@@ -152,6 +164,22 @@ assuming all data available',
     ctrl = aosController(args.inst, args.controllerParam, esti, metr, wfs,
                          M1M3, M2,
                          effwave, args.gain, args.debugLevel)
+
+    catalog = GridCatalog()
+    
+    # catalog = Catalog()
+    # d = 0.02
+    # mag = state.cwfsMag
+    # sed = state.sedfile
+    # for i in range(metr.nField, metr.nFieldp4):
+    #     x = metr.fieldXp[i]
+    #     y = metr.fieldYp[i]
+    #     if i % 2 == 1: # field 31, 33; R44 and R00
+    #         catalog.addSource(x + d, y, mag, sed)
+    #         catalog.addSource(x - d, y, mag, sed)
+    #     else:
+    #         catalog.addSource(x, y + d, mag, sed)
+    #         catalog.addSource(x, y - d, mag, sed)
 
     # *****************************************
     # start the Loop
@@ -161,6 +189,7 @@ assuming all data available',
             print('iteration No. %d' % iIter)
 
         state.setIterNo(metr, iIter, wfs=wfs)
+        wfs.setIterNo(iIter)
 
         if not args.ctrloff:
             if iIter > 0:  # args.startiter:
@@ -178,7 +207,6 @@ assuming all data available',
 
         if args.baserun > 0 and iIter == 0:
             state.getOPDAllfromBase(args.baserun, metr)
-            state.getPSFAllfromBase(args.baserun, metr)
             metr.getPSSNandMorefromBase(args.baserun, state)
             metr.getEllipticityfromBase(args.baserun, state)
             if (args.sensor == 'ideal' or args.sensor == 'covM' or
@@ -189,8 +217,6 @@ assuming all data available',
         else:
             state.getOPDAll(args.opdoff, metr, args.numproc,
                             wfs.znwcs, wfs.inst.obscuration, args.debugLevel)
-
-            state.getPSFAll(args.psfoff, metr, args.numproc, args.debugLevel)
 
             metr.getPSSNandMore(args.pssnoff, state,
                                 args.numproc, args.debugLevel)
@@ -205,21 +231,40 @@ assuming all data available',
                 if args.sensor == 'phosim':
                     # create donuts for last iter,
                     # so that picking up from there will be easy
-                    state.getWFSAll(wfs, metr, args.numproc, args.debugLevel)
-                    wfs.preprocess(state, metr, args.debugLevel)
+                    state.getWFSAll(wfs, catalog, args.numproc, args.debugLevel)
+                    state.makeAtmosphereFile(metr, wfs, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs':
-                    wfs.parallelCwfs(cwfsModel, args.numproc, args.debugLevel)
+                    wfs.parallelCwfs(catalog, cwfsModel, args.numproc, args.debugLevel)
                 if args.sensor == 'phosim' or args.sensor == 'cwfs' \
                         or args.sensor == 'check':
                     wfs.checkZ4C(state, metr, args.debugLevel)
 
     ctrl.drawSummaryPlots(state, metr, esti, M1M3, M2,
                           args.startiter, args.enditer, args.debugLevel)
+    catalog.table.write('{}/catalog.csv'.format(pertDir), format='csv', overwrite=True)
+    logRunInfo(os.path.join(pertDir, 'logRunInfo.txt'), cwfsDir, imDir, phosimDir, date0, args.startiter, args.enditer)
 
     print('Done runnng iterations: %d to %d' % (args.startiter, args.enditer))
-    
+
+def logRunInfo(path, cwfsDir, imDir, phosimDir, date0, startiter, enditer):
+    date = datetime.datetime.now(pytz.timezone('America/Los_Angeles')).replace(microsecond=0)
+    args = ' '.join(sys.argv)
+    cmd = 'git -C {} log --pretty=format:"%h" -n 1'
+    cwfsVersion = subprocess.check_output(cmd.format(cwfsDir), shell=True).decode('ascii')
+    imVersion = subprocess.check_output(cmd.format(imDir), shell=True).decode('ascii')
+    phosimVersion = subprocess.check_output(cmd.format(phosimDir), shell=True).decode(
+        'ascii')
+    log = """started: {}
+finished: {}
+iterations from {} to {}
+average time per iteration: {}
+args: {}
+cwfs commit: {}
+im commit: {}
+phosim commit: {}
+""".format(date0, date, startiter, enditer, (date-date0)/(enditer-startiter+1), args, cwfsVersion, imVersion, phosimVersion)
+    with open(path, 'w') as fid:
+        fid.write(log)
+
 if __name__ == "__main__":
-    timea = datetime.datetime.now().replace(microsecond=0)
     main()
-    timeb = datetime.datetime.now().replace(microsecond=0)
-    print('This is how long this took: %s' % (timeb - timea))
