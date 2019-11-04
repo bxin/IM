@@ -114,11 +114,12 @@ class aosTeleState(object):
                     self.camTB = float(line.split()[1])
                     self.iqBudget = np.sqrt(self.iqBudget**2
                                               + float(line.split()[3])**2)
-                elif (line.startswith('camRotation') and self.inst[:4] == 'lsst'):
-                    #ignore this if it is comcam
+                elif (line.startswith('camRotation')):
                     self.camRot = float(line.split()[1])
                     self.iqBudget = np.sqrt(self.iqBudget**2
                                               + float(line.split()[3])**2)
+                elif (line.startswith('skyRotation')):
+                    self.skyRot = float(line.split()[1])
                 elif (line.startswith('M1M3ForceError')):
                     self.M1M3ForceError = float(line.split()[1])
                 elif (line.startswith('M1M3Actuator')):
@@ -246,7 +247,8 @@ class aosTeleState(object):
             self.M2surf0 = self.M2surf.copy() #maintain M2surf0 in M2 CRS
             _, _, self.M2surf = ct.M2CRS2ZCRS(0, 0, self.M2surf)
 
-        if hasattr(self, 'camRot'):
+        if (hasattr(self, 'camRot') and self.inst[:4] == 'lsst'):
+            #ignore this if it is comcam. no FEA data available for comcam
 
             pre_elev = 0
             pre_camR = 0
@@ -592,12 +594,13 @@ class aosTeleState(object):
         fid = open(self.OPD_inst, 'w')
         fid.write('rightascension 0\n\
 declination 0\n\
-rotskypos 0\n\
-rottelpos 0\n\
+rotskypos %f\n\
+rottelpos %f\n\
 Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
-SIM_NSNAP 1\n' % (phosimFilterID[self.band], self.obsID))
+SIM_NSNAP 1\n' % (self.skyRot, self.camRot,
+                      phosimFilterID[self.band], self.obsID))
         fpert = open(self.pertFile, 'r')
         fid.write(fpert.read())
         for irun in range(self.nOPDw):
@@ -782,14 +785,15 @@ perturbationmode 1\n')
         fid = open(self.PSF_inst, 'w')
         fid.write('rightascension 0\n\
 declination 0\n\
-rotskypos 0\n\
-rottelpos 0\n\
+rotskypos %f\n\
+rottelpos %f\n\
 Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 SIM_VISTIME 15.0\n\
 SIM_NSNAP 1\n\
 SIM_SEED %d\n\
-SIM_CAMCONFIG 1\n' % (phosimFilterID[self.band], self.obsID,
+SIM_CAMCONFIG 1\n' % (self.skyRot, self.camRot,
+                          phosimFilterID[self.band], self.obsID,
                       self.obsID % 10000 + 31))
         fpert = open(self.pertFile, 'r')
 
@@ -883,15 +887,16 @@ detectormode 0\n')
             fid = open(self.WFS_inst[irun], 'w')
             fid.write('rightascension 0\n\
 declination 0\n\
-rotskypos 0\n\
-rottelpos 0\n\
+rotskypos %f\n\
+rottelpos %f\n\
 Opsim_filter %d\n\
 Opsim_obshistid %d\n\
 mjd %.10f\n\
 SIM_VISTIME 33.0\n\
 SIM_NSNAP 2\n\
 SIM_SEED %d\n\
-Opsim_rawseeing -1\n' % (phosimFilterID[self.band],
+Opsim_rawseeing -1\n' % (self.skyRot,self.camRot,
+                             phosimFilterID[self.band],
                              self.obsID + irun, self.timeIter.mjd,
                              self.obsID % 10000 + 4))
             fpert = open(self.pertFile, 'r')

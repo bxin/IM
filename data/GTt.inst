@@ -18,6 +18,7 @@ camTB      	6.5650  C  29 (temperature in (2,16), make these two sigma bounds fo
 #above: all camera thermal error
 camRotation    -1.2323  radian 62 (uniform between (-pi/2, pi/2))
 #above: all camera gravitational error
+skyRotation     0
 
 M1M3ForceError   0.05
 
