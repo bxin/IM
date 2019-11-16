@@ -16,9 +16,10 @@ class aosM2(object):
         # bending modes
         aosSrcDir = os.path.split(os.path.abspath(__file__))[0]
         aa = np.loadtxt('%s/../data/M2/M2_1um_grid.DAT'%aosSrcDir)
-        self.bx = aa[:, 0]
-        self.by = aa[:, 1]
-        self.bz = aa[:, 2:]
+        #first column are FEA node ID numbers
+        self.bx = aa[:, 1]
+        self.by = aa[:, 2]
+        self.bz = aa[:, 3:]
 
         # M2 forces based on Harris FEA model
         aa = np.loadtxt('%s/../data/M2/M2_1um_force.DAT'%aosSrcDir)
