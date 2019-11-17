@@ -7,7 +7,9 @@ This instrument file is for single dof unit testing
 dof	1	0.10	mm 	M2 piston
 #dof	2	0	mm	M2 x-decenter
 
-iqBudget	80 79
+mjd     59552.3
+iqBudget   80 79 
+eBudget    0.04
 
 #wavefront sensing star magnitude
 cwfs_mag	17

@@ -268,7 +268,8 @@ class aosWFS(object):
 
     def checkZ4C(self, state, metr, debugLevel):
         z4c = np.loadtxt(self.zFile[0])  # in micron
-        z4cE001 = np.loadtxt(self.zFile[1])
+        if (self.nExp == 2):
+            z4cE001 = np.loadtxt(self.zFile[1])
         z4cTrue = np.zeros((metr.nFieldp4, self.znwcs, state.nOPDw))
         aa = np.loadtxt(state.zTrueFile)
         for i in range(state.nOPDw):
@@ -295,7 +296,8 @@ class aosWFS(object):
             plt.subplot(nRow, nCol, pIdx[i])
             plt.plot(x, z4c[i, :self.znwcs3], label='CWFS_E000',
                      marker='*', color='r', markersize=6)
-            plt.plot(x, z4cE001[i, :self.znwcs3], label='CWFS_E001',
+            if (self.nExp == 2):
+                plt.plot(x, z4cE001[i, :self.znwcs3], label='CWFS_E001',
                      marker='v', color='g', markersize=6)
             for irun in range(state.nOPDw):
                 if irun==0:
