@@ -22,7 +22,8 @@ M1M3_actuator_penalty 	13.2584
 #the common language (reference) is M2 hexapod piston in um.
 #how many microns of M2 piston does 1N rms force correspond to?
 #the bigger the number, the bigger the penalty
-M2_actuator_penalty   13.2584
+# M2 F budget for AOS = 44N. 5900/44 = 134
+M2_actuator_penalty   134
 
 #penalty on control motion as a whole
 # the common language (reference) is M2 hexapod piston in um.
