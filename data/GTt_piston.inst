@@ -1,0 +1,53 @@
+###
+
+This instrument file is for single dof unit testing
+
+###
+
+dof	1  0.1	mm 	M2 piston
+#dof	2	0	mm	M2 x-decenter
+
+mjd	59552.3
+iqBudget   80 81 10 10 20 54 54 22
+#above: optical design 80;AOS 81;M1 G 10;M3 G 10;M2 G 20;
+# M1 T 54; M3 T 54; M2 T 22;
+eBudget	   0.04
+
+zenithAngle  zAngleHistory1   deg
+camTB      	6.5650  C  29 (temperature in (2,16), make these two sigma bounds for Gaussian)
+#above: all camera thermal error
+camRotation    -1.2323  radian 62 (uniform between (-pi/2, pi/2))
+#above: all camera gravitational error
+
+M1M3ForceError   0.05
+
+# temperature
+
+M1M3TxGrad   -0.0894 C (+/-2sigma spans 0.4C)
+M1M3TyGrad   -0.1973 C (+/-2sigma spans 0.4C)
+M1M3TzGrad   -0.0316 C (+/-2sigma spans 0.1C)
+M1M3TrGrad    0.0187 C (+/-2sigma spans 0.1C)
+M1M3TBulk     0.0902 C (+/-2sigma spans +/-0.8C)
+
+M2TzGrad    -0.0675 C (+/-2sigma spans 1C)
+M2TrGrad    -0.1416 C (+/-2sigma spans 1C)
+
+# znmax used in pert file to define surfaces
+znPert		28
+surfaceGridN	200
+
+#wavefront sensing star magnitude
+cwfs_mag	15
+#wavefront sensing image stamp size
+cwfs_stamp_size	192
+
+#use 0 for eimage only, without backgrounds
+eimage		1
+
+#OPD grid size
+opd_size	256
+#PSF star magnitude
+psf_mag		22
+#psf image stamp size (it is always 128 for 10um pixels)
+#otherwise it is determined using opd_size
+
