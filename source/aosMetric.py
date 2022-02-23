@@ -574,8 +574,21 @@ def psf2eW(psf, pixinum, wlum, atmModel, debugLevel=0):
 def createAtm(model, wlum, fwhminarcsec, gridsize, pixinum, oversample,
               cutOutput, outfile, debugLevel):
     """
-    gridsize can be int or an array. When it is array, it is r2
-    cutOutput only applies to Kolm and vonK
+    input:
+        model can be one of
+            Kolm for Kolmogorov
+            vonK for von Karman
+            Gau for Gaussian
+            2Gau for double Gaussian (width and height ratio as defined by LSST SRD)
+        wlum: wavelength in micron
+        fwhminarcsec: fwhm in arcsec
+        gridsize can be 
+            integer: this defines the grid side length
+            array: this defines radius^2, where radius is the distance to the PSF center. (this is r2 below)
+        pixinum: pixel size in micron
+        oversample: use 1 if no oversampling is desired
+            if oversample > 1, a higher resolution image is generated and then "collapsed" into size defined by "gridsize".
+        cutOutput only applies to Kolm and vonK
     """
     if isinstance(gridsize, (int)):
         nreso = gridsize * oversample
